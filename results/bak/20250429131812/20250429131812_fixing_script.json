@@ -1,0 +1,677 @@
+{
+    "input_params": {
+        "schema": 1,
+        "output_directory": "results",
+        "output_file": "DUNE_HV_Crate_Production_Test.xlsx",
+        "relative": "True",
+        "sheet_name": "Test Results",
+        "rounding_factor": 2,
+        "hv_stability_wait": 5.0,
+        "hv_termination_wait": 5.0,
+        "hv_minutes_duration": 0.1,
+        "hv_seconds_interval": 1,
+        "heat_wait": 10.0,
+        "fan_wait": 5.0,
+        "fan_voltage_max": 24.5,
+        "fan_voltage_min": 23.5,
+        "fan_current_max": 1.25,
+        "fan_current_min": 0.85,
+        "fan_read_max": 2.5,
+        "fan_read_min": 1.1,
+        "heating_element_max": 20.0,
+        "heating_element_min": 14.0,
+        "temp_increase_max": 5.0,
+        "temp_increase_min": 1.0,
+        "hv_resistance_open_max": 50000.0,
+        "hv_resistance_open_min": 5000.0,
+        "hv_resistance_term_max": 0.075,
+        "hv_resistance_term_min": 0.065,
+        "hv_tau_max": 0.03,
+        "hv_tau_min": 0.01,
+        "channels_to_test": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            0,
+            1
+        ],
+        "simultaneous_test": "True",
+        "pcb_ch_0_pos": 0,
+        "pcb_ch_0_neg": 8,
+        "pcb_ch_1_pos": 1,
+        "pcb_ch_1_neg": 9,
+        "pcb_ch_2_pos": 2,
+        "pcb_ch_2_neg": 10,
+        "pcb_ch_3_pos": 3,
+        "pcb_ch_3_neg": 11,
+        "pcb_ch_4_pos": 4,
+        "pcb_ch_4_neg": 12,
+        "pcb_ch_5_pos": 5,
+        "pcb_ch_5_neg": 13,
+        "pcb_ch_6_pos": 6,
+        "pcb_ch_6_neg": 14,
+        "pcb_ch_7_pos": 7,
+        "pcb_ch_7_neg": 15,
+        "caenR8033DM": "169.254.12.34",
+        "caenR8033DM_driver": "libcaenhvwrapper.so.6.6",
+        "caenR8033DM_current_range": 1,
+        "caenR8033DM_overcurrent": 3000.0,
+        "caenR8033DM_power_down_mode": 1,
+        "caenR8033DM_ramp_down": 10.0,
+        "caenR8033DM_ramp_up": 10.0,
+        "caenR8033DM_trip_time": 10.0,
+        "caenR8033DM_open_voltage": 2000,
+        "caenR8033DM_term_voltage": 20,
+        "keysight970a": "TCPIP::169.254.9.69::INSTR",
+        "keysight970a_901A_slot": 1,
+        "keysight970a_907A_slot": 2,
+        "keysight970a_rtd_num": 4,
+        "keysight970a_rtd_ch1": 11,
+        "keysight970a_rtd_ch2": 12,
+        "keysight970a_rtd_ch3": 13,
+        "keysight970a_rtd_ch4": 14,
+        "keysight970a_rtd_RES": 100,
+        "keysight970a_rtd_NPLcycles": "10",
+        "keysight970a_rtd_LowPower": "OFF",
+        "keysight970a_rtd_units": "C",
+        "keysight970a_rtd_delay": 1.0,
+        "keysight970a_heater_num": 4,
+        "keysight970a_heater_ch1": 5,
+        "keysight970a_heater_ch2": 6,
+        "keysight970a_heater_ch3": 7,
+        "keysight970a_heater_ch4": 8,
+        "keysight970a_heater_NPLcycles": 10,
+        "keysight970a_heater_ocomp": "OFF",
+        "keysight970a_heater_LowPower": "OFF",
+        "keysight970a_heater_delay": 5.0,
+        "keysight970a_fan_num": 6,
+        "keysight970a_fan_ch1": 19,
+        "keysight970a_fan_ch2": 20,
+        "keysight970a_fan_ch3": 3,
+        "keysight970a_fan_ch4": 4,
+        "keysight970a_fan_ch5": 1,
+        "keysight970a_fan_ch6": 2,
+        "keysight970a_fan_NPLcycles": 10,
+        "keysight970a_fan_autozero": "ON",
+        "keysight970a_fan_autoimpedance": "ON",
+        "keysight970a_fan_delay": 1.0,
+        "rigol832a0": "TCPIP::169.254.4.20::INSTR",
+        "rigol832a1": "TCPIP::169.254.4.21::INSTR",
+        "rigol832a_fan_ch": 1,
+        "rigol832a_fan_voltage": 24.0,
+        "rigol832a_fan_current": 1.2,
+        "rigol832a_fan_overcurrent": 1.4,
+        "rigol832a_fan_overcurrent_en": "ON",
+        "rigol832a_heater_supply_ch": 2,
+        "rigol832a_heater_supply_voltage": 12.0,
+        "rigol832a_heater_supply_current": 2.8,
+        "rigol832a_heater_supply_overcurrent": 3.0,
+        "rigol832a_heater_supply_overcurrent_en": "ON",
+        "rigol832a_heater_switch_ch": 3,
+        "rigol832a_heater_switch_voltage": 5.0,
+        "rigol832a_heater_switch_current": 0.05,
+        "rigol832a_heater_switch_overcurrent": 0.1,
+        "rigol832a_heater_switch_overcurrent_en": "ON",
+        "rigol832a_hvpullup_ch": 4,
+        "rigol832a_hvpullup_voltage": 20.0,
+        "rigol832a_hvpullup_current": 3.0,
+        "rigol832a_hvpullup_overcurrent": 3.1,
+        "rigol832a_hvpullup_overcurrent_en": "ON",
+        "rigol832a_hvpullup2_ch": 5,
+        "rigol832a_hvpullup2_voltage": 20.0,
+        "rigol832a_hvpullup2_current": 3.0,
+        "rigol832a_hvpullup2_overcurrent": 3.1,
+        "rigol832a_hvpullup2_overcurrent_en": "ON",
+        "rigol832a_fanread_ch": 6,
+        "rigol832a_fanread_voltage": 5.0,
+        "rigol832a_fanread_current": 0.2,
+        "rigol832a_fanread_overcurrent": 0.5,
+        "rigol832a_fanread_overcurrent_en": "ON"
+    },
+    "test_name": "fixing_script",
+    "start_time": "2025-04-29 13:18:12.650155",
+    "spreadsheet_path": "/home/dune-daq/DUNE-HV-Crate-Testing/results/DUNE_HV_Crate_Production_Test.xlsx",
+    "json_path": "/home/dune-daq/DUNE-HV-Crate-Testing/results/20250429131812/20250429131812_fixing_script.json",
+    "Tests": {
+        "fan_voltage_test": "Pass",
+        "fan_current_test": "Pass",
+        "heating_element_test_1": "Pass",
+        "heating_element_test_2": "Pass",
+        "heating_element_test_3": "Pass",
+        "heating_element_test_4": "Pass",
+        "temperature_rise_test_0": "Pass",
+        "temperature_rise_test_1": "Pass",
+        "temperature_rise_test_2": "Pass",
+        "temperature_rise_test_3": "Pass",
+        "hv_test_ch2_pos_open_R": "Pass",
+        "hv_test_ch2_neg_open_R": "Fail",
+        "hv_test_ch2_pos_term_R": "Pass",
+        "hv_test_ch2_neg_term_R": "Pass",
+        "hv_on_fit_test_ch2_pos_open_on_fit": "Fail",
+        "hv_off_fit_test_ch2_pos_open_off_fit": "Fail",
+        "hv_on_fit_test_ch2_pos_term_on_fit": "Fail",
+        "hv_off_fit_test_ch2_pos_term_off_fit": "Fail",
+        "hv_on_fit_test_ch2_neg_open_on_fit": "Fail",
+        "hv_off_fit_test_ch2_neg_open_off_fit": "Fail",
+        "hv_on_fit_test_ch2_neg_term_on_fit": "Fail",
+        "hv_off_fit_test_ch2_neg_term_off_fit": "Fail",
+        "hv_test_ch3_pos_open_R": "Pass",
+        "hv_test_ch3_neg_open_R": "Pass",
+        "hv_test_ch3_pos_term_R": "Fail",
+        "hv_test_ch3_neg_term_R": "Fail",
+        "hv_on_fit_test_ch3_pos_open_on_fit": "Fail",
+        "hv_off_fit_test_ch3_pos_open_off_fit": "Pass",
+        "hv_on_fit_test_ch3_pos_term_on_fit": "Fail",
+        "hv_off_fit_test_ch3_pos_term_off_fit": "Fail",
+        "hv_on_fit_test_ch3_neg_open_on_fit": "Fail",
+        "hv_off_fit_test_ch3_neg_open_off_fit": "Fail",
+        "hv_on_fit_test_ch3_neg_term_on_fit": "Fail",
+        "hv_off_fit_test_ch3_neg_term_off_fit": "Fail",
+        "hv_test_ch4_pos_open_R": "Pass",
+        "hv_test_ch4_neg_open_R": "Pass",
+        "hv_test_ch4_pos_term_R": "Fail",
+        "hv_test_ch4_neg_term_R": "Fail",
+        "hv_on_fit_test_ch4_pos_open_on_fit": "Fail",
+        "hv_off_fit_test_ch4_pos_open_off_fit": "Fail",
+        "hv_on_fit_test_ch4_pos_term_on_fit": "Fail",
+        "hv_off_fit_test_ch4_pos_term_off_fit": "Fail",
+        "hv_on_fit_test_ch4_neg_open_on_fit": "Fail",
+        "hv_off_fit_test_ch4_neg_open_off_fit": "Fail",
+        "hv_on_fit_test_ch4_neg_term_on_fit": "Fail",
+        "hv_off_fit_test_ch4_neg_term_off_fit": "Fail",
+        "hv_test_ch5_pos_open_R": "Pass",
+        "hv_test_ch5_neg_open_R": "Pass",
+        "hv_test_ch5_pos_term_R": "Fail",
+        "hv_test_ch5_neg_term_R": "Fail",
+        "hv_on_fit_test_ch5_pos_open_on_fit": "Fail",
+        "hv_off_fit_test_ch5_pos_open_off_fit": "Fail",
+        "hv_on_fit_test_ch5_pos_term_on_fit": "Fail",
+        "hv_off_fit_test_ch5_pos_term_off_fit": "Fail",
+        "hv_on_fit_test_ch5_neg_open_on_fit": "Fail",
+        "hv_off_fit_test_ch5_neg_open_off_fit": "Fail",
+        "hv_on_fit_test_ch5_neg_term_on_fit": "Fail",
+        "hv_off_fit_test_ch5_neg_term_off_fit": "Fail",
+        "hv_test_ch6_pos_open_R": "Pass",
+        "hv_test_ch6_neg_open_R": "Pass",
+        "hv_test_ch6_pos_term_R": "Fail",
+        "hv_test_ch6_neg_term_R": "Fail",
+        "hv_on_fit_test_ch6_pos_open_on_fit": "Fail",
+        "hv_off_fit_test_ch6_pos_open_off_fit": "Fail",
+        "hv_on_fit_test_ch6_pos_term_on_fit": "Fail",
+        "hv_off_fit_test_ch6_pos_term_off_fit": "Fail",
+        "hv_on_fit_test_ch6_neg_open_on_fit": "Fail",
+        "hv_off_fit_test_ch6_neg_open_off_fit": "Fail",
+        "hv_on_fit_test_ch6_neg_term_on_fit": "Fail",
+        "hv_off_fit_test_ch6_neg_term_off_fit": "Fail",
+        "hv_test_ch7_pos_open_R": "Pass",
+        "hv_test_ch7_neg_open_R": "Pass",
+        "hv_test_ch7_pos_term_R": "Fail",
+        "hv_test_ch7_neg_term_R": "Fail",
+        "hv_on_fit_test_ch7_pos_open_on_fit": "Fail",
+        "hv_off_fit_test_ch7_pos_open_off_fit": "Fail",
+        "hv_on_fit_test_ch7_pos_term_on_fit": "Fail",
+        "hv_off_fit_test_ch7_pos_term_off_fit": "Fail",
+        "hv_on_fit_test_ch7_neg_open_on_fit": "Fail",
+        "hv_off_fit_test_ch7_neg_open_off_fit": "Fail",
+        "hv_on_fit_test_ch7_neg_term_on_fit": "Fail",
+        "hv_off_fit_test_ch7_neg_term_off_fit": "Fail",
+        "hv_test_ch0_pos_open_R": "Pass",
+        "hv_test_ch0_neg_open_R": "Pass",
+        "hv_test_ch0_pos_term_R": "Fail",
+        "hv_test_ch0_neg_term_R": "Fail",
+        "hv_on_fit_test_ch0_pos_open_on_fit": "Fail",
+        "hv_off_fit_test_ch0_pos_open_off_fit": "Fail",
+        "hv_on_fit_test_ch0_pos_term_on_fit": "Fail",
+        "hv_off_fit_test_ch0_pos_term_off_fit": "Fail",
+        "hv_on_fit_test_ch0_neg_open_on_fit": "Fail",
+        "hv_off_fit_test_ch0_neg_open_off_fit": "Fail",
+        "hv_on_fit_test_ch0_neg_term_on_fit": "Fail",
+        "hv_off_fit_test_ch0_neg_term_off_fit": "Fail",
+        "hv_test_ch1_pos_open_R": "Pass",
+        "hv_test_ch1_neg_open_R": "Pass",
+        "hv_test_ch1_pos_term_R": "Fail",
+        "hv_test_ch1_neg_term_R": "Fail",
+        "hv_on_fit_test_ch1_pos_open_on_fit": "Fail",
+        "hv_off_fit_test_ch1_pos_open_off_fit": "Pass",
+        "hv_on_fit_test_ch1_pos_term_on_fit": "Fail",
+        "hv_off_fit_test_ch1_pos_term_off_fit": "Fail",
+        "hv_on_fit_test_ch1_neg_open_on_fit": "Fail",
+        "hv_off_fit_test_ch1_neg_open_off_fit": "Fail",
+        "hv_on_fit_test_ch1_neg_term_on_fit": "Fail",
+        "hv_off_fit_test_ch1_neg_term_off_fit": "Fail"
+    },
+    "fan_voltage": 23.9896,
+    "fan_current": 0.869,
+    "fanread_voltage": 5.0001,
+    "fanread_current": 0.0428,
+    "fan_read_signal": {
+        "5": 0.555094678,
+        "6": 5.00093581,
+        "3": 5.00093444,
+        "4": 5.00093222,
+        "1": 5.00093674,
+        "2": 5.00093113
+    },
+    "heater_resistance": {
+        "1": 18.0866818,
+        "2": 18.2033373,
+        "3": 18.2687276,
+        "4": 17.8121381
+    },
+    "heater_supply_voltage": 12.006,
+    "heater_supply_current": 2.6171,
+    "heater_switch_voltage": 4.9997,
+    "heater_switch_current": 0.0372,
+    "temp1": {
+        "1": 24.0975807,
+        "2": 24.1903121,
+        "3": 23.9469208,
+        "4": 23.7826057
+    },
+    "temp2": {
+        "1": 25.9012136,
+        "2": 26.1015963,
+        "3": 25.8298873,
+        "4": 25.6422524
+    },
+    "temp_rise": [
+        1.8036328999999967,
+        1.9112842000000008,
+        1.8829664999999984,
+        1.859646699999999
+    ],
+    "hv_ch2": {
+        "pos_open_V": 1999.4300537109375,
+        "pos_open_I": 0.3799999952316284,
+        "pos_open_R": 5261.658102106522,
+        "neg_open_V": 1999.56005859375,
+        "neg_open_I": 0.4000000059604645,
+        "neg_open_R": 4998.900071994959,
+        "pos_open_on_fit": [
+            [
+                0,
+                0
+            ]
+        ],
+        "pos_open_off_fit": [
+            [
+                0,
+                0
+            ]
+        ],
+        "neg_open_on_fit": [
+            "[-1.06691353e-09  9.99999989e-01  4.00000006e-01]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "neg_open_off_fit": [
+            [
+                0,
+                0
+            ]
+        ],
+        "pos_term_V": 19.81999969482422,
+        "pos_term_I": 287.8999938964844,
+        "pos_term_R": 0.06884334878433718,
+        "neg_term_V": 20.219999313354492,
+        "neg_term_I": 289.8500061035156,
+        "neg_term_R": 0.06976021696592002,
+        "pos_term_on_fit": [
+            "[-4.00085448e-05  1.91678030e+01  2.87915009e-01]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "pos_term_off_fit": [
+            "[1.25000002e-02 3.89214362e+01 4.24999995e-02]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "neg_term_on_fit": [
+            "[-3.75061045e-05  1.59041738e+01  2.89847504e-01]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "neg_term_off_fit": [
+            "[-1.10101190e-10  3.61582886e-01  2.39999995e-01]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ]
+    },
+    "hv_ch3": {
+        "pos_open_V": 2000.0400390625,
+        "pos_open_I": 0.11999999731779099,
+        "pos_open_R": 16667.00069805733,
+        "neg_open_V": 2000.469970703125,
+        "neg_open_I": 0.11999999731779099,
+        "neg_open_R": 16670.583461809285,
+        "pos_open_on_fit": [
+            "[-4.99999897e-03  1.03342815e+01  1.19999997e-01]",
+            "[[ 1.38888826e-05  1.25748047e+01 -5.55555314e-06]\n [ 1.25748047e+01  1.13895812e+08 -1.25764706e+01]\n [-5.55555314e-06 -1.25764706e+01  5.55555323e-06]]"
+        ],
+        "pos_open_off_fit": [
+            "[ 8.14541286e+01  2.83932389e-02 -5.80503269e+01]",
+            "[[ 1.24079324e+06 -4.57264085e+02 -1.24139235e+06]\n [-4.57264085e+02  1.68559860e-01  4.57490644e+02]\n [-1.24139235e+06  4.57490644e+02  1.24199302e+06]]"
+        ],
+        "neg_open_on_fit": [
+            "[4.99999894e-03 1.03391832e+01 1.19999997e-01]",
+            "[[ 1.38897226e-05 -1.26404276e+01 -5.55639332e-06]\n [-1.26404276e+01  1.15017873e+08  1.26420948e+01]\n [-5.55639332e-06  1.26420948e+01  5.55639353e-06]]"
+        ],
+        "neg_open_off_fit": [
+            "[ 4.86030182  3.04884873 17.06958113]",
+            "[[ 0.00692386 -0.01224874 -0.00288383]\n [-0.01224874  0.21044262  0.01309161]\n [-0.00288383  0.01309161  0.00288707]]"
+        ],
+        "pos_term_V": 20.139999389648438,
+        "pos_term_I": 0.15000000596046448,
+        "pos_term_R": 134.26665726237863,
+        "neg_term_V": 19.520000457763672,
+        "neg_term_I": 0.14000000059604645,
+        "neg_term_R": 139.42857410469833,
+        "pos_term_on_fit": [
+            "[-2.00000066e-05  9.33657541e+00  1.50000006e-04]",
+            "[[ 5.00066663e-10  4.17439048e-02 -2.00066751e-10]\n [ 4.17439048e-02  3.48421057e+07 -4.17589039e-02]\n [-2.00066751e-10 -4.17589039e-02  2.00066763e-10]]"
+        ],
+        "pos_term_off_fit": [
+            "[ 1.46964078e+04  6.20077637e-05 -1.46830291e+04]",
+            "[[ 1.24024699e+16 -5.23566337e+07 -1.24024700e+16]\n [-5.23566337e+07  2.21021871e-01  5.23566340e+07]\n [-1.24024700e+16  5.23566340e+07  1.24024700e+16]]"
+        ],
+        "neg_term_on_fit": [
+            "[-1.50000006e-05  1.03364687e+01  1.40000001e-04]",
+            "[[ 1.25004932e-10  3.78144681e-02 -5.00049174e-11]\n [ 3.78144681e-02  1.14395139e+08 -3.78194671e-02]\n [-5.00049174e-11 -3.78194671e-02  5.00049155e-11]]"
+        ],
+        "neg_term_off_fit": [
+            [
+                0,
+                0
+            ]
+        ]
+    },
+    "hv_ch4": {
+        "pos_open_V": 1999.780029296875,
+        "pos_open_I": 0.14000000059604645,
+        "pos_open_R": 14284.143005591874,
+        "neg_open_V": 1999.77001953125,
+        "neg_open_I": 0.15000000596046448,
+        "neg_open_R": 13331.799600450213,
+        "pos_open_on_fit": [
+            "[-0.00630021  1.07328277  0.14597143]",
+            "[[ 3.78703640e-05  1.03905016e-02 -2.40423489e-05]\n [ 1.03905016e-02  1.08387715e+01 -1.28887618e-02]\n [-2.40423489e-05 -1.28887618e-02  2.52452199e-05]]"
+        ],
+        "pos_open_off_fit": [
+            "[ 6.64131366e+01  3.49947149e-02 -4.33519471e+01]",
+            "[[ 5.30647686e+05 -2.99134616e+02 -5.31032367e+05]\n [-2.99134616e+02  1.68698936e-01  2.99358634e+02]\n [-5.31032367e+05  2.99358634e+02  5.31418584e+05]]"
+        ],
+        "neg_open_on_fit": [
+            "[-2.52628725e-10  9.99999989e-01  1.50000006e-01]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "neg_open_off_fit": [
+            "[ 5.10938386  3.03384224 18.6354806 ]",
+            "[[ 0.00852425 -0.01413547 -0.00355273]\n [-0.01413547  0.22749096  0.0151223 ]\n [-0.00355273  0.0151223   0.00355684]]"
+        ],
+        "pos_term_V": 19.100000381469727,
+        "pos_term_I": 0.17000000178813934,
+        "pos_term_R": 112.35294223862947,
+        "neg_term_V": 20.1299991607666,
+        "neg_term_I": 0.1899999976158142,
+        "neg_term_R": 105.94736533349896,
+        "pos_term_on_fit": [
+            "[-1.50000006e-05  1.03364685e+01  1.70000002e-04]",
+            "[[ 1.25004902e-10  3.78144545e-02 -5.00049114e-11]\n [ 3.78144545e-02  1.14395085e+08 -3.78194582e-02]\n [-5.00049114e-11 -3.78194582e-02  5.00049156e-11]]"
+        ],
+        "pos_term_off_fit": [
+            "[ 1.85257548e+04  4.88510693e-05 -1.85129199e+04]",
+            "[[ 5.58465962e+16 -1.47275336e+08 -5.58465963e+16]\n [-1.47275336e+08  3.88385796e-01  1.47275336e+08]\n [-5.58465963e+16  1.47275336e+08  5.58465964e+16]]"
+        ],
+        "neg_term_on_fit": [
+            "[-1.99999957e-05  1.03365343e+01  1.89999998e-04]",
+            "[[ 2.22235218e-10  5.04275245e-02 -8.89019476e-11]\n [ 5.04275245e-02  1.14410128e+08 -5.04341982e-02]\n [-8.89019476e-11 -5.04341982e-02  8.89019503e-11]]"
+        ],
+        "neg_term_off_fit": [
+            "[ 1.28465738e+04  6.60907796e-05 -1.28348439e+04]",
+            "[[ 6.43796353e+16 -3.31248252e+08 -6.43796349e+16]\n [-3.31248252e+08  1.70434958e+00  3.31248250e+08]\n [-6.43796349e+16  3.31248250e+08  6.43796345e+16]]"
+        ]
+    },
+    "hv_ch5": {
+        "pos_open_V": 1999.97998046875,
+        "pos_open_I": 0.10999999940395355,
+        "pos_open_R": 18181.636284598633,
+        "neg_open_V": 2000.4599609375,
+        "neg_open_I": 0.07000000029802322,
+        "neg_open_R": 28577.99932029418,
+        "pos_open_on_fit": [
+            "[-4.99999897e-03  1.03342921e+01  1.09999999e-01]",
+            "[[ 1.38888826e-05  1.25749330e+01 -5.55555314e-06]\n [ 1.25749330e+01  1.13898232e+08 -1.25766024e+01]\n [-5.55555314e-06 -1.25766024e+01  5.55555323e-06]]"
+        ],
+        "pos_open_off_fit": [
+            "[ 41.95838859   0.05517724 -21.72550489]",
+            "[[ 7.94905998e+04 -1.16050511e+02 -7.96286831e+04]\n [-1.16050511e+02  1.69617263e-01  1.16263486e+02]\n [-7.96286831e+04  1.16263486e+02  7.97681790e+04]]"
+        ],
+        "neg_open_on_fit": [
+            "[-1.52973966e-10  9.23558209e-01  7.00000004e-02]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "neg_open_off_fit": [
+            "[ 5.12935113  3.03806891 18.57551447]",
+            "[[ 0.00852621 -0.01414226 -0.00355288]\n [-0.01414226  0.22770196  0.01512555]\n [-0.00355288  0.01512555  0.00355696]]"
+        ],
+        "pos_term_V": 19.149999618530273,
+        "pos_term_I": 0.14000000059604645,
+        "pos_term_R": 136.78571097856883,
+        "neg_term_V": 20.65999984741211,
+        "neg_term_I": 0.10000000149011612,
+        "neg_term_R": 206.59999539554127,
+        "pos_term_on_fit": [
+            "[-2.49999984e-05  1.03366300e+01  1.40000001e-04]",
+            "[[ 3.47238567e-10  6.30367578e-02 -1.38905248e-10]\n [ 6.30367578e-02  1.14432048e+08 -6.30450879e-02]\n [-1.38905248e-10 -6.30450879e-02  1.38905247e-10]]"
+        ],
+        "pos_term_off_fit": [
+            [
+                0,
+                0
+            ]
+        ],
+        "neg_term_on_fit": [
+            "[-2.25000009e-05  2.13416450e+01  1.07500000e-04]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "neg_term_off_fit": [
+            "[ 1.68981807e+04  5.39721194e-05 -1.68853907e+04]",
+            "[[ 4.22614100e+16 -1.35040698e+08 -4.22614101e+16]\n [-1.35040698e+08  4.31504536e-01  1.35040698e+08]\n [-4.22614101e+16  1.35040698e+08  4.22614103e+16]]"
+        ]
+    },
+    "hv_ch6": {
+        "pos_open_V": 2000.030029296875,
+        "pos_open_I": 0.1599999964237213,
+        "pos_open_R": 12500.187962506443,
+        "neg_open_V": 1999.6700439453125,
+        "neg_open_I": 0.2800000011920929,
+        "neg_open_R": 7141.6786979706,
+        "pos_open_on_fit": [
+            "[5.00000270e-03 1.03391021e+01 1.59999996e-01]",
+            "[[ 1.38889035e-05 -1.26355896e+01 -5.55556146e-06]\n [-1.26355896e+01  1.14999222e+08  1.26372564e+01]\n [-5.55556146e-06  1.26372564e+01  5.55556152e-06]]"
+        ],
+        "pos_open_off_fit": [
+            "[ 7.02720946e+01  3.32151584e-02 -4.68254650e+01]",
+            "[[ 6.64686133e+05 -3.34893549e+02 -6.65121428e+05]\n [-3.34893549e+02  1.68796262e-01  3.35119698e+02]\n [-6.65121428e+05  3.35119698e+02  6.65558284e+05]]"
+        ],
+        "neg_open_on_fit": [
+            "[-1.06691353e-09  9.99999989e-01  2.80000001e-01]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "neg_open_off_fit": [
+            "[ 4.78715837  3.04439804 15.68271602]",
+            "[[ 0.00756    -0.01351972 -0.00314938]\n [-0.01351972  0.23476115  0.01445402]\n [-0.00314938  0.01445402  0.00315296]]"
+        ],
+        "pos_term_V": 19.459999084472656,
+        "pos_term_I": 0.20000000298023224,
+        "pos_term_R": 97.2999939724804,
+        "neg_term_V": 19.479999542236328,
+        "neg_term_I": 0.3100000023841858,
+        "neg_term_R": 62.838707717474755,
+        "pos_term_on_fit": [
+            "[-2.49999984e-05  1.03366339e+01  2.00000003e-04]",
+            "[[ 3.47238567e-10  6.30370036e-02 -1.38905248e-10]\n [ 6.30370036e-02  1.14432941e+08 -6.30453337e-02]\n [-1.38905248e-10 -6.30453337e-02  1.38905247e-10]]"
+        ],
+        "pos_term_off_fit": [
+            "[ 1.54388679e+04  5.24695574e-05 -1.54269828e+04]",
+            "[[ 8.79382916e+16 -2.98887402e+08 -8.79382917e+16]\n [-2.98887402e+08  1.01586780e+00  2.98887402e+08]\n [-8.79382917e+16  2.98887402e+08  8.79382918e+16]]"
+        ],
+        "neg_term_on_fit": [
+            "[-1.50000006e-05  2.67091193e+01  3.14999998e-04]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "neg_term_off_fit": [
+            [
+                0,
+                0
+            ]
+        ]
+    },
+    "hv_ch7": {
+        "pos_open_V": 1999.9599609375,
+        "pos_open_I": 0.10000000149011612,
+        "pos_open_R": 19999.599311357746,
+        "neg_open_V": 2000.449951171875,
+        "neg_open_I": 0.25,
+        "neg_open_R": 8001.7998046875,
+        "pos_open_on_fit": [
+            "[-2.49351490e-10  5.61968505e-01  1.00000002e-01]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "pos_open_off_fit": [
+            "[ 7.54092294e+01  3.07495982e-02 -5.14935421e+01]",
+            "[[ 8.97736802e+05 -3.89020282e+02 -8.98243548e+05]\n [-3.89020282e+02  1.68630724e-01  3.89246149e+02]\n [-8.98243548e+05  3.89246149e+02  8.98751848e+05]]"
+        ],
+        "neg_open_on_fit": [
+            "[4.99999524e-03 1.03400216e+01 2.50000000e-01]",
+            "[[ 1.38888613e-05 -1.26471889e+01 -5.55554474e-06]\n [-1.26471889e+01  1.15210805e+08  1.26488576e+01]\n [-5.55554474e-06  1.26488576e+01  5.55554497e-06]]"
+        ],
+        "neg_open_off_fit": [
+            "[ 4.86753416  3.01541698 16.28233277]",
+            "[[ 0.00751637 -0.01285065 -0.00313522]\n [-0.01285065  0.21304221  0.01376371]\n [-0.00313522  0.01376371  0.00313899]]"
+        ],
+        "pos_term_V": 20.65999984741211,
+        "pos_term_I": 0.11999999731779099,
+        "pos_term_R": 172.16666924332586,
+        "neg_term_V": 19.739999771118164,
+        "neg_term_I": 0.2800000011920929,
+        "neg_term_R": 70.49999888241291,
+        "pos_term_on_fit": [
+            "[-1.50000003e-05  9.33652049e+00  1.19999997e-04]",
+            "[[ 3.47267138e-10  3.86488655e-02 -1.38933843e-10]\n [ 3.86488655e-02  4.30102478e+07 -3.86627560e-02]\n [-1.38933843e-10 -3.86627560e-02  1.38933849e-10]]"
+        ],
+        "pos_term_off_fit": [
+            [
+                0,
+                0
+            ]
+        ],
+        "neg_term_on_fit": [
+            "[-1.50000005e-05  1.03366711e+01  2.80000001e-04]",
+            "[[ 1.25009815e-10  3.78295375e-02 -5.00098249e-11]\n [ 3.78295375e-02  1.14441441e+08 -3.78345491e-02]\n [-5.00098249e-11 -3.78345491e-02  5.00098295e-11]]"
+        ],
+        "neg_term_off_fit": [
+            [
+                0,
+                0
+            ]
+        ]
+    },
+    "hv_ch0": {
+        "pos_open_V": 1999.8399658203125,
+        "pos_open_I": 0.1899999976158142,
+        "pos_open_R": 10525.473636394721,
+        "neg_open_V": 1999.280029296875,
+        "neg_open_I": 0.14000000059604645,
+        "neg_open_R": 14280.571577035651,
+        "pos_open_on_fit": [
+            "[-2.52628725e-10  9.99999989e-01  1.89999998e-01]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "pos_open_off_fit": [
+            "[ 40.91965439   0.05639746 -19.57434562]",
+            "[[ 7.23414354e+04 -1.10972566e+02 -7.24724548e+04]\n [-1.10972566e+02  1.70435490e-01  1.11185211e+02]\n [-7.24724548e+04  1.11185211e+02  7.26048778e+04]]"
+        ],
+        "neg_open_on_fit": [
+            "[-5.00000263e-03  1.03346832e+01  1.40000001e-01]",
+            "[[ 1.38905768e-05  1.25874471e+01 -5.55723523e-06]\n [ 1.25874471e+01  1.13987355e+08 -1.25891138e+01]\n [-5.55723523e-06 -1.25891138e+01  5.55723548e-06]]"
+        ],
+        "neg_open_off_fit": [
+            "[ 4.88200781  3.06561418 16.46287159]",
+            "[[ 0.00792525 -0.01418814 -0.00329855]\n [-0.01418814  0.24686607  0.01514893]\n [-0.00329855  0.01514893  0.00330213]]"
+        ],
+        "pos_term_V": 20.690000534057617,
+        "pos_term_I": 0.23000000417232513,
+        "pos_term_R": 89.95652242925982,
+        "neg_term_V": 20.059999465942383,
+        "neg_term_I": 0.17000000178813934,
+        "neg_term_R": 117.99999561730557,
+        "pos_term_on_fit": [
+            "[-4.53886259e-13  9.98086002e-01  2.30000004e-04]",
+            "[[inf inf inf]\n [inf inf inf]\n [inf inf inf]]"
+        ],
+        "pos_term_off_fit": [
+            [
+                0,
+                0
+            ]
+        ],
+        "neg_term_on_fit": [
+            "[-2.50000022e-05  1.03366301e+01  1.70000002e-04]",
+            "[[ 3.47238670e-10  6.30367737e-02 -1.38905289e-10]\n [ 6.30367737e-02  1.14432074e+08 -6.30451043e-02]\n [-1.38905289e-10 -6.30451043e-02  1.38905288e-10]]"
+        ],
+        "neg_term_off_fit": [
+            [
+                0,
+                0
+            ]
+        ]
+    },
+    "hv_ch1": {
+        "pos_open_V": 1999.9599609375,
+        "pos_open_I": 0.12999999523162842,
+        "pos_open_R": 15384.307956119976,
+        "neg_open_V": 2000.1500244140625,
+        "neg_open_I": 0.15000000596046448,
+        "neg_open_R": 13334.332966234964,
+        "pos_open_on_fit": [
+            "[5.00000270e-03 1.03391021e+01 1.29999995e-01]",
+            "[[ 1.38889035e-05 -1.26355896e+01 -5.55556146e-06]\n [-1.26355896e+01  1.14999222e+08  1.26372564e+01]\n [-5.55556146e-06  1.26372564e+01  5.55556152e-06]]"
+        ],
+        "pos_open_off_fit": [
+            "[ 9.39519481e+01  2.46535077e-02 -7.05454572e+01]",
+            "[[ 2.21387403e+06 -6.10867100e+02 -2.21468622e+06]\n [-6.10867100e+02  1.68589150e-01  6.11096225e+02]\n [-2.21468622e+06  6.11096225e+02  2.21550001e+06]]"
+        ],
+        "neg_open_on_fit": [
+            "[-4.99999518e-03  1.03342027e+01  1.59999996e-01]",
+            "[[ 1.38905351e-05  1.25813675e+01 -5.55721800e-06]\n [ 1.25813675e+01  1.13877862e+08 -1.25830402e+01]\n [-5.55721800e-06 -1.25830402e+01  5.55721817e-06]]"
+        ],
+        "neg_open_off_fit": [
+            "[ 4.86030182  3.04884863 16.54958067]",
+            "[[ 0.00692386 -0.01224873 -0.00288383]\n [-0.01224873  0.21044256  0.01309161]\n [-0.00288383  0.01309161  0.00288707]]"
+        ],
+        "pos_term_V": 19.829999923706055,
+        "pos_term_I": 0.1599999964237213,
+        "pos_term_R": 123.9375022933819,
+        "neg_term_V": 19.110000610351562,
+        "neg_term_I": 0.1899999976158142,
+        "neg_term_R": 100.57895184289721,
+        "pos_term_on_fit": [
+            "[-1.50000006e-05  1.03364753e+01  1.59999996e-04]",
+            "[[ 1.25004902e-10  3.78147097e-02 -5.00049113e-11]\n [ 3.78147097e-02  1.14396628e+08 -3.78197133e-02]\n [-5.00049113e-11 -3.78197133e-02  5.00049155e-11]]"
+        ],
+        "pos_term_off_fit": [
+            "[ 1.71450630e+04  5.38378877e-05 -1.71316680e+04]",
+            "[[ 5.02523413e+16 -1.57811879e+08 -5.02523415e+16]\n [-1.57811879e+08  4.95590626e-01  1.57811880e+08]\n [-5.02523415e+16  1.57811880e+08  5.02523416e+16]]"
+        ],
+        "neg_term_on_fit": [
+            "[-2.49999984e-05  1.03366300e+01  1.89999998e-04]",
+            "[[ 3.47238567e-10  6.30367533e-02 -1.38905248e-10]\n [ 6.30367533e-02  1.14432032e+08 -6.30450834e-02]\n [-1.38905248e-10 -6.30450834e-02  1.38905247e-10]]"
+        ],
+        "neg_term_off_fit": [
+            "[ 1.41076962e+04  6.57307050e-05 -1.40953075e+04]",
+            "[[ 1.21348045e+17 -5.65439876e+08 -1.21348045e+17]\n [-5.65439876e+08  2.63475404e+00  5.65439874e+08]\n [-1.21348045e+17  5.65439874e+08  1.21348045e+17]]"
+        ]
+    },
+    "overall": "Fail",
+    "end_time": "2025-04-29 13:34:08.795966",
+    "test_time": "0:15:56.145811"
+}

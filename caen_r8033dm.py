@@ -396,7 +396,7 @@ class CAENR8033DM:
     #This does that and adds it to the dictionary
     #This can be called with a single channel or a list of channels because the C function allows both
     #If called with a single int for channel, I make it a list of that one int so it works the same
-    def get_channel_parameter_value(self, chns, param):
+    def get_channel_parameter_value(self, chns, param, print_meas=False):
         if (isinstance(chns, int)):
             chns = [chns]
         size = len(chns)
@@ -423,6 +423,8 @@ class CAENR8033DM:
         if (self.check_return(return_code, f"Retrieving value for channels {chns}, parameter {param} failed") == 0):
             for num,ch in enumerate(chns):
                 self.ch_params[ch][param]["Value"] = c_param_val[num]
+                if print_meas:
+                    print(f"{self.prefix} --> Ch {ch} {param}: {c_param_val[num]}")
         else:
             for ch in chns:
                 self.ch_params[ch][param]["Value"] = self.error

@@ -8,6 +8,7 @@ from datetime import datetime
 from keysight_daq970a import Keysight970A
 from rigol_dp832a import RigolDP832A
 from caen_r8033dm_wrapper import CAENR8033DM_WRAPPER
+from pl506 import PL506
 
 import csv
 from pathlib import Path
@@ -19,8 +20,11 @@ from matplotlib.ticker import MultipleLocator
 import numpy as np
 from scipy.optimize import curve_fit
 
+import traceback
+
 class LDOmeasure:
-    def __init__(self, config_file = None, name = None):
+    def __init__(self, config_file = None, name = None, shutoff=False):
+
         self.prefix = "DUNE HV Crate Tester"
         print(f"{self.prefix} --> Welcome to the DUNE HV crate production testing script")
         if not config_file:
@@ -28,11 +32,13 @@ class LDOmeasure:
             return
         with open(config_file, "r") as jsonfile:
             self.json_data = json.load(jsonfile)
-        self.rm = pyvisa.ResourceManager('@py')
-
+        self.rm = pyvisa.ResourceManager('@py')      
+        
+        
         #Initialize all instruments first so that you don't waste time with input if something is not connected
-        self.c = CAENR8033DM_WRAPPER(self.json_data)
+        self.c = CAENR8033DM_WRAPPER(self.json_data)            
         self.k = Keysight970A(self.rm, self.json_data)
+        self.pl506 = PL506(ip=self.json_data["PL506_IP_ADDR"])
 
         #Since there are 2 Rigols, set them up here so they know what channels they have
         #And if the test sequence calls the wrong one, it'll throw an error
@@ -45,6 +51,15 @@ class LDOmeasure:
         self.r1.setup_hvpullup()
         self.r1.setup_hvpullup2()
         self.r1.setup_fanread()
+
+        if shutoff:
+            print("Shutting off all devices...")
+            self.emergency_shutoff()
+            print("All devices shut off.")
+
+
+            
+
         #Now we can get the input for the name of the test
         if (name):
             self.test_name = name
@@ -66,19 +81,40 @@ class LDOmeasure:
         self.hv_test_result = True
 
         self.datastore['Tests'] = {}
+        
 
-        self.fan_test()
-        self.wb.save(self.path_to_spreadsheet)
-        self.heater_test()
-        self.wb.save(self.path_to_spreadsheet)
-        self.hv_test()
+        try:
+         # hv test works with GUI, uncommented for now until wiec qc flow completely works (for the sake of debugging time)
+            self.fan_test()
+            self.wb.save(self.path_to_spreadsheet)
 
+            self.fan_test_sweep() # trigger PWN measurement fan test
+            self.wb.save(self.path_to_spreadsheet)
+            if False: #no heaters on the flange
+                self.heater_test()
+                self.wb.save(self.path_to_spreadsheet)
+         
+            self.hv_test() #add'l specific exceptions are handled within 
+
+            # self.initialize_wiec() # turn on PTC power supply and fans
+            # # ptc test functions and read/write to spreadsheet function calls 
+            # self.shutdown_wiec()
+            
+        except:
+            print("Detected exception, powering off all devices first.")
+            self.emergency_shutoff()		
+            raise
+
+        self.emergency_shutoff() #just in case not already off  	
+        
+	
         if (self.fan_test_result and self.heat_test_result and self.hv_test_result):
             self.ws.cell(row=self.row, column=1, value=self.test_name).style = "pass"
             self.datastore['overall'] = "Pass"
         else:
             self.ws.cell(row=self.row, column=1, value=self.test_name).style = "fail"
             self.datastore['overall'] = "Fail"
+        
         self.wb.save(self.path_to_spreadsheet)
 
         end_time = datetime.now()
@@ -88,8 +124,11 @@ class LDOmeasure:
 
         with open(self.json_output_file, 'w', encoding='utf-8') as f:
             json.dump(self.datastore, f, ensure_ascii=False, indent=4, default=str)
-
+            
+ 	     
         print(f"{self.prefix} --> Test complete")
+        print(f"{self.prefix} --> Test result: {self.datastore['overall']}")
+
         self.beep_sequence()
         #self.make_hv_plots()
 
@@ -114,9 +153,37 @@ class LDOmeasure:
 
         self.hv_cols = 12
 
+        # Existing fan_test() result columns:
+        # col 4 = Supply Voltage
+        # col 5 = Supply Current
+        # col 6 onward = Fan RD results
+        self.fan_rd_first_col = 6
+
+        # New Fan PWM sweep columns are inserted right after Fan RD results.
+        self.fan_pwm_first_col = self.fan_rd_first_col + 6
+        self.fan_pwm_num_fans = int(self.json_data['keysight970a_fan_num'])
+
+        # One-row Fan PWM format:
+        # For every fan, for every programmed sweep voltage, store:
+        #   1) Supply Voltage [V]
+        #   2) Read Voltage [V]
+        #   3) Read Current [A]
+        #   4) Oscillation Frequency [Hz]
+        self.fan_pwm_sweep_points = self.get_fan_pwm_sweep_points()
+        self.fan_pwm_cols = self.fan_pwm_num_fans * len(self.fan_pwm_sweep_points) * 4
+
+        # Shift Heater and HV sections to the right to make room for Fan PWM data.
+        self.tc_res_first_col = self.fan_pwm_first_col + self.fan_pwm_cols
+        self.hv_res_first_col = self.tc_res_first_col + 8
+
         if (os.path.isfile(self.path_to_spreadsheet)):
             self.wb = openpyxl.load_workbook(filename = self.path_to_spreadsheet)
             self.ws = self.wb.active
+
+            # existing output_file may not have Fan PWM columns yet.
+            # if missing, insert them between Fan RD results and Heater results.
+            self.ensure_fan_pwm_columns()
+
             self.row = self.ws.max_row + 1
 
         else:
@@ -140,36 +207,74 @@ class LDOmeasure:
             self.wb.add_named_style(self.pass_style)
 
             #Yes I'm using magic numbers, but I need to build the spreadsheet in a specific way, hopefully it's only done once here
+            ##nope - Jillian
+
             self.ws.cell(row=2, column=1, value="Test Name").style = top_style
             self.ws.cell(row=2, column=2, value="Date").style = top_style
             self.ws.cell(row=2, column=3, value="Time").style = top_style
-            self.ws.cell(row = 1, column = 4, value="Fan Test - V/I for power supplying all 4 fans, RD signal outputs").style = top_style
-            self.ws.merge_cells(start_row=1, start_column=4, end_row=1, end_column=9)
+            
+            self.ws.cell(
+                row=1,
+                column=4,
+                value="Fan Test - V/I for power supplying all 4 fans, RD signal outputs"
+            ).style = top_style
+
+            self.ws.merge_cells(
+                start_row=1,
+                start_column=4,
+                end_row=1,
+                end_column=self.fan_pwm_first_col - 1
+            )
+            
             self.ws.cell(row=2, column=4, value="Supply Voltage").style = top_style
             self.ws.cell(row=2, column=5, value="Supply Current").style = top_style
-            for i in range(1,5):
-                self.ws.cell(row=2, column=5+i, value=f"Fan {i} RD").style = top_style
-                self.ws.cell(row=2, column=9+i, value=f"TC{i}_Resistance").style = top_style
-                self.ws.cell(row=2, column=13+i, value=f"TC{i}_Temp_Rise").style = top_style
 
-            self.ws.cell(row=1, column=10, value="Heater Test - Results for each heating element and temperature rise after heating time").style = top_style
-            self.ws.merge_cells(start_row=1, start_column=10, end_row=1, end_column=17)
+            for i in range(1,7):
+                self.ws.cell(row=2, column=self.fan_rd_first_col-1+i, value=f"Fan {i} RD").style = top_style
 
-            self.ws.cell(row=1, column=18, value="HV Test - Results for each configuration. Resistance in units shown, time constant is tau (seconds) in a*e^(-tau * t)+c ").style = top_style
-            self.ws.merge_cells(start_row=1, start_column=18, end_row=1, end_column=21+(7*self.hv_cols))
+            # Fan PWM sweep headers inserted right after fan_test() result columns
+            self.ws.cell(
+                row=1,
+                column=self.fan_pwm_first_col,
+                value="Fan PWM Sweep - Programmed/read fan voltage, current, and oscillation frequency"
+            ).style = top_style
+
+            self.ws.merge_cells(
+                start_row=1,
+                start_column=self.fan_pwm_first_col,
+                end_row=1,
+                end_column=self.fan_pwm_first_col + self.fan_pwm_cols - 1
+            )
+
+            for col_offset, header in enumerate(self.get_fan_pwm_headers()):
+                self.ws.cell(
+                    row=2,
+                    column=self.fan_pwm_first_col + col_offset,
+                    value=header
+                ).style = top_style
+
+            for i in range(1,5):    
+                self.ws.cell(row=2, column=self.tc_res_first_col-1+i, value=f"TC{i}_Resistance").style = top_style
+                self.ws.cell(row=2, column=self.tc_res_first_col-1+4+i, value=f"TC{i}_Temp_Rise").style = top_style
+
+            self.ws.cell(row=1, column=self.tc_res_first_col, value="Heater Test - Results for each heating element and temperature rise after heating time").style = top_style
+            self.ws.merge_cells(start_row=1, start_column=self.tc_res_first_col, end_row=1, end_column=self.hv_res_first_col-1)
+
+            self.ws.cell(row=1, column=self.hv_res_first_col, value="HV Test - Results for each configuration. Resistance in units shown, Setup Time k (seconds) in a*e^(-b * t)+c where k = 1/b ").style = top_style
+            self.ws.merge_cells(start_row=1, start_column=self.hv_res_first_col, end_row=1, end_column=self.hv_res_first_col+3+(7*self.hv_cols))
             for i in range(8):
-                self.ws.cell(row=2, column=18+(i*self.hv_cols), value=f"Ch{i}+ Open Res").style = top_style
-                self.ws.cell(row=2, column=19+(i*self.hv_cols), value=f"Ch{i}+ Open Fit On").style = top_style
-                self.ws.cell(row=2, column=20+(i*self.hv_cols), value=f"Ch{i}+ Open Fit Off").style = top_style
-                self.ws.cell(row=2, column=21+(i*self.hv_cols), value=f"Ch{i}+ 10k Res").style = top_style
-                self.ws.cell(row=2, column=22+(i*self.hv_cols), value=f"Ch{i}+ 10k Fit On").style = top_style
-                self.ws.cell(row=2, column=23+(i*self.hv_cols), value=f"Ch{i}+ 10k Fit Off").style = top_style
-                self.ws.cell(row=2, column=24+(i*self.hv_cols), value=f"Ch{i}- Open Res").style = top_style
-                self.ws.cell(row=2, column=25+(i*self.hv_cols), value=f"Ch{i}- Open Fit On").style = top_style
-                self.ws.cell(row=2, column=26+(i*self.hv_cols), value=f"Ch{i}- Open Fit Off").style = top_style
-                self.ws.cell(row=2, column=27+(i*self.hv_cols), value=f"Ch{i}- 10k Res").style = top_style
-                self.ws.cell(row=2, column=28+(i*self.hv_cols), value=f"Ch{i}- 10k Fit On").style = top_style
-                self.ws.cell(row=2, column=29+(i*self.hv_cols), value=f"Ch{i}- 10k Fit Off").style = top_style
+                self.ws.cell(row=2, column=self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}+ Open Res").style = top_style
+                self.ws.cell(row=2, column=1+self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}+ Open Fit On").style = top_style
+                self.ws.cell(row=2, column=2+self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}+ Open Fit Off").style = top_style
+                self.ws.cell(row=2, column=3+self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}+ 10k Res").style = top_style
+                self.ws.cell(row=2, column=4+self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}+ 10k Fit On").style = top_style
+                self.ws.cell(row=2, column=5+self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}+ 10k Fit Off").style = top_style
+                self.ws.cell(row=2, column=6+self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}- Open Res").style = top_style
+                self.ws.cell(row=2, column=7+self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}- Open Fit On").style = top_style
+                self.ws.cell(row=2, column=8+self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}- Open Fit Off").style = top_style
+                self.ws.cell(row=2, column=9+self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}- 10k Res").style = top_style
+                self.ws.cell(row=2, column=10+self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}- 10k Fit On").style = top_style
+                self.ws.cell(row=2, column=11+self.hv_res_first_col+(i*self.hv_cols), value=f"Ch{i}- 10k Fit Off").style = top_style
 
             #Expands each column to have the best width to fit everything
             column_letters = tuple(openpyxl.utils.get_column_letter(col_number + 1) for col_number in range(self.ws.max_column))
@@ -186,11 +291,231 @@ class LDOmeasure:
         self.ws.cell(row=self.row, column=3, value=datetime.today().strftime('%I:%M:%S %p'))
         self.wb.save(self.path_to_spreadsheet)
 
-    def fan_test(self):
+    def get_fan_pwm_sweep_points(self):
+        """
+        Builds the programmed fan-voltage sweep points from config.json.
+
+        This is used both when creating spreadsheet headers and when actually
+        running fan_test_sweep(), so the header voltage labels match the real
+        sweep voltage points.
+        """
+
+        steps = int(self.json_data['rigol832a_fan_voltage_number_of_data_samples'])
+        fan_voltage_max = self.json_data['rigol832a_fan_voltage_max']
+        fan_voltage_min = self.json_data['rigol832a_fan_voltage_min']
+
+        # Keep spreadsheet construction from crashing before fan_test_sweep()
+        # gets a chance to print its config error message.
+        if steps < 2:
+            steps = 2
+
+        prog_voltage = []
+
+        for i in range(steps):
+            voltage = fan_voltage_min + (fan_voltage_max - fan_voltage_min) * i / (steps - 1)
+            prog_voltage.append(round(voltage, 3))
+
+        # force the last sweep point to be fan_voltage_max
+        prog_voltage[-1] = fan_voltage_max
+
+        return prog_voltage
+
+
+    def format_fan_pwm_voltage_label(self, voltage):
+        """
+        Makes cleaner header text:
+        12.0 -> 12
+        11.5 -> 11.5
+        """
+
+        try:
+            return f"{float(voltage):g}"
+        except:
+            return str(voltage)
+
+
+    def get_fan_pwm_headers(self, prog_voltage=None):
+        """
+        Builds one-row Fan PWM headers.
+
+        Header ordering:
+            Fan #1, all voltage sweep points
+            Fan #2, all voltage sweep points
+            Fan #3, all voltage sweep points
+            ...
+        """
+
+        if prog_voltage is None:
+            prog_voltage = self.get_fan_pwm_sweep_points()
+
+        csv_headers = []
+
+        for fan in range(1, self.fan_pwm_num_fans + 1):
+            for supply_voltage in prog_voltage:
+                voltage_label = self.format_fan_pwm_voltage_label(supply_voltage)
+
+                csv_headers.append(
+                    f"Fan #{fan} - {voltage_label} V : Supply Voltage [V]"
+                )
+                csv_headers.append(
+                    f"Fan #{fan} - {voltage_label} V : Read Voltage [V]"
+                )
+                csv_headers.append(
+                    f"Fan #{fan} - {voltage_label} V : Read Current [A]"
+                )
+                csv_headers.append(
+                    f"Fan #{fan} - {voltage_label} V : Oscillation Frequency [Hz]"
+                )
+
+        return csv_headers
+
+
+    def ensure_fan_pwm_columns(self):
+        """
+        Ensures the existing output_file has the one-row Fan PWM columns inserted
+        between fan_test() results and Heater Test results.
+
+        If an older Fan PWM block already exists in the old 2D format, this
+        removes that old Fan PWM block and replaces it with the new one-row
+        format.
+        """
+
+        fan_pwm_headers = self.get_fan_pwm_headers()
+
+        # Locate the current Heater Test section in the existing spreadsheet.
+        # This tells us where the current Fan PWM block ends.
+        heater_col = None
+
+        for col in range(1, self.ws.max_column + 1):
+            value = self.ws.cell(row=1, column=col).value
+
+            if isinstance(value, str) and value.startswith("Heater Test"):
+                heater_col = col
+                break
+
+        expected_heater_col = self.fan_pwm_first_col + self.fan_pwm_cols
+
+        already_has_new_fan_pwm = (
+            self.ws.cell(row=2, column=self.fan_pwm_first_col).value
+            == fan_pwm_headers[0]
+        )
+
+        heater_is_in_expected_place = (
+            heater_col == expected_heater_col
+        )
+
+        # Rebuild row-1 merged section headers safely.
+        # This avoids stale merged-cell ranges after inserting/deleting columns.
+        for merged_range in list(self.ws.merged_cells.ranges):
+            if merged_range.min_row == 1 and merged_range.max_row == 1:
+                self.ws.unmerge_cells(str(merged_range))
+
+        # If the old 2D Fan PWM block exists, or if the Fan PWM section is
+        # missing, rebuild the whole Fan PWM block.
+        if not (already_has_new_fan_pwm and heater_is_in_expected_place):
+
+            # Delete whatever currently sits between Fan RD and Heater Test.
+            # This is usually the old Fan PWM block.
+            if heater_col is not None and heater_col > self.fan_pwm_first_col:
+                cols_to_delete = heater_col - self.fan_pwm_first_col
+                self.ws.delete_cols(self.fan_pwm_first_col, cols_to_delete)
+
+            # Insert the new one-row Fan PWM columns.
+            self.ws.insert_cols(self.fan_pwm_first_col, self.fan_pwm_cols)
+
+        # Re-write top merged section headers using the new layout.
+        self.ws.cell(
+            row=1,
+            column=4,
+            value="Fan Test - V/I for power supplying all 4 fans, RD signal outputs"
+        ).style = "top"
+
+        self.ws.merge_cells(
+            start_row=1,
+            start_column=4,
+            end_row=1,
+            end_column=self.fan_pwm_first_col - 1
+        )
+
+        self.ws.cell(
+            row=1,
+            column=self.fan_pwm_first_col,
+            value="Fan PWM Sweep - One-row programmed/read voltage, current, and oscillation frequency"
+        ).style = "top"
+
+        self.ws.merge_cells(
+            start_row=1,
+            start_column=self.fan_pwm_first_col,
+            end_row=1,
+            end_column=self.fan_pwm_first_col + self.fan_pwm_cols - 1
+        )
+
+        self.ws.cell(
+            row=1,
+            column=self.tc_res_first_col,
+            value="Heater Test - Results for each heating element and temperature rise after heating time"
+        ).style = "top"
+
+        self.ws.merge_cells(
+            start_row=1,
+            start_column=self.tc_res_first_col,
+            end_row=1,
+            end_column=self.hv_res_first_col - 1
+        )
+
+        self.ws.cell(
+            row=1,
+            column=self.hv_res_first_col,
+            value="HV Test - Results for each configuration. Resistance in units shown, Setup Time k (seconds) in a*e^(-b * t)+c where k = 1/b "
+        ).style = "top"
+
+        self.ws.merge_cells(
+            start_row=1,
+            start_column=self.hv_res_first_col,
+            end_row=1,
+            end_column=self.hv_res_first_col + 3 + (7 * self.hv_cols)
+        )
+
+        # Re-write Fan PWM one-row column headers.
+        for col_offset, header in enumerate(fan_pwm_headers):
+            self.ws.cell(
+                row=2,
+                column=self.fan_pwm_first_col + col_offset,
+                value=header
+            ).style = "top"
+
+    def write_fan_pwm_results_to_spreadsheet(self, fan_pwm_headers, fan_pwm_row):
+        """
+        Writes Fan PWM sweep data into output_file as one wide row.
+
+        The Fan PWM data is written only on self.row, the same row as the main
+        test summary. No additional spreadsheet rows are used for sweep points.
+        """
+
+        # Make sure headers exist before writing data.
+        for col_offset, header in enumerate(fan_pwm_headers):
+            self.ws.cell(
+                row=2,
+                column=self.fan_pwm_first_col + col_offset,
+                value=header
+            ).style = "top"
+
+        # Write the entire Fan PWM sweep into one row.
+        for col_offset, value in enumerate(fan_pwm_row):
+            self.ws.cell(
+                row=self.row,
+                column=self.fan_pwm_first_col + col_offset,
+                value=value
+            )
+
+        self.wb.save(self.path_to_spreadsheet)
+
+    def fan_test(self, write_to_spreadsheet=True):
         #Fan test
         self.k.initialize_fan()
         self.r0.power("ON", "fan")
         self.r1.power("ON", "fanread")
+        print(f"{self.prefix} --> Fans Tested at Nominal Voltage Specified ..... {self.json_data['rigol832a_fan_voltage']} ") # print out the "nominal voltage" aka the initial user specified fans voltage here, as it gets updated to max voltage after sweep test and becomes lost data
         print(f"{self.prefix} --> Fans turned on, waiting {self.json_data['fan_wait']} seconds for the fans to reach steady state...")
         time.sleep(self.json_data['fan_wait'])
         fan_voltage = self.r0.get_voltage("fan")
@@ -198,12 +523,34 @@ class LDOmeasure:
         fanread_voltage = self.r1.get_voltage("fanread")
         fanread_current = self.r1.get_current("fanread")
         fan_read_signal = self.k.measure_fan()
+        
+        #take all data again for good measure
+        fan_voltage = self.r0.get_voltage("fan")
+        fan_current = self.r0.get_current("fan")
+        fanread_voltage = self.r1.get_voltage("fanread")
+        fanread_current = self.r1.get_current("fanread")
+        fan_read_signal = self.k.measure_fan()
+        
+                
         self.r0.power("OFF", "fan")
         self.r1.power("OFF", "fanread")
         print(f"{self.prefix} --> Fans turned off")
         print(f"{self.prefix} --> Fan power supply was {fan_voltage}V and {fan_current}A")
         print(f"{self.prefix} --> Read signal for each fan was {fan_read_signal}")
         print(f"{self.prefix} --> Fan read pullup supply was {fanread_voltage}V and {fanread_current}A")
+        
+        self.datastore['fan_voltage'] = fan_voltage
+        self.datastore['fan_current'] = fan_current
+        self.datastore['fanread_voltage'] = fanread_voltage
+        self.datastore['fanread_current'] = fanread_current
+        self.datastore['fan_read_signal'] = fan_read_signal
+
+        # During Fan PWM sweep, fan_test() is used only as a measurement helper.
+        # Do not overwrite the nominal fan_test() spreadsheet results or
+        # pass/fail status while sweeping through intentionally different voltages.
+        if not write_to_spreadsheet:
+            return None
+        
 
         self.fan_test_result = True
         if ((fan_voltage < self.json_data["fan_voltage_max"]) and (fan_voltage > self.json_data["fan_voltage_min"])):
@@ -222,20 +569,223 @@ class LDOmeasure:
             self.datastore['Tests']['fan_current_test'] = "Fail"
             self.fan_test_result = False
 
-        for i in range(1,5):
+        for i in range(1,7):
             if ((fan_read_signal[i] < self.json_data["fan_read_max"]) and (fan_read_signal[i] > self.json_data["fan_read_min"])):
-                self.ws.cell(row=self.row, column=5+i, value=round(fan_read_signal[i], self.rounding_factor))
+                self.ws.cell(row=self.row, column=self.fan_rd_first_col-1+i, value=round(fan_read_signal[i], self.rounding_factor))
                 self.datastore['Tests'][f'fan_signal_test_{i}'] = "Pass"
             else:
-                self.ws.cell(row=self.row, column=5+i, value=round(fan_read_signal[i], self.rounding_factor)).style = "fail"
+                self.ws.cell(row=self.row, column=self.fan_rd_first_col-1+i, value=round(fan_read_signal[i], self.rounding_factor)).style = "fail"
                 self.fan_test_result = False
 
-        self.datastore['fan_voltage'] = fan_voltage
-        self.datastore['fan_current'] = fan_current
-        self.datastore['fanread_voltage'] = fanread_voltage
-        self.datastore['fanread_current'] = fanread_current
-        self.datastore['fan_read_signal'] = fan_read_signal
+        return None
+		# return fan_read_signal, fanread_voltage, fanread_current # return these for voltage sweep fan func plot
+#----------------------------------------- PTC Power Control and Measurement --------------------------------------
+    def initialize_wiec(self):
+        self.emergency_shutoff() # turn off everything first 
 
+        # turn on all fans 
+        self.json_data['rigol832a_fan_voltage'] = self.json_data['WIEC_fan_voltage'] 
+        self.json_data['rigol832a_fan_current'] = self.json_data['WIEC_fan_current']
+        self.r0.setup_fan() # apply new settings to fan
+        self.r0.power("ON", "fan") # turn on fan power supply
+        self.r1.setup_fanread()
+        self.r1.power("ON", "fanread")
+
+        # check if every fan is on and oscillating at the correct frequency
+        fan_voltage = self.r0.get_voltage("fan")
+        fan_current = self.r0.get_current("fan")
+        fanread_voltage = self.r1.get_voltage("fanread")
+        fanread_current = self.r1.get_current("fanread")
+        fan_read_signal = self.k.measure_fan()
+
+        num_fans = int(self.json_data['keysight970a_fan_num'] )
+        for fan in range(1, num_fans + 1):
+            if (fan_read_signal[fan] < self.json_data["fan_osc_freq"]):
+                print(f"{self.prefix} --> CONFIG ERROR! Fan #{fan} is not oscillating at the correct frequency: {fan_read_signal[fan]} Hz")			
+                print(f"{self.prefix} --> Please check fan connections and restart test")	
+                self.emergency_shutoff() # turn off everything first
+                return None # end func execution early upon error
+
+        # turn on PL506 channel for PTC power supply since fan is confirmed to be working
+        readback = self.pl506.safe_turn_on_channel(channel=self.json_data["PL506_channel"],
+                                                max_voltage_v=self.json_data["PL506_voltage_max"],
+                                                voltage_v=self.json_data["PL506_sense_voltage"],
+                                                max_current_a=self.json_data["PL506_current_max"],
+                                                current_limit_a=self.json_data["PL506_current_limit"],
+                                                settle_s=self.json_data["PL506_settle_seconds"])
+        
+        print(f"{self.prefix} --> PL506 channel {self.json_data['PL506_channel']} turned on with readback information:")
+        print(readback)
+
+        
+    def shutdown_wiec(self):
+        # turn off PL506 channel for PTC power supply
+        self.pl506 = PL506(ip=self.json_data["PL506_IP_ADDR"])
+        self.pl506.channel_off(channel=self.json_data["PL506_channel"])
+        self.pl506.main_off()
+        print(f"{self.prefix} --> PL506 channel {self.json_data['PL506_channel']} turned off")
+        # turn off all fans 
+        self.r0.power("OFF", "fan") # turn off fan power supply 
+
+
+
+#----------------------------------------------------------------------------------------------------------------------------
+
+
+
+#---------------------------------------- Start of Fan PWM measurement ----------------------			
+    def fan_test_sweep(self):
+        #### all units for voltage in Volts here
+        # ---- data storage lists
+        # dictionaries where key = specific member (aka fan), value = y-axis variable (osc freq)
+        num_fans = int(self.json_data['keysight970a_fan_num'] )
+        fan_signals = {i: [] for i in range(1, num_fans + 1)} 
+        prog_voltage = [] # program defined input fan voltage 
+        read_voltage = [] # measured input fan voltage 
+        read_current = [] # measured input fan current
+        # create folder for storing fan data plots
+        fan_results_folder = os.path.join(self.results_path, "fan PWM results") 
+        os.makedirs(fan_results_folder, exist_ok=True) # check if folder exists, if not then create it
+
+        # ----- start sweep test -----
+		
+        # initialize sweep parameters
+        steps = int(self.json_data['rigol832a_fan_voltage_number_of_data_samples'])
+        fan_voltage_max = self.json_data['rigol832a_fan_voltage_max']
+        fan_voltage_min = self.json_data['rigol832a_fan_voltage_min']
+        # check that step size is at least 2 (otherwise it is just a one voltage input value...)
+        if (steps < 2) :
+            print(f"{self.prefix} --> CONFIG ERROR! Invalid Number of Data Samples: ")			
+            print(f"{self.prefix} --> Fan Sweep Test's number of data samples must be at least 2 to perform a sweep")	
+            print(f"{self.prefix} --> Please fix rigol832a_fan_voltage_number_of_data_samples value in config.json and Restart test")	
+            return None # end func execution early upon error
+        
+        # check that voltage max > voltage min input 
+        if (fan_voltage_max <= fan_voltage_min) :
+            print(f"{self.prefix} --> CONFIG ERROR! Invalid Fan Voltage Range: ")			
+            print(f"{self.prefix} --> Fan Sweep Test's MAXIMUM voltage value is less than or equal to MINIMUM voltage value")	
+            print(f"{self.prefix} --> Please fix rigol832a_fan_voltage_max and rigol832a_fan_voltage_min values in config.json and Restart test")	
+            return None # end func execution early upon error
+        
+     
+        # build the exact same sweep points used for Fan PWM spreadsheet headers
+        prog_voltage = self.get_fan_pwm_sweep_points()
+        print(f"{self.prefix} --> Fan Voltage Sweep Points in Volts : {prog_voltage}")
+        
+        
+        # start sweeping
+        for sweep_voltage in prog_voltage :
+            self.json_data['rigol832a_fan_voltage'] = sweep_voltage
+            self.r0.setup_fan() # apply new voltage to fan
+            # call fan_test 
+            self.fan_test(write_to_spreadsheet=False) # measurement only; do not overwrite nominal fan_test() row
+
+            # extract info
+            fan_read_signal = self.datastore['fan_read_signal']
+            fan_voltage = self.datastore['fan_voltage']
+            fan_current = self.datastore['fan_current']
+
+            # parse info into collections
+            read_voltage.append(fan_voltage)
+            read_current.append(fan_current)
+
+            for fan in range(1, num_fans + 1):
+                fan_signals[fan].append( fan_read_signal.get(fan,-1) )
+
+        # save info for greater spreadsheet storage
+        self.datastore['fan_pwm_programmed_voltage'] = prog_voltage
+        self.datastore['fan_pwm_read_voltage'] = read_voltage
+        self.datastore['fan_pwm_read_current'] = read_current
+        self.datastore['fan_pwm_signals'] = fan_signals
+        # plot data (individual plots for each fan)
+        # plot data: individual input voltage vs. frequency plot for each fan
+        for fan in range(1, num_fans + 1):
+            plt.figure()
+
+            plt.plot( prog_voltage, fan_signals[fan], marker='o')
+
+            plt.title( "Programmed Input Voltage vs. Fan #" + str(fan) + " PWM Frequency", fontsize=14)
+            plt.xlabel("Programmed Fan Voltage [V]", fontsize=12)
+            plt.ylabel("Oscillation Frequency [Hz]", fontsize=12)
+            plt.grid(True)
+
+            # store png plot in the folder
+            plot_name = "fan_" + str(fan) + "_voltage_vs_frequency.png"
+            save_path = os.path.join(fan_results_folder, plot_name)
+            plt.savefig(save_path, bbox_inches="tight")
+            plt.close()
+
+        # plot data: programmed input voltage vs. read input voltage
+        plt.figure()
+
+        plt.plot(prog_voltage, read_voltage, marker='o')
+
+        plt.title( "Programmed Fan Voltage vs. Read Fan Voltage", fontsize=14)
+        plt.xlabel("Programmed Fan Voltage [V]", fontsize=12)
+        plt.ylabel("Read Fan Voltage [V]", fontsize=12)
+        plt.grid(True)
+
+        # store png plot in the folder
+        plot_name = "programmed_voltage_vs_read_voltage.png"
+        save_path = os.path.join(fan_results_folder, plot_name)
+        plt.savefig(save_path, bbox_inches="tight")
+        plt.close()
+
+        # plot data: programmed input voltage vs. read input current
+        plt.figure()
+
+        plt.plot(prog_voltage, read_current, marker='o')
+
+        plt.title( "Programmed Fan Voltage vs. Read Fan Current", fontsize=14)
+        plt.xlabel("Programmed Fan Voltage [V]", fontsize=12)
+        plt.ylabel("Read Fan Current [A]", fontsize=12)
+        plt.grid(True)
+
+        # store png plot in the folder
+        plot_name = "programmed_voltage_vs_read_current.png"
+        save_path = os.path.join(fan_results_folder, plot_name)
+        plt.savefig(save_path, bbox_inches="tight")
+        plt.close()
+
+
+        # build one-row Fan PWM table
+        csv_headers = self.get_fan_pwm_headers(prog_voltage)
+        fan_pwm_row = []
+
+        # Column ordering:
+        #   Fan #1, all voltage sweep points
+        #   Fan #2, all voltage sweep points
+        #   Fan #3, all voltage sweep points
+        #   ...
+        for fan in range(1, num_fans + 1):
+            for i in range(len(prog_voltage)):
+                fan_pwm_row.append(prog_voltage[i])          # Supply Voltage [V]
+                fan_pwm_row.append(read_voltage[i])          # Read Voltage [V]
+                fan_pwm_row.append(read_current[i])          # Read Current [A]
+                fan_pwm_row.append(fan_signals[fan][i])      # Oscillation Frequency [Hz]
+
+        # save Fan PWM one-row data into the existing Excel output_file
+        self.write_fan_pwm_results_to_spreadsheet(csv_headers, fan_pwm_row)
+
+        # still save standalone CSV copy in the fan PWM results folder,
+        # now also in one-row format
+        csv_name = "fan_pwm_results.csv"
+        csv_save_path = os.path.join(fan_results_folder, csv_name)
+
+        with open(csv_save_path, mode="w", newline="") as csv_file:
+            csv_writer = csv.writer(csv_file)
+
+            csv_writer.writerow(csv_headers)
+            csv_writer.writerow(fan_pwm_row)
+
+        print(f"{self.prefix} --> Fan PWM plots, one-row CSV data, and Excel output_file data saved")
+        print(f"{self.prefix} --> Fan PWM results folder: {fan_results_folder}")
+        print(f"{self.prefix} --> Excel output_file: {self.path_to_spreadsheet}")
+#---------------------------------------- End of Fan PWM measurement ----------------------		
+
+        		
+
+#---------------------------------------- Start of Heater Test ----------------------
     def heater_test(self):
         #Heater test
         #First measure resistance of heating element with no power connected
@@ -246,10 +796,10 @@ class LDOmeasure:
         self.heat_test_result = True
         for i in range(1,5):
             if ((heater_resistance[i] < self.json_data["heating_element_max"]) and (heater_resistance[i] > self.json_data["heating_element_min"])):
-                self.ws.cell(row=self.row, column=9+i, value=round(heater_resistance[i], self.rounding_factor))
+                self.ws.cell(row=self.row, column=self.tc_res_first_col-1+i, value=round(heater_resistance[i], self.rounding_factor))
                 self.datastore['Tests'][f'heating_element_test_{i}'] = "Pass"
             else:
-                self.ws.cell(row=self.row, column=9+i, value=round(heater_resistance[i], self.rounding_factor)).style = "fail"
+                self.ws.cell(row=self.row, column=self.tc_res_first_col-1+i, value=round(heater_resistance[i], self.rounding_factor)).style = "fail"
                 self.datastore['Tests'][f'heating_element_test_{i}'] = "Fail"
                 self.heat_test_result = False
 
@@ -258,6 +808,7 @@ class LDOmeasure:
         #Then prepare RTD and switch relay to connect power
         self.k.initialize_rtd()
         temp1 = self.k.measure_rtd()
+        #temp1 = self.k.measure_rtd() #measure again for good measure
         self.r0.power("ON", "heat_supply")
         self.r0.power("ON", "heat_switch")
         print(f"{self.prefix} --> Heat turned on, waiting {self.json_data['heat_wait']} seconds for the sensors to heat up...")
@@ -267,6 +818,7 @@ class LDOmeasure:
         switch_voltage = self.r0.get_voltage("heat_switch")
         switch_current = self.r0.get_current("heat_switch")
         temp2 = self.k.measure_rtd()
+        #temp2 = self.k.measure_rtd() #measure again for good measure
         temp_rise = []
         temp_rise.append(temp2[1] - temp1[1])
         temp_rise.append(temp2[2] - temp1[2])
@@ -283,10 +835,10 @@ class LDOmeasure:
 
         for i in range(4):
             if ((temp_rise[i] < self.json_data["temp_increase_max"]) and (temp_rise[i] > self.json_data["temp_increase_min"])):
-                self.ws.cell(row=self.row, column=14+i, value=round(temp_rise[i], self.rounding_factor))
+                self.ws.cell(row=self.row, column=self.tc_res_first_col+4+i, value=round(temp_rise[i], self.rounding_factor))
                 self.datastore['Tests'][f'temperature_rise_test_{i}'] = "Pass"
             else:
-                self.ws.cell(row=self.row, column=14+i, value=round(temp_rise[i], self.rounding_factor)).style = "fail"
+                self.ws.cell(row=self.row, column=self.tc_res_first_col+4+i, value=round(temp_rise[i], self.rounding_factor)).style = "fail"
                 self.datastore['Tests'][f'temperature_rise_test_{i}'] = "Fail"
                 self.heat_test_result = False
 
@@ -299,153 +851,87 @@ class LDOmeasure:
         self.datastore['temp2'] = temp2
         self.datastore['temp_rise'] = temp_rise
 
+
+#------------------------- HIGH VOLTAGE TESTS ----------------------   	
     def hv_test(self):
         #HV Leakage Test
         hv_results = {}
         self.r1.power("ON", "hvpullup")
         self.r1.power("ON", "hvpullup2")
-        self.hv_test_result = True
-        for i in self.json_data['channels_to_test']:
-            pos_ch = self.json_data[f"pcb_ch_{i}_pos"]
-            neg_ch = self.json_data[f"pcb_ch_{i}_neg"]
-            hv_results[i] = {}
+        self.hv_test_result = True        
+        # for i in self.json_data['channels_to_test']:
+        if (self.json_data["simultaneous_test"] == "True"): #This distinction does not matter if only one channel total is being tested
+            chs_to_test = self.json_data['channels_to_test'] #Test all channels at once
+            total_chs_to_test = ["placeholder"]           #Only one full course of tests run - list contents not read
+        else:
+            total_chs_to_test = self.json_data['channels_to_test'] #Test channels one after the other
+            chs_to_test = total_chs_to_test
+                    
+        for single_test in total_chs_to_test:
+            single_test_done = False
+            if (self.json_data["simultaneous_test"] == "True"):
+                single_test = chs_to_test            	
+            try:
+                self.hv_test_single(single_test, hv_results)
+                single_test_done = True
+            except (ConnectionResetError, BrokenPipeError) as e:
+                print(traceback.format_exc())
+                print("Connection broken, attempting to reset...")
+                self.c.turn_off(list(range(16)), emergency=True)             	    
+                self.reset_pyvisa_connections()   
+                self.r1.power("ON", "hvpullup")
+                self.r1.power("ON", "hvpullup2")   
+            except SystemExit as e:
+                self.emergency_shutoff() 
+                print(traceback.format_exc())
+                print("Detecting exception",e,"but shutting off and continuing...")      
+                self.r1.power("ON", "hvpullup")
+                self.r1.power("ON", "hvpullup2")              	    	
 
-            #Measure the ramp from 0 to positive voltage with open termination
-            v = self.json_data['caenR8033DM_open_voltage']
-            self.c.set_HV_value(pos_ch, v)
-            print(f"{self.prefix} --> Turning Channel {pos_ch} HV from 0 to {v}V with open termination")
-            self.k.set_relay(0, 1 << i)
-            self.c.turn_on(pos_ch)
-            print(f"{self.prefix} --> HV reached max value, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
-            time.sleep(self.json_data['hv_stability_wait'])
+            if not single_test_done:
+                try:
+                    self.hv_test_single(single_test, hv_results)  #try again 
+                except: #give up
+                    print("Detected exception, powering off all devices first.")
+                    self.emergency_shutoff()       
+                    raise          
 
-            csv_name = f"{self.test_name}_ch{i}_pos_open_on.csv"
-            self.record_hv_data(csv_name)
-            fit = self.hv_curve_fit(csv_name, pos_ch, on = True, term = False)
-            hv_results[i]["pos_open_on_fit"] = fit
-            hv_results[i]["pos_open_V"] = self.c.get_voltage(pos_ch)
-            hv_results[i]["pos_open_I"] = self.c.get_current(pos_ch)
-            self.make_plot(csv_name, f"0 to {v}V, open termination", pos_ch, fit[0][1], [v-5, v+5])
+        relay_done = False
+        while not relay_done:
+            try:
+                self.r1.power("OFF", "hvpullup")
+                self.r1.power("OFF", "hvpullup2")
+                relay_done = True
+            except (ConnectionResetError, BrokenPipeError, pyvisa.errors.VisaIOError) as e:
+                print(traceback.format_exc())
+                print("Connection broken, attempting to reset...")
+                self.reset_pyvisa_connections()
 
-            #Measure the ramp from positive voltage to 0 with open termination
-            print(f"{self.prefix} --> Turning Channel {pos_ch} HV from {v}V to 0 with open termination")
-            self.c.turn_off(pos_ch)
-            # print(f"{self.prefix} --> HV turned off, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
-            # time.sleep(self.json_data['hv_stability_wait'])
-
-            csv_name = f"{self.test_name}_ch{i}_pos_open_off.csv"
-            self.record_hv_data(csv_name)
-            fit = self.hv_curve_fit(csv_name, pos_ch, on = False, term = False)
-            hv_results[i]["pos_open_off_fit"] = fit
-            self.make_plot(csv_name, f"{v} to 0V, open termination", pos_ch, fit[0][1])
-
-            #Measure the ramp from 0 to positive voltage with 10k termination
-            v = self.json_data['caenR8033DM_term_voltage']
-            self.c.set_HV_value(pos_ch, v)
-            print(f"{self.prefix} --> Turning Channel {pos_ch} HV from 0 to {v}V with 10k termination")
-            self.k.set_relay(0, 0)
-            self.c.turn_on(pos_ch)
-            print(f"{self.prefix} --> HV reached max value, waiting {self.json_data['hv_termination_wait']} seconds to stabilize...")
-            time.sleep(self.json_data['hv_termination_wait'])
-
-            csv_name = f"{self.test_name}_ch{i}_pos_term_on.csv"
-            self.record_hv_data(csv_name)
-            fit = self.hv_curve_fit(csv_name, pos_ch, on = True, term = True)
-            hv_results[i]["pos_term_on_fit"] = fit
-            hv_results[i]["pos_term_V"] = self.c.get_voltage(pos_ch)
-            hv_results[i]["pos_term_I"] = self.c.get_current(pos_ch)
-            self.make_plot(csv_name, f"0 to {v}V, termination resistor", pos_ch, fit[0][1], [v-5, v+5])
-
-            #Measure the ramp from positive voltage to 0 with 10k termination
-            print(f"{self.prefix} --> Turning Channel {pos_ch} HV from {v}V to 0 with 10k termination")
-            self.c.turn_off(pos_ch)
-            # print(f"{self.prefix} --> HV turned off, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
-            # time.sleep(self.json_data['hv_stability_wait'])
-
-            csv_name = f"{self.test_name}_ch{i}_pos_term_off.csv"
-            self.record_hv_data(csv_name)
-            fit = self.hv_curve_fit(csv_name, pos_ch, on = False, term = True)
-            hv_results[i]["pos_term_off_fit"] = fit
-            self.make_plot(csv_name, f"{v} to 0V, termination resistor", pos_ch, fit[0][1])
-
-            #Measure the ramp from 0 to negative voltage with open termination
-            v = self.json_data['caenR8033DM_open_voltage']
-            self.c.set_HV_value(neg_ch, v)
-            print(f"{self.prefix} --> Turning Channel {neg_ch} HV from 0 to -{v}V with open termination")
-            self.k.set_relay(1 << i, 1 << i)
-            self.c.turn_on(neg_ch)
-            print(f"{self.prefix} --> HV reached max value, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
-            time.sleep(self.json_data['hv_stability_wait'])
-
-            csv_name = f"{self.test_name}_ch{i}_neg_open_on.csv"
-            self.record_hv_data(csv_name)
-            fit = self.hv_curve_fit(csv_name, neg_ch, on = True, term = False)
-            hv_results[i]["neg_open_on_fit"] = fit
-            hv_results[i]["neg_open_V"] = self.c.get_voltage(neg_ch)
-            hv_results[i]["neg_open_I"] = self.c.get_current(neg_ch)
-            self.make_plot(csv_name, f"0 to -{v}V, open termination", neg_ch, fit[0][1], [v-5, v+5])
-
-            #Measure the ramp from negative voltage to 0 with open termination
-            print(f"{self.prefix} --> Turning Channel {i} HV from -{v}V to 0 with open termination")
-            self.c.turn_off(neg_ch)
-            # print(f"{self.prefix} --> HV turned off, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
-            # time.sleep(self.json_data['hv_stability_wait'])
-
-            csv_name = f"{self.test_name}_ch{i}_neg_open_off.csv"
-            self.record_hv_data(csv_name)
-            fit = self.hv_curve_fit(csv_name, neg_ch, on = False, term = False)
-            hv_results[i]["neg_open_off_fit"] = fit
-            self.make_plot(csv_name, f"-{v} to 0V, open termination", neg_ch, fit[0][1])
-
-            #Measure the ramp from 0 to negative voltage with 10k termination
-            v = self.json_data['caenR8033DM_term_voltage']
-            self.c.set_HV_value(neg_ch, v)
-            print(f"{self.prefix} --> Turning Channel {i} HV from 0 to -{v}V with 10k termination")
-            self.k.set_relay(1 << i, 0)
-            self.c.turn_on(neg_ch)
-            print(f"{self.prefix} --> HV reached max value, waiting {self.json_data['hv_termination_wait']} seconds to stabilize...")
-            time.sleep(self.json_data['hv_termination_wait'])
-
-            csv_name = f"{self.test_name}_ch{i}_neg_term_on.csv"
-            self.record_hv_data(csv_name)
-            fit = self.hv_curve_fit(csv_name, neg_ch, on = True, term = True)
-            hv_results[i]["neg_term_on_fit"] = fit
-            hv_results[i]["neg_term_V"] = self.c.get_voltage(neg_ch)
-            hv_results[i]["neg_term_I"] = self.c.get_current(neg_ch)
-            self.make_plot(csv_name, f"0 to -{v}V, termination resistor", neg_ch, fit[0][1], [v-5, v+5])
-
-            #Measure the ramp from 0 to negative voltage with 10k termination
-            print(f"{self.prefix} --> Turning Channel {i} HV from -{v}V to 0 with 10k termination")
-            self.c.turn_off(neg_ch)
-            # print(f"{self.prefix} --> HV turned off, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
-            # time.sleep(self.json_data['hv_stability_wait'])
-
-            csv_name = f"{self.test_name}_ch{i}_neg_term_off.csv"
-            self.record_hv_data(csv_name)
-            fit = self.hv_curve_fit(csv_name, neg_ch, on = False, term = True)
-            hv_results[i]["neg_term_off_fit"] = fit
-            self.make_plot(csv_name, f"-{v} to 0V, termination resistor", neg_ch, fit[0][1])
-
-            self.r1.power("OFF", "hvpullup")
-            self.r1.power("OFF", "hvpullup2")
-
-            #Voltage is in volts, current is in microamps, R in Mohms
+        #Voltage is in volts, current is in microamps, R in Mohms
+        for i in chs_to_test:
             try:
                 hv_results[i]["pos_open_R"] = float(hv_results[i]["pos_open_V"])/float(hv_results[i]["pos_open_I"])
             except:
                 hv_results[i]["pos_open_R"] = 0
             try:
                 hv_results[i]["pos_term_R"] = float(hv_results[i]["pos_term_V"])/float(hv_results[i]["pos_term_I"])
-            except:
+            except Exception as e:
                 hv_results[i]["pos_term_R"] = 0
+                print(e)
+                print(hv_results[i]["pos_term_V"])
+                print(hv_results[i]["pos_term_I"])               
             try:
                 hv_results[i]["neg_open_R"] = float(hv_results[i]["neg_open_V"])/float(hv_results[i]["neg_open_I"])
             except:
                 hv_results[i]["neg_open_R"] = 0
             try:
                 hv_results[i]["neg_term_R"] = float(hv_results[i]["neg_term_V"])/float(hv_results[i]["neg_term_I"])
-            except:
+            except Exception as e:            
                 hv_results[i]["neg_term_R"] = 0
+                print(e)  
+                print(hv_results[i]["neg_term_V"])
+                print(hv_results[i]["neg_term_I"])                
+                
 
             print(f"{self.prefix} --> Channel {i} HV results are {hv_results[i]}")
 
@@ -454,10 +940,10 @@ class LDOmeasure:
                 min_val = self.json_data["hv_resistance_open_min"]
 
                 if ((float(hv_results[i][j]) < max_val) and (float(hv_results[i][j]) > min_val)):
-                    self.ws.cell(row=self.row, column=18+(i*self.hv_cols)+(num*6), value=f"{round(float(hv_results[i][j]), self.rounding_factor)}Mohm")
+                    self.ws.cell(row=self.row, column=self.hv_res_first_col+(i*self.hv_cols)+(num*6), value=f"{round(float(hv_results[i][j]), self.rounding_factor)}Mohm")
                     self.datastore['Tests'][f'hv_test_ch{i}_{j}'] = "Pass"
                 else:
-                    self.ws.cell(row=self.row, column=18+(i*self.hv_cols)+(num*6), value=f"{round(float(hv_results[i][j]), self.rounding_factor)}Mohm").style = "fail"
+                    self.ws.cell(row=self.row, column=self.hv_res_first_col+(i*self.hv_cols)+(num*6), value=f"{round(float(hv_results[i][j]), self.rounding_factor)}Mohm").style = "fail"
                     self.datastore['Tests'][f'hv_test_ch{i}_{j}'] = "Fail"
                     self.hv_test_result = False
 
@@ -466,28 +952,37 @@ class LDOmeasure:
                 min_val = self.json_data["hv_resistance_term_min"]
 
                 if ((float(hv_results[i][j]) < max_val) and (float(hv_results[i][j]) > min_val)):
-                    self.ws.cell(row=self.row, column=21+(i*self.hv_cols)+(num*6), value=f"{round(float(hv_results[i][j]*1E3), self.rounding_factor)}kohm")
+                    self.ws.cell(row=self.row, column=self.hv_res_first_col+3+(i*self.hv_cols)+(num*6), value=f"{round(float(hv_results[i][j]*1E3), self.rounding_factor)}kohm")
                     self.datastore['Tests'][f'hv_test_ch{i}_{j}'] = "Pass"
                 else:
-                    self.ws.cell(row=self.row, column=21+(i*self.hv_cols)+(num*6), value=f"{round(float(hv_results[i][j]*1E3), self.rounding_factor)}kohm").style = "fail"
+                    self.ws.cell(row=self.row, column=self.hv_res_first_col+3+(i*self.hv_cols)+(num*6), value=f"{round(float(hv_results[i][j]*1E3), self.rounding_factor)}kohm").style = "fail"
                     self.datastore['Tests'][f'hv_test_ch{i}_{j}'] = "Fail"
                     self.hv_test_result = False
 
             for num,j in enumerate(["pos_open", "pos_term", "neg_open", "neg_term"]):
                 j_on = j + "_on_fit"
                 j_off = j + "_off_fit"
+
+                # handle div by zero error 
+                val_on = float(hv_results[i][j_on][0][1])
+                val_off = float(hv_results[i][j_off][0][1])
+                if (val_on != 0.0):
+                    val_on = 1.0 / val_on
+                if (val_off != 0.0):
+                    val_off = 1.0 / val_off
+
                 if ((float(hv_results[i][j_on][0][1]) < self.json_data["hv_tau_max"]) and (float(hv_results[i][j_on][0][1]) > self.json_data["hv_tau_min"])):
-                    self.ws.cell(row=self.row, column=19+(i*self.hv_cols)+(num*3), value=round(float(hv_results[i][j_on][0][1]), self.rounding_factor))
+                    self.ws.cell(row=self.row, column=self.hv_res_first_col+1+(i*self.hv_cols)+(num*3), value= round(val_on, self.rounding_factor))
                     self.datastore['Tests'][f'hv_on_fit_test_ch{i}_{j_on}'] = "Pass"
                 else:
-                    self.ws.cell(row=self.row, column=19+(i*self.hv_cols)+(num*3), value=round(float(hv_results[i][j_on][0][1]), self.rounding_factor)).style = "fail"
+                    self.ws.cell(row=self.row, column=self.hv_res_first_col+1+(i*self.hv_cols)+(num*3), value = round( val_on, self.rounding_factor)).style = "fail"
                     self.datastore['Tests'][f'hv_on_fit_test_ch{i}_{j_on}'] = "Fail"
                     self.hv_test_result = False
                 if ((float(hv_results[i][j_off][0][1]) < self.json_data["hv_tau_max"]) and (float(hv_results[i][j_off][0][1]) > self.json_data["hv_tau_min"])):
-                    self.ws.cell(row=self.row, column=20+(i*self.hv_cols)+(num*3), value=round(float(hv_results[i][j_off][0][1]), self.rounding_factor))
+                    self.ws.cell(row=self.row, column=self.hv_res_first_col+2+(i*self.hv_cols)+(num*3), value=round(val_off, self.rounding_factor))
                     self.datastore['Tests'][f'hv_off_fit_test_ch{i}_{j_off}'] = "Pass"
                 else:
-                    self.ws.cell(row=self.row, column=20+(i*self.hv_cols)+(num*3), value=round(float(hv_results[i][j_off][0][1]), self.rounding_factor)).style = "fail"
+                    self.ws.cell(row=self.row, column=self.hv_res_first_col+2+(i*self.hv_cols)+(num*3), value=round( val_off, self.rounding_factor)).style = "fail"
                     self.datastore['Tests'][f'hv_off_fit_test_ch{i}_{j_off}'] = "Fail"
                     self.hv_test_result = False
 
@@ -496,13 +991,333 @@ class LDOmeasure:
                       "pos_term_V", "pos_term_I", "pos_term_R", "neg_term_V", "neg_term_I", "neg_term_R", "pos_term_on_fit", "pos_term_off_fit", "neg_term_on_fit", "neg_term_off_fit"]:
                 self.datastore[f'hv_ch{i}'][j] = hv_results[i][j]
 
-    def record_hv_data(self, name):
+    def hv_test_single(self, single_test, hv_results):
+            if (self.json_data["simultaneous_test"] != "True"):
+                chs_to_test = [single_test] #Test only one channel at a time
+            else:
+                chs_to_test = single_test #Test all channels (input is array)
+            		
+            #chs_to_test = self.json_data['channels_to_test']
+            pos_chs = []
+            neg_chs = []
+            
+            for i in chs_to_test:
+                pos_chs.append(self.json_data[f"pcb_ch_{i}_pos"])
+                neg_chs.append(self.json_data[f"pcb_ch_{i}_neg"])
+                hv_results[i] = {}
+
+            chs_string = ""
+            for i in chs_to_test:
+                chs_string = chs_string + str(i) + "_"
+
+            #Measure the ramp from 0 to positive voltage with open termination
+            v = self.json_data['caenR8033DM_open_voltage']
+            relay_setting = 0
+            for i in chs_to_test:
+                relay_setting = relay_setting | (1 << i)  
+            for pos_ch in pos_chs:
+                self.c.set_HV_value(pos_ch, v)
+                print(f"{self.prefix} --> Turning Channel {pos_ch} HV from 0 to {v}V with open termination")
+
+            #self.k.set_relay(0, 1 << i) #<- how does this work?
+            ramp_done = False
+            while not ramp_done:
+                try:
+                    self.k.set_relay(0, relay_setting)
+                    self.c.turn_on(pos_chs)
+                    print(f"{self.prefix} --> HV reached max values, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
+                    ramp_done = True
+                    time.sleep(self.json_data['hv_stability_wait']) #may need to change for simul test?
+                except (ConnectionResetError, BrokenPipeError) as e:
+                    print(traceback.format_exc())
+                    print("Connection broken, attempting to reset...")
+                    self.c.turn_off(list(range(16)), emergency=True)
+                    self.reset_pyvisa_connections()
+                    self.r1.power("ON", "hvpullup")
+                    self.r1.power("ON", "hvpullup2")
+
+
+
+            csv_name = f"{self.test_name}_chs{chs_string}pos_open_on.csv"
+            self.record_hv_data(csv_name)
+            for i in chs_to_test:
+                pos_ch = self.json_data[f"pcb_ch_{i}_pos"]
+                fit = self.hv_curve_fit(csv_name, pos_ch, on = True, term = False)
+                hv_results[i]["pos_open_on_fit"] = fit
+                hv_results[i]["pos_open_V"] = self.c.get_voltage(pos_ch)
+                hv_results[i]["pos_open_I"] = self.c.get_current(pos_ch)
+                self.make_plot(csv_name, f"Ch {i} from 0 to {v}V, open termination", pos_ch, fit[0][1], [v-5, v+5])
+
+            ###################
+
+            #Measure the ramp from positive voltage to 0 with open termination
+            for pos_ch in pos_chs:
+                print(f"{self.prefix} --> Turning Channel {pos_ch} HV from {v}V to 0 with open termination")
+            self.c.turn_off(pos_chs)
+            # print(f"{self.prefix} --> HV turned off, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
+            # time.sleep(self.json_data['hv_stability_wait'])
+
+            csv_name = f"{self.test_name}_ch{chs_string}_pos_open_off.csv"
+            self.record_hv_data(csv_name)
+            for i in chs_to_test:
+                pos_ch = self.json_data[f"pcb_ch_{i}_pos"]
+                fit = self.hv_curve_fit(csv_name, pos_ch, on = False, term = False)
+                hv_results[i]["pos_open_off_fit"] = fit
+                self.make_plot(csv_name, f"Ch {i} from {v} to 0V, open termination", pos_ch, fit[0][1])
+
+            ###################
+
+            #Measure the ramp from 0 to positive voltage with 10k termination
+            v = self.json_data['caenR8033DM_term_voltage']
+            for pos_ch in pos_chs:
+                self.c.set_HV_value(pos_ch, v)
+                print(f"{self.prefix} --> Turning Channel {pos_ch} HV from 0 to {v}V with 10k termination")
+            ramp_done = False
+            while not ramp_done:
+                try:
+                    self.k.set_relay(0, 0)
+                    self.c.turn_on(pos_chs)
+                    ramp_done = True
+                    print(f"{self.prefix} --> HV reached max value, waiting {self.json_data['hv_termination_wait']} seconds to stabilize...")
+                    time.sleep(self.json_data['hv_termination_wait'])
+                except (ConnectionResetError, BrokenPipeError) as e:
+                    print(traceback.format_exc())
+                    print("Connection broken, attempting to reset...")
+                    self.c.turn_off(list(range(16)), emergency=True)
+                    self.reset_pyvisa_connections()
+                    self.r1.power("ON", "hvpullup")
+                    self.r1.power("ON", "hvpullup2")
+
+
+            csv_name = f"{self.test_name}_ch{chs_string}_pos_term_on.csv"
+            self.record_hv_data(csv_name, short_time=True)
+            for i in chs_to_test:
+                pos_ch = self.json_data[f"pcb_ch_{i}_pos"]
+                fit = self.hv_curve_fit(csv_name, pos_ch, on = True, term = True)
+                hv_results[i]["pos_term_on_fit"] = fit
+                #hv_results[i]["pos_term_V"] = self.c.get_voltage(pos_ch)
+                #hv_results[i]["pos_term_I"] = self.c.get_current(pos_ch)
+
+
+                print("Measuring 10k terminated voltage and current...")
+                voltage = self.c.get_voltage(pos_ch, print_meas=True)
+                current = self.c.get_current(pos_ch, print_meas=True)
+
+                #print(f"Ch {i} voltage: {voltage}, current {current}, resistance {voltage/current}")
+                hv_results[i]["pos_term_V"] = voltage
+                hv_results[i]["pos_term_I"] = current
+
+                self.make_plot(csv_name, f"Ch {i} from 0 to {v}V, termination resistor", pos_ch, fit[0][1], [v-5, v+5])
+            time.sleep(5)
+            ###################
+
+            #Measure the ramp from positive voltage to 0 with 10k termination
+            for pos_ch in pos_chs:
+                print(f"{self.prefix} --> Turning Channel {pos_ch} HV from {v}V to 0 with 10k termination")
+            self.c.turn_off(pos_chs)
+            # print(f"{self.prefix} --> HV turned off, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
+            # time.sleep(self.json_data['hv_stability_wait'])
+
+            csv_name = f"{self.test_name}_ch{chs_string}_pos_term_off.csv"
+            self.record_hv_data(csv_name, short_time=True)
+            for i in chs_to_test:
+                pos_ch = self.json_data[f"pcb_ch_{i}_pos"]
+                fit = self.hv_curve_fit(csv_name, pos_ch, on = False, term = True)
+                hv_results[i]["pos_term_off_fit"] = fit
+                self.make_plot(csv_name, f"Ch {i} from {v} to 0V, termination resistor", pos_ch, fit[0][1])
+
+            ###################
+
+            #Measure the ramp from 0 to negative voltage with open termination
+            v = self.json_data['caenR8033DM_open_voltage']
+            for neg_ch in neg_chs:
+                self.c.set_HV_value(neg_ch, v)
+                print(f"{self.prefix} --> Turning Channel {neg_ch} HV from 0 to -{v}V with open termination")
+            ramp_done = False
+            while not ramp_done:
+                try:
+                    self.k.set_relay(relay_setting, relay_setting)
+                    self.c.turn_on(neg_chs)
+                    ramp_done = True
+                    print(f"{self.prefix} --> HV reached max value, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
+                    time.sleep(self.json_data['hv_stability_wait'])
+                except (ConnectionResetError, BrokenPipeError) as e:
+                    print(traceback.format_exc())
+                    print("Connection broken, attempting to reset...")
+                    self.c.turn_off(list(range(16)), emergency=True)
+                    self.reset_pyvisa_connections()
+                    self.r1.power("ON", "hvpullup")
+                    self.r1.power("ON", "hvpullup2")
+
+            csv_name = f"{self.test_name}_ch{chs_string}_neg_open_on.csv"
+            self.record_hv_data(csv_name)
+            for i in chs_to_test:
+                neg_ch = self.json_data[f"pcb_ch_{i}_neg"]
+                fit = self.hv_curve_fit(csv_name, neg_ch, on = True, term = False)
+                hv_results[i]["neg_open_on_fit"] = fit
+                hv_results[i]["neg_open_V"] = self.c.get_voltage(neg_ch)
+                hv_results[i]["neg_open_I"] = self.c.get_current(neg_ch)
+                self.make_plot(csv_name, f"Ch {i} from 0 to -{v}V, open termination", neg_ch, fit[0][1], [v-5, v+5])
+
+            ###################
+
+            #Measure the ramp from negative voltage to 0 with open termination
+            for neg_ch in neg_chs:
+                print(f"{self.prefix} --> Turning Channel {neg_ch} HV from -{v}V to 0 with open termination")
+            self.c.turn_off(neg_chs)
+            # print(f"{self.prefix} --> HV turned off, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
+            # time.sleep(self.json_data['hv_stability_wait'])
+
+            csv_name = f"{self.test_name}_ch{chs_string}_neg_open_off.csv"
+            self.record_hv_data(csv_name)
+            for i in chs_to_test:
+                neg_ch = self.json_data[f"pcb_ch_{i}_neg"]
+                fit = self.hv_curve_fit(csv_name, neg_ch, on = False, term = False)
+                hv_results[i]["neg_open_off_fit"] = fit
+                self.make_plot(csv_name, f"Ch {i} from -{v} to 0V, open termination", neg_ch, fit[0][1])
+
+            ###################
+            
+            #Measure the ramp from 0 to negative voltage with 10k termination
+            v = self.json_data['caenR8033DM_term_voltage']
+            for neg_ch in neg_chs:
+                self.c.set_HV_value(neg_ch, v)
+                print(f"{self.prefix} --> Turning Channel {neg_ch} HV from 0 to -{v}V with 10k termination")
+            ramp_done = False
+
+            while not ramp_done:
+                try:
+                    self.k.set_relay(relay_setting, 0)
+                    self.c.turn_on(neg_chs)
+                    ramp_done = True
+                    print(f"{self.prefix} --> HV reached max value, waiting {self.json_data['hv_termination_wait']} seconds to stabilize...")
+                    time.sleep(self.json_data['hv_termination_wait'])
+                except (ConnectionResetError, BrokenPipeError) as e:
+                    print(traceback.format_exc())
+                    print("Connection broken, attempting to reset...")
+                    self.c.turn_off(list(range(16)), emergency=True)
+                    self.reset_pyvisa_connections()
+                    self.r1.power("ON", "hvpullup")
+                    self.r1.power("ON", "hvpullup2")
+                # except ValueError as e:
+                    # print(e)
+                    # #print("Positive channel voltages:", self.c.get_current(pos_chs))
+
+                    # self.c.turn_off(neg_chs)
+
+                    # pullups_ok = False
+                    # while not pullups_ok:
+                        # try:
+                            # hvv = self.r1.get_voltage("hvpullup")
+                            # hv2v = self.r1.get_voltage("hvpullup2")
+                            # if hvv >= 18 and hv2v >= 18: #check if they are on
+                                # pullups_ok = True
+                            # else:
+                                # print("Resetting and power cycling pullup")
+                                # print(hvv, hv2v)
+                                # raise ValueError("")
+                        # except Exception as e:
+                            # print(e)
+                            # try:
+                                # self.reset_pullup_rigol_and_power_on()
+                                # time.sleep(5)
+                            # except Exception as e:
+                                # time.sleep(5)
+                                # pass #run again
+                    # # self.reset_pyvisa_connections()
+                    # # self.r1.power("ON", "hvpullup")
+                    # # self.r1.power("ON", "hvpullup2")
+                    # # time.sleep(1)
+                    # print("Resetting relays")
+                    # #self.k.keysight.close()
+                    # #self.k = Keysight970A(self.rm, self.json_data)
+                    # #time.sleep(1)
+                    # self.k.set_relay(0, relay_setting)
+                    # print("Trying to fire relay again")
+                    # #try block will run again
+
+            csv_name = f"{self.test_name}_ch{chs_string}_neg_term_on.csv"
+            self.record_hv_data(csv_name, short_time=True)
+            for i in chs_to_test:
+                neg_ch = self.json_data[f"pcb_ch_{i}_neg"]          
+                fit = self.hv_curve_fit(csv_name, neg_ch, on = True, term = True)
+                hv_results[i]["neg_term_on_fit"] = fit
+                #hv_results[i]["neg_term_V"] = self.c.get_voltage(neg_ch)
+                #hv_results[i]["neg_term_I"] = self.c.get_current(neg_ch)
+                print("Measuring 10k terminated voltage and current...")
+                voltage = self.c.get_voltage(neg_ch)#, print_meas=True)
+                voltage = self.c.get_voltage(neg_ch)
+                current = self.c.get_current(neg_ch)#, print_meas=True)
+                current = self.c.get_current(neg_ch)
+                #print(f"Ch {i} voltage: {voltage}, current {current}, resistance {voltage/current}")
+                hv_results[i]["neg_term_V"] = voltage
+                hv_results[i]["neg_term_I"] = current
+                self.make_plot(csv_name, f"Ch {i} from 0 to -{v}V, termination resistor", neg_ch, fit[0][1], [v-5, v+5])
+            time.sleep(5) #debug
+            ###################            
+            
+            #Measure the ramp from 0 to negative voltage with 10k termination
+            for neg_ch in neg_chs:
+                print(f"{self.prefix} --> Turning Channel {neg_ch} HV from -{v}V to 0 with 10k termination")
+            self.c.turn_off(neg_chs)
+            # print(f"{self.prefix} --> HV turned off, waiting {self.json_data['hv_stability_wait']} seconds to stabilize...")
+            # time.sleep(self.json_data['hv_stability_wait'])
+
+            csv_name = f"{self.test_name}_ch{chs_string}_neg_term_off.csv"
+            self.record_hv_data(csv_name, short_time=True)
+            for i in chs_to_test:
+                neg_ch = self.json_data[f"pcb_ch_{i}_neg"]              
+                fit = self.hv_curve_fit(csv_name, neg_ch, on = False, term = True)
+                hv_results[i]["neg_term_off_fit"] = fit
+                self.make_plot(csv_name, f"Ch {i} from -{v} to 0V, termination resistor", neg_ch, fit[0][1])
+
+            ###################            
+
+
+#------------------------------CONNECTIONS------------------------------            
+    def emergency_shutoff(self):
+        self.c.turn_off(list(range(16)), emergency=True) #Turn off HV channels
+        #input("pause here")
+        self.r0.power("OFF", "heat_supply") #Turn off fan and heater power
+        self.r0.power("OFF", "heat_switch")
+
+        # turn off PL506 first then fan for safety reasons
+        self.pl506.channel_off(self.json_data["PL506_channel"])
+        self.pl506.main_off()
+        self.r0.power("OFF", "fan")
+        self.r1.power("OFF", "fanread")
+        self.k.set_relay(0, 0) #Probably not necessary    
+
+    def reset_pyvisa_connections(self):	
+        self.r0.rigol.close()
+        self.r0 = RigolDP832A(self.rm, self.json_data, 0)
+        self.r0.setup_fan()
+        self.r0.setup_heater_supply()
+        self.r0.setup_heater_switch()
+            
+        self.r1.rigol.close()
+        self.r1 = RigolDP832A(self.rm, self.json_data, 1)
+        self.r1.setup_hvpullup()
+        self.r1.setup_hvpullup2()
+        self.r1.setup_fanread()  
+            	
+        self.k.keysight.close()
+        self.k = Keysight970A(self.rm, self.json_data)    
+#-------------------------------------------------------------
+
+
+#-------------------------HIGH VOLTAGE PLOTS ----------------------   	
+    def record_hv_data(self, name, short_time=False):
         data = []
         cycle_start_time = time.time()
         time_string = datetime.fromtimestamp(cycle_start_time)
         prev_measurement = cycle_start_time - 1
-        print(f"{self.prefix} --> Collecting data for {name} for {self.json_data['hv_minutes_duration']} minutes starting at {time_string}...")
-        while (time.time() - cycle_start_time < (self.json_data['hv_minutes_duration'] * 60)):
+        if short_time:
+            minutes_wait = self.json_data['hv_minutes_duration_short']
+        else:
+            minutes_wait = self.json_data['hv_minutes_duration_long']
+        print(f"{self.prefix} --> Collecting data for {name} for {minutes_wait} minutes starting at {time_string}...")
+        while (time.time() - cycle_start_time < (minutes_wait * 60)):
             if (time.time() > prev_measurement + self.json_data['hv_seconds_interval']):
                 #print(f"{self.prefix} --> Measurement taken at {time.time()}")
                 prev_measurement = prev_measurement + self.json_data['hv_seconds_interval']
@@ -510,6 +1325,7 @@ class LDOmeasure:
                 for i in range(16):
                     datum.append(self.c.get_voltage(i))
                     datum.append(self.c.get_current(i))
+                #datum.append(self.c.get_voltage(list(range(16))))
                 data.append(datum)
         with open(os.path.join(self.results_path, name), 'w') as fp:
             csv_writer = csv.writer(fp, delimiter=',')
@@ -563,19 +1379,20 @@ class LDOmeasure:
         #https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html
         return fit
 
-    def make_hv_plots(self):
+    
+    def make_hv_plots(self): #not used
         ch0_pos_open_fit = self.datastore['hv_ch0']['pos_open_fit'][0][1]
-        self.make_plot(f"{self.test_name}_ch0_pos_open_on", "0 to 2kV, open termination", True, True, 0, ch0_pos_open_fit)
+        self.make_plot(f"{self.test_name}_ch0_pos_open_on", "Ch {i} from 0 to 2kV, open termination", True, True, 0, ch0_pos_open_fit)
         # self.make_plot(f"{self.test_name}_ch0_pos_open_off", "2kV to 0, open termination", False, True)
         ch0_pos_term_fit = self.datastore['hv_ch0']['pos_term_fit'][0][1]
-        self.make_plot(f"{self.test_name}_ch0_pos_10k_on", "0 to 2kV, 10k termination", True, True, 0, ch0_pos_term_fit)
+        self.make_plot(f"{self.test_name}_ch0_pos_10k_on", "Ch {i} from 0 to 2kV, 10k termination", True, True, 0, ch0_pos_term_fit)
         #self.make_plot(f"{self.test_name}_ch0_pos_10k_off", "2kV to 0, 10k termination", False, True, 0)
 
         ch0_neg_open_fit = self.datastore['hv_ch0']['neg_open_fit'][0][1]
-        self.make_plot(f"{self.test_name}_ch0_neg_open_on", "0 to -2kV, open termination", True, False, 8, ch0_neg_open_fit)
+        self.make_plot(f"{self.test_name}_ch0_neg_open_on", "Ch {i} from 0 to -2kV, open termination", True, False, 8, ch0_neg_open_fit)
         # self.make_plot(f"{self.test_name}_ch0_neg_open_off", "-2kV to 0, open termination", False, False)
         ch0_neg_term_fit = self.datastore['hv_ch0']['neg_term_fit'][0][1]
-        self.make_plot(f"{self.test_name}_ch0_neg_10k_on", "0 to -2kV, 10k termination", True, False, 8, ch0_neg_term_fit)
+        self.make_plot(f"{self.test_name}_ch0_neg_10k_on", "Ch {i} from 0 to -2kV, 10k termination", True, False, 8, ch0_neg_term_fit)
         #self.make_plot(f"{self.test_name}_ch0_neg_10k_off", "-2kV to 0, 10k termination", False, True, 8)
 
     def make_plot(self, filename, name, ch, fit=None, axes = None):
@@ -587,11 +1404,18 @@ class LDOmeasure:
 
         ax.plot(ch1_time, ch1_current, label="Ch Current")
         self.format_plot(ax)
+                                           
+                                   
+                                             
 
         ax2 = ax.twinx()
+                                                                  
+                      
         ax2.plot(ch1_time, ch1_voltage, label="Ch Voltage", color="red")
+                                                                                                             
 
         fig.suptitle((name), fontsize=36)
+                                
 
         ax.set_xlabel("Time (Minutes:Seconds)", fontsize=24)
         ax.set_ylabel("Current (uA)", fontsize=24)
@@ -603,14 +1427,14 @@ class LDOmeasure:
         self.format_plot(ax2)
 
         if fit:
-            textstr = r'$\tau=%.4f$' % (fit)
+            textstr = r'$\k=%.4f$' % (fit)
             props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
             ax.text(0.75, 0.75, textstr, transform=ax.transAxes, fontsize=24,
             verticalalignment='top', bbox=props)
 
         fig.legend(loc='lower left', prop={'size': 20}, ncol=2)
         stem = Path(filename).stem
-        fig.savefig(os.path.join(self.results_path, f"{stem}.png"))
+        fig.savefig(os.path.join(self.results_path, f"{stem}_ch{ch}.png"))
         plt.close(fig)
 
     def get_ch_data(self, data_file, ch):
@@ -634,6 +1458,10 @@ class LDOmeasure:
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%M:%S'))
         ax.tick_params(axis='x', labelsize=tick_size, colors='black')  # Set tick size and color here
         ax.tick_params(axis='y', labelsize=tick_size, colors='black')  # Set tick size and color here
+#---------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
 
     def beep_sequence(self):
         #First beep is always longer for some reason
@@ -655,6 +1483,8 @@ class LDOmeasure:
         time.sleep(0.5)
         self.k.beep()
 
+	
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         sys.exit(f"Error: You need to supply a config file for this test as the argument! You had {len(sys.argv)-1} arguments!")
@@ -664,3 +1494,7 @@ if __name__ == "__main__":
         LDOmeasure(sys.argv[1], sys.argv[2])
     else:
         sys.exit(f"Error: You need to supply a config file and optional test name for this program, 2 arguments max. You supplied {sys.argv}, which is {len(sys.argv)-1} arguments")
+        
+        
+        
+        

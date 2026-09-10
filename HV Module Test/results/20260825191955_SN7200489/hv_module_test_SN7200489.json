@@ -1,0 +1,457 @@
+{
+    "test_name": "lke",
+    "timestamp": "2026-08-25T19:19:55",
+    "crate_ip": "169.254.4.31",
+    "slot": 2,
+    "overall": "Fail",
+    "dry_run": false,
+    "config": {
+        "iseg_boot_timeout_s": 240.0,
+        "iseg_current_limit_a": 0.001,
+        "iseg_grade_ramp_rate": false,
+        "iseg_grade_safety_loop": true,
+        "iseg_ip": "169.254.4.31",
+        "iseg_limit_block_voltage": 1300.0,
+        "iseg_limit_expected_current_percent": 6.25,
+        "iseg_limit_expected_voltage_percent": 62.5,
+        "iseg_limit_gpib_address": 9,
+        "iseg_limit_gpib_board": 0,
+        "iseg_limit_imax_daq_channel": 19,
+        "iseg_limit_percent_tolerance": 2.0,
+        "iseg_limit_reach_voltage": 1200.0,
+        "iseg_limit_test_enabled": true,
+        "iseg_limit_vmax_daq_channel": 20,
+        "iseg_power_cycle_mode": "snmp",
+        "iseg_power_off_settle_s": 10.0,
+        "iseg_power_off_timeout_s": 120.0,
+        "iseg_power_on_settle_s": 5.0,
+        "iseg_ramp_daq_enabled": false,
+        "iseg_ramp_daq_first_channel": 111,
+        "iseg_ramp_daq_interval_s": 5.0,
+        "iseg_ramp_divider_bottom_ohm": 500000.0,
+        "iseg_ramp_divider_top_ohm": 10000000.0,
+        "iseg_ramp_hold_seconds": 30.0,
+        "iseg_ramp_rate": 10.0,
+        "iseg_ramp_rate_readback_tolerance_fraction": 0.05,
+        "iseg_ramp_rate_tolerance_fraction": 0.2,
+        "iseg_ramp_reach_tolerance_v": 10.0,
+        "iseg_ramp_sample_interval_s": 1.0,
+        "iseg_ramp_target_voltage": 1000.0,
+        "iseg_ramp_timeout_factor": 1.5,
+        "iseg_ramp_timeout_margin_s": 30.0,
+        "iseg_read_community": "public",
+        "iseg_slot": 2,
+        "iseg_write_community": "guru"
+    },
+    "operator_input": {
+        "expected_serial": "7200489",
+        "vmax_daq_channel": "20",
+        "imax_daq_channel": "19"
+    },
+    "module": {
+        "slot": 2,
+        "model": "E08F2",
+        "serial_number": "7200489",
+        "firmware": "07.52",
+        "description": "iseg, E08F2, 08, 7200489, 07.52"
+    },
+    "measurements": {
+        "polarity": "negative",
+        "nominal_voltage_v": -2000.0,
+        "ramp_rate_commanded_v_per_s": 10.0,
+        "ramp_rate_commanded_percent": 0.5,
+        "ramp_rate_readback_v_per_s": 10.0,
+        "ramp_rate_module_percent": 0.5,
+        "measured_ramp_rates": {
+            "u200": {
+                "up_v_per_s": 9.960789159444497,
+                "down_v_per_s": 9.949648875519646
+            },
+            "u201": {
+                "up_v_per_s": 9.964780912194087,
+                "down_v_per_s": 9.9471835397476
+            },
+            "u202": {
+                "up_v_per_s": 9.957470951044535,
+                "down_v_per_s": 9.947573454095478
+            },
+            "u203": {
+                "up_v_per_s": 9.964060058139992,
+                "down_v_per_s": 9.957201794272892
+            },
+            "u204": {
+                "up_v_per_s": 9.966747364790798,
+                "down_v_per_s": 9.95841946395511
+            },
+            "u205": {
+                "up_v_per_s": 9.963478866277592,
+                "down_v_per_s": 9.961110916855379
+            },
+            "u206": {
+                "up_v_per_s": 9.961540326031956,
+                "down_v_per_s": 9.962797829830274
+            },
+            "u207": {
+                "up_v_per_s": 9.958285679529505,
+                "down_v_per_s": 9.956654820487921
+            }
+        },
+        "ramp_seconds": {
+            "up": 101.46780799998669,
+            "hold": 30.93504168500658,
+            "down": 100.0924866469577
+        },
+        "limit_adjustment": {
+            "vmax": {
+                "stage": "vmax",
+                "channel": 120,
+                "value_v": 1.5623126,
+                "target_v": 1.5625,
+                "window": "1.562 - 1.563 V",
+                "in_window": true,
+                "settled": true,
+                "samples": 7,
+                "seconds": 3.9,
+                "result": "good"
+            },
+            "imax": {
+                "stage": "imax",
+                "channel": 119,
+                "value_v": 0.1561921,
+                "target_v": 0.15625,
+                "window": "0.156 - 0.1565 V",
+                "in_window": true,
+                "settled": true,
+                "samples": 5,
+                "seconds": 3.0,
+                "result": "good"
+            }
+        },
+        "hardware_limit_voltage_percent": 63.898868561,
+        "hardware_limit_current_percent": 6.402561665,
+        "hardware_limit_voltage_v": 1277.9773712200001,
+        "hardware_limit_current_a": 0.00025610246660000003
+    },
+    "steps": [
+        {
+            "key": "open_box",
+            "kind": "USER",
+            "title": "Open Box",
+            "result": "PASS",
+            "detail": "",
+            "timestamp": "2026-08-25T19:12:34"
+        },
+        {
+            "key": "visual_inspection",
+            "kind": "CHECK",
+            "title": "Check Components",
+            "result": "PASS",
+            "detail": "operator answered PASS",
+            "timestamp": "2026-08-25T19:12:38"
+        },
+        {
+            "key": "enter_serial_number",
+            "kind": "USER",
+            "title": "Enter Serial Number",
+            "result": "PASS",
+            "detail": "entered '7200489'",
+            "timestamp": "2026-08-25T19:12:50"
+        },
+        {
+            "key": "install_test_kit_and_jumper",
+            "kind": "USER",
+            "title": "Install Test Kit and Jumper",
+            "result": "PASS",
+            "detail": "",
+            "timestamp": "2026-08-25T19:12:52"
+        },
+        {
+            "key": "insert_outputs_off",
+            "kind": "AUTO",
+            "title": "Power OFF MPOD [Insert]",
+            "result": "PASS",
+            "detail": "nothing to switch off -- controller still on standby, but the module bay is dead: 0 modules, 0 outputs, sysMainSwitch off, sysStatus reports inputFailure",
+            "timestamp": "2026-08-25T19:12:52"
+        },
+        {
+            "key": "insert_confirm_off",
+            "kind": "AUTO",
+            "title": "Confirm Crate Is Off [Insert]",
+            "result": "PASS",
+            "detail": "controller still on standby, but the module bay is dead: 0 modules, 0 outputs, sysMainSwitch off, sysStatus reports inputFailure (after 0 s)",
+            "timestamp": "2026-08-25T19:13:02"
+        },
+        {
+            "key": "insert_module_into_test_slot",
+            "kind": "USER",
+            "title": "Insert Module into Test Slot",
+            "result": "PASS",
+            "detail": "",
+            "timestamp": "2026-08-25T19:13:04"
+        },
+        {
+            "key": "insert_power_on",
+            "kind": "AUTO",
+            "title": "Power ON MPOD [Insert]",
+            "result": "PASS",
+            "detail": "crate is up after 12 s (5 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",
+            "timestamp": "2026-08-25T19:13:22"
+        },
+        {
+            "key": "serial_number",
+            "kind": "AUTO",
+            "title": "Read Serial Number",
+            "result": "PASS",
+            "detail": "E08F2 SN 7200489 fw 07.52, negative polarity, 2000 V full scale",
+            "timestamp": "2026-08-25T19:13:22"
+        },
+        {
+            "key": "module_health",
+            "kind": "AUTO",
+            "title": "Check Module Health",
+            "result": "PASS",
+            "detail": "module, supply and temperature all report good",
+            "timestamp": "2026-08-25T19:13:22"
+        },
+        {
+            "key": "initial_safety_loop",
+            "kind": "AUTO",
+            "title": "Read Safety Loop",
+            "result": "PASS",
+            "detail": "safety loop reads closed, expected closed",
+            "timestamp": "2026-08-25T19:13:22"
+        },
+        {
+            "key": "initial_module_good",
+            "kind": "AUTO",
+            "title": "Read Module State",
+            "result": "PASS",
+            "detail": "module reads good (moduleIsGood=set, moduleIsNoSumError=set), expected good",
+            "timestamp": "2026-08-25T19:13:22"
+        },
+        {
+            "key": "initial_led",
+            "kind": "CHECK",
+            "title": "Check Green LED",
+            "result": "PASS",
+            "detail": "operator answered PASS",
+            "timestamp": "2026-08-25T19:13:26"
+        },
+        {
+            "key": "jumper_only_outputs_off",
+            "kind": "AUTO",
+            "title": "Power OFF MPOD [Jumper Only Test]",
+            "result": "PASS",
+            "detail": "outputs off, sysMainSwitch off",
+            "timestamp": "2026-08-25T19:13:26"
+        },
+        {
+            "key": "jumper_only_confirm_off",
+            "kind": "AUTO",
+            "title": "Confirm Crate Is Off [Jumper Only Test]",
+            "result": "PASS",
+            "detail": "controller still on standby, but the module bay is dead: 0 modules, 0 outputs, sysMainSwitch off (after 0 s)",
+            "timestamp": "2026-08-25T19:13:37"
+        },
+        {
+            "key": "jumper_only_test",
+            "kind": "USER",
+            "title": "Jumper Only Test",
+            "result": "PASS",
+            "detail": "",
+            "timestamp": "2026-08-25T19:13:41"
+        },
+        {
+            "key": "jumper_only_power_on",
+            "kind": "AUTO",
+            "title": "Power ON MPOD [Jumper Only Test]",
+            "result": "PASS",
+            "detail": "crate is up after 12 s (5 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",
+            "timestamp": "2026-08-25T19:13:58"
+        },
+        {
+            "key": "jumper_only_safety_loop",
+            "kind": "AUTO",
+            "title": "Read Safety Loop (jumper_only)",
+            "result": "PASS",
+            "detail": "safety loop reads closed, expected closed",
+            "timestamp": "2026-08-25T19:13:58"
+        },
+        {
+            "key": "jumper_only_module_good",
+            "kind": "AUTO",
+            "title": "Read Module State (jumper_only)",
+            "result": "FAIL",
+            "detail": "module reads good (moduleIsGood=set, moduleIsNoSumError=set), expected not good",
+            "timestamp": "2026-08-25T19:13:58"
+        },
+        {
+            "key": "jumper_only_led",
+            "kind": "CHECK",
+            "title": "Check Green LED (jumper_only)",
+            "result": "PASS",
+            "detail": "operator answered PASS",
+            "timestamp": "2026-08-25T19:14:01"
+        },
+        {
+            "key": "test_kit_only_outputs_off",
+            "kind": "AUTO",
+            "title": "Power OFF MPOD [Test Kit Only Test]",
+            "result": "PASS",
+            "detail": "outputs off, sysMainSwitch off",
+            "timestamp": "2026-08-25T19:14:02"
+        },
+        {
+            "key": "test_kit_only_confirm_off",
+            "kind": "AUTO",
+            "title": "Confirm Crate Is Off [Test Kit Only Test]",
+            "result": "PASS",
+            "detail": "controller still on standby, but the module bay is dead: 0 modules, 0 outputs, sysMainSwitch off (after 0 s)",
+            "timestamp": "2026-08-25T19:14:12"
+        },
+        {
+            "key": "test_kit_only_test",
+            "kind": "USER",
+            "title": "Test Kit Only Test",
+            "result": "PASS",
+            "detail": "",
+            "timestamp": "2026-08-25T19:14:15"
+        },
+        {
+            "key": "test_kit_only_power_on",
+            "kind": "AUTO",
+            "title": "Power ON MPOD [Test Kit Only Test]",
+            "result": "PASS",
+            "detail": "crate is up after 12 s (5 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",
+            "timestamp": "2026-08-25T19:14:32"
+        },
+        {
+            "key": "test_kit_only_safety_loop",
+            "kind": "AUTO",
+            "title": "Read Safety Loop (test_kit_only)",
+            "result": "FAIL",
+            "detail": "safety loop reads closed, expected open",
+            "timestamp": "2026-08-25T19:14:32"
+        },
+        {
+            "key": "test_kit_only_module_good",
+            "kind": "AUTO",
+            "title": "Read Module State (test_kit_only)",
+            "result": "FAIL",
+            "detail": "module reads good (moduleIsGood=set, moduleIsNoSumError=set), expected not good",
+            "timestamp": "2026-08-25T19:14:36"
+        },
+        {
+            "key": "test_kit_only_led",
+            "kind": "CHECK",
+            "title": "Check Green LED (test_kit_only)",
+            "result": "PASS",
+            "detail": "operator answered PASS",
+            "timestamp": "2026-08-25T19:14:40"
+        },
+        {
+            "key": "restore_outputs_off",
+            "kind": "AUTO",
+            "title": "Power OFF MPOD [Restore Normal Configuration]",
+            "result": "PASS",
+            "detail": "outputs off, sysMainSwitch off",
+            "timestamp": "2026-08-25T19:14:40"
+        },
+        {
+            "key": "restore_confirm_off",
+            "kind": "AUTO",
+            "title": "Confirm Crate Is Off [Restore Normal Configuration]",
+            "result": "PASS",
+            "detail": "controller still on standby, but the module bay is dead: 0 modules, 0 outputs, sysMainSwitch off (after 0 s)",
+            "timestamp": "2026-08-25T19:14:50"
+        },
+        {
+            "key": "restore_normal_configuration",
+            "kind": "USER",
+            "title": "Restore Normal Configuration",
+            "result": "PASS",
+            "detail": "",
+            "timestamp": "2026-08-25T19:14:55"
+        },
+        {
+            "key": "restore_power_on",
+            "kind": "AUTO",
+            "title": "Power ON MPOD [Restore Normal Configuration]",
+            "result": "PASS",
+            "detail": "crate is up after 12 s (5 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",
+            "timestamp": "2026-08-25T19:15:13"
+        },
+        {
+            "key": "restore_safety_loop",
+            "kind": "AUTO",
+            "title": "Read Safety Loop (restore)",
+            "result": "PASS",
+            "detail": "safety loop reads closed, expected closed",
+            "timestamp": "2026-08-25T19:15:13"
+        },
+        {
+            "key": "restore_module_good",
+            "kind": "AUTO",
+            "title": "Read Module State (restore)",
+            "result": "PASS",
+            "detail": "module reads good (moduleIsGood=set, moduleIsNoSumError=set), expected good",
+            "timestamp": "2026-08-25T19:15:13"
+        },
+        {
+            "key": "restore_led",
+            "kind": "CHECK",
+            "title": "Check Green LED (restore)",
+            "result": "PASS",
+            "detail": "operator answered PASS",
+            "timestamp": "2026-08-25T19:15:19"
+        },
+        {
+            "key": "hv_ramp",
+            "kind": "AUTO",
+            "title": "HV Ramp Test",
+            "result": "PASS",
+            "detail": "up 101 s, down 100 s, measured ramp 9.9-10.0 V/s",
+            "timestamp": "2026-08-25T19:19:13"
+        },
+        {
+            "key": "select_vmax_daq_channel",
+            "kind": "USER",
+            "title": "Select Vmax DAQ Channel",
+            "result": "PASS",
+            "detail": "entered '20'",
+            "timestamp": "2026-08-25T19:19:44"
+        },
+        {
+            "key": "limit_vmax",
+            "kind": "AUTO",
+            "title": "Vmax Limit Adjustment",
+            "result": "PASS",
+            "detail": "Vmax = 1.562313 V (target 1.5625 V, window 1.562 - 1.563 V) -- good",
+            "timestamp": "2026-08-25T19:19:49"
+        },
+        {
+            "key": "select_imax_daq_channel",
+            "kind": "USER",
+            "title": "Select Imax DAQ Channel",
+            "result": "PASS",
+            "detail": "entered '19'",
+            "timestamp": "2026-08-25T19:19:51"
+        },
+        {
+            "key": "limit_imax",
+            "kind": "AUTO",
+            "title": "Imax Limit Adjustment",
+            "result": "PASS",
+            "detail": "Imax = 0.156192 V (target 0.15625 V, window 0.156 - 0.1565 V) -- good",
+            "timestamp": "2026-08-25T19:19:54"
+        },
+        {
+            "key": "hv_limit",
+            "kind": "AUTO",
+            "title": "HV Limit Readback",
+            "result": "PASS",
+            "detail": "voltage pot 63.90 % = 1278 V, current pot 6.40 % = 0.256 mA",
+            "timestamp": "2026-08-25T19:19:54"
+        }
+    ]
+}

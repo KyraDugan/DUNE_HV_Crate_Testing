@@ -5,6 +5,8 @@ Created on Wed Sept 25 10:51:58 2023
 @author: Eraguzin
 """
 
+import time
+
 class RigolDP832A:
     def __init__(self, rm, json_data, index):
         self.prefix = "Rigol DP832A"
@@ -87,6 +89,7 @@ class RigolDP832A:
             chan = self.get_ch_with_name(ch)
             if (chan != 0):
                 self.rigol.write(f"OUTPut:STATe CH{chan},{onoff}")
+                time.sleep(1)
                 print(f"{self.prefix} --> Turned {onoff} Power Supply {self.index+1}, {ch}- Channel {chan}")
         else:
             print(f"{self.prefix} --> WARNING: Did not understand on/off choise {onoff}")
