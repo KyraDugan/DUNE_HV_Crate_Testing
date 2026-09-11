@@ -1,0 +1,41 @@
+step,kind,title,result,detail,timestamp,serial_number,model,firmware,slot,test_name,overall
+1,USER,Open Box,PASS,,2026-08-25T19:12:34,7200489,E08F2,07.52,2,lke,Fail
+2,CHECK,Check Components,PASS,operator answered PASS,2026-08-25T19:12:38,7200489,E08F2,07.52,2,lke,Fail
+3,USER,Enter Serial Number,PASS,entered '7200489',2026-08-25T19:12:50,7200489,E08F2,07.52,2,lke,Fail
+4,USER,Install Test Kit and Jumper,PASS,,2026-08-25T19:12:52,7200489,E08F2,07.52,2,lke,Fail
+5,AUTO,Power OFF MPOD [Insert],PASS,"nothing to switch off -- controller still on standby, but the module bay is dead: 0 modules, 0 outputs, sysMainSwitch off, sysStatus reports inputFailure",2026-08-25T19:12:52,7200489,E08F2,07.52,2,lke,Fail
+6,AUTO,Confirm Crate Is Off [Insert],PASS,"controller still on standby, but the module bay is dead: 0 modules, 0 outputs, sysMainSwitch off, sysStatus reports inputFailure (after 0 s)",2026-08-25T19:13:02,7200489,E08F2,07.52,2,lke,Fail
+7,USER,Insert Module into Test Slot,PASS,,2026-08-25T19:13:04,7200489,E08F2,07.52,2,lke,Fail
+8,AUTO,Power ON MPOD [Insert],PASS,"crate is up after 12 s (5 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",2026-08-25T19:13:22,7200489,E08F2,07.52,2,lke,Fail
+9,AUTO,Read Serial Number,PASS,"E08F2 SN 7200489 fw 07.52, negative polarity, 2000 V full scale",2026-08-25T19:13:22,7200489,E08F2,07.52,2,lke,Fail
+10,AUTO,Check Module Health,PASS,"module, supply and temperature all report good",2026-08-25T19:13:22,7200489,E08F2,07.52,2,lke,Fail
+11,AUTO,Read Safety Loop,PASS,"safety loop reads closed, expected closed",2026-08-25T19:13:22,7200489,E08F2,07.52,2,lke,Fail
+12,AUTO,Read Module State,PASS,"module reads good (moduleIsGood=set, moduleIsNoSumError=set), expected good",2026-08-25T19:13:22,7200489,E08F2,07.52,2,lke,Fail
+13,CHECK,Check Green LED,PASS,operator answered PASS,2026-08-25T19:13:26,7200489,E08F2,07.52,2,lke,Fail
+14,AUTO,Power OFF MPOD [Jumper Only Test],PASS,"outputs off, sysMainSwitch off",2026-08-25T19:13:26,7200489,E08F2,07.52,2,lke,Fail
+15,AUTO,Confirm Crate Is Off [Jumper Only Test],PASS,"controller still on standby, but the module bay is dead: 0 modules, 0 outputs, sysMainSwitch off (after 0 s)",2026-08-25T19:13:37,7200489,E08F2,07.52,2,lke,Fail
+16,USER,Jumper Only Test,PASS,,2026-08-25T19:13:41,7200489,E08F2,07.52,2,lke,Fail
+17,AUTO,Power ON MPOD [Jumper Only Test],PASS,"crate is up after 12 s (5 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",2026-08-25T19:13:58,7200489,E08F2,07.52,2,lke,Fail
+18,AUTO,Read Safety Loop (jumper_only),PASS,"safety loop reads closed, expected closed",2026-08-25T19:13:58,7200489,E08F2,07.52,2,lke,Fail
+19,AUTO,Read Module State (jumper_only),FAIL,"module reads good (moduleIsGood=set, moduleIsNoSumError=set), expected not good",2026-08-25T19:13:58,7200489,E08F2,07.52,2,lke,Fail
+20,CHECK,Check Green LED (jumper_only),PASS,operator answered PASS,2026-08-25T19:14:01,7200489,E08F2,07.52,2,lke,Fail
+21,AUTO,Power OFF MPOD [Test Kit Only Test],PASS,"outputs off, sysMainSwitch off",2026-08-25T19:14:02,7200489,E08F2,07.52,2,lke,Fail
+22,AUTO,Confirm Crate Is Off [Test Kit Only Test],PASS,"controller still on standby, but the module bay is dead: 0 modules, 0 outputs, sysMainSwitch off (after 0 s)",2026-08-25T19:14:12,7200489,E08F2,07.52,2,lke,Fail
+23,USER,Test Kit Only Test,PASS,,2026-08-25T19:14:15,7200489,E08F2,07.52,2,lke,Fail
+24,AUTO,Power ON MPOD [Test Kit Only Test],PASS,"crate is up after 12 s (5 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",2026-08-25T19:14:32,7200489,E08F2,07.52,2,lke,Fail
+25,AUTO,Read Safety Loop (test_kit_only),FAIL,"safety loop reads closed, expected open",2026-08-25T19:14:32,7200489,E08F2,07.52,2,lke,Fail
+26,AUTO,Read Module State (test_kit_only),FAIL,"module reads good (moduleIsGood=set, moduleIsNoSumError=set), expected not good",2026-08-25T19:14:36,7200489,E08F2,07.52,2,lke,Fail
+27,CHECK,Check Green LED (test_kit_only),PASS,operator answered PASS,2026-08-25T19:14:40,7200489,E08F2,07.52,2,lke,Fail
+28,AUTO,Power OFF MPOD [Restore Normal Configuration],PASS,"outputs off, sysMainSwitch off",2026-08-25T19:14:40,7200489,E08F2,07.52,2,lke,Fail
+29,AUTO,Confirm Crate Is Off [Restore Normal Configuration],PASS,"controller still on standby, but the module bay is dead: 0 modules, 0 outputs, sysMainSwitch off (after 0 s)",2026-08-25T19:14:50,7200489,E08F2,07.52,2,lke,Fail
+30,USER,Restore Normal Configuration,PASS,,2026-08-25T19:14:55,7200489,E08F2,07.52,2,lke,Fail
+31,AUTO,Power ON MPOD [Restore Normal Configuration],PASS,"crate is up after 12 s (5 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",2026-08-25T19:15:13,7200489,E08F2,07.52,2,lke,Fail
+32,AUTO,Read Safety Loop (restore),PASS,"safety loop reads closed, expected closed",2026-08-25T19:15:13,7200489,E08F2,07.52,2,lke,Fail
+33,AUTO,Read Module State (restore),PASS,"module reads good (moduleIsGood=set, moduleIsNoSumError=set), expected good",2026-08-25T19:15:13,7200489,E08F2,07.52,2,lke,Fail
+34,CHECK,Check Green LED (restore),PASS,operator answered PASS,2026-08-25T19:15:19,7200489,E08F2,07.52,2,lke,Fail
+35,AUTO,HV Ramp Test,PASS,"up 101 s, down 100 s, measured ramp 9.9-10.0 V/s",2026-08-25T19:19:13,7200489,E08F2,07.52,2,lke,Fail
+36,USER,Select Vmax DAQ Channel,PASS,entered '20',2026-08-25T19:19:44,7200489,E08F2,07.52,2,lke,Fail
+37,AUTO,Vmax Limit Adjustment,PASS,"Vmax = 1.562313 V (target 1.5625 V, window 1.562 - 1.563 V) -- good",2026-08-25T19:19:49,7200489,E08F2,07.52,2,lke,Fail
+38,USER,Select Imax DAQ Channel,PASS,entered '19',2026-08-25T19:19:51,7200489,E08F2,07.52,2,lke,Fail
+39,AUTO,Imax Limit Adjustment,PASS,"Imax = 0.156192 V (target 0.15625 V, window 0.156 - 0.1565 V) -- good",2026-08-25T19:19:54,7200489,E08F2,07.52,2,lke,Fail
+40,AUTO,HV Limit Readback,PASS,"voltage pot 63.90 % = 1278 V, current pot 6.40 % = 0.256 mA",2026-08-25T19:19:54,7200489,E08F2,07.52,2,lke,Fail

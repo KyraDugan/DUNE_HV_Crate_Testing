@@ -1,0 +1,871 @@
+Enter test title for CSV logging: Terminal output log: /home/dune-daq/DUNE-HV-Crate-Testing/HV PMOD QC Output Text Files/2026-07-17/717_test3_104844.txt
+Test title: 717_test3
+SNMP command: snmpwalk -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 crate
+
+========================================================
+  HV Crate found
+========================================================
+id info:
+  sysMainSwitch: on(1)
+  sysStatus: BITS: 80 mainOn(0)
+  outputNumber: 40
+  moduleNumber: 5
+  psSerialNumber: 1084023
+  ipDynamicAddress: 169.254.4.31
+  ipStaticAddress: 169.254.4.31
+  macAddress: 30:32:94:0:3:76
+
+Discovered 3 ISEG module(s).
+
+--------------------------------------------------------
+  ISEG module discovery: U100-107
+--------------------------------------------------------
+id info:
+  module name: iseg
+  firmware name: E08C2
+  number of channels: 08
+  serial number: 7800165
+  firmware number: 04.56
+  channel indices: U100, U101, U102, U103, U104, U105, U106, U107
+Perform QC functionality tests on ISEG SN 7800165 (U100-107)? [Y/n]: Skipping QC functionality tests for this module.
+
+--------------------------------------------------------
+  ISEG module discovery: U200-207
+--------------------------------------------------------
+id info:
+  module name: iseg
+  firmware name: E08C2
+  number of channels: 08
+  serial number: 7800166
+  firmware number: 4.56
+  channel indices: U200, U201, U202, U203, U204, U205, U206, U207
+Perform QC functionality tests on ISEG SN 7800166 (U200-207)? [Y/n]: Skipping QC functionality tests for this module.
+
+--------------------------------------------------------
+  ISEG module discovery: U400-407
+--------------------------------------------------------
+id info:
+  module name: iseg
+  firmware name: E08F2
+  number of channels: 08
+  serial number: 7200489
+  firmware number: 07.52
+  channel indices: U400, U401, U402, U403, U404, U405, U406, U407
+Perform QC functionality tests on ISEG SN 7200489 (U400-407)? [Y/n]: Is ISEG SN 7200489 (U400-407) a positive or negative power supply? [positive/negative]: Neglect readback polarity and treat voltage readback magnitudes as the user-defined polarity for ISEG SN 7200489 (U400-407)? [y/N]: Readback polarity handling for this module: manual/user-defined polarity.
+
+----------------------------------------------------------------
+  ISEG SN 7200489 positive U400-407 (manual readback polarity)
+----------------------------------------------------------------
+
+Communication and channel hardware alarm check:
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+  PASS: no channel alarm conditions detected.
+
+Initial readback check:
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u407
+  PASS: initial readback captured.
+
+Voltage/current/ramp setting check:
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u400 i 10
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltage.u400 F 2000.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputCurrent.u400 F 0.001
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltageRiseRate.u400 F 100.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u401 i 10
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltage.u401 F 2000.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputCurrent.u401 F 0.001
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltageRiseRate.u401 F 100.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u402 i 10
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltage.u402 F 2000.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputCurrent.u402 F 0.001
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltageRiseRate.u402 F 100.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u403 i 10
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltage.u403 F 2000.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputCurrent.u403 F 0.001
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltageRiseRate.u403 F 100.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u404 i 10
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltage.u404 F 2000.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputCurrent.u404 F 0.001
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltageRiseRate.u404 F 100.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u405 i 10
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltage.u405 F 2000.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputCurrent.u405 F 0.001
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltageRiseRate.u405 F 100.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u406 i 10
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltage.u406 F 2000.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputCurrent.u406 F 0.001
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltageRiseRate.u406 F 100.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u407 i 10
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltage.u407 F 2000.0
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputCurrent.u407 F 0.001
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputVoltageRiseRate.u407 F 100.0
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u407
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u400 i 1
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+Monitoring U400 ramp for up to 22.0 s toward 2000 V.
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=0.0 s status=BITS: 00 01 40 outputAdjusting(15) outputLowCurrentRange(17) measured=0.007127 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=1.1 s status=BITS: 00 01 outputAdjusting(15) measured=19.9351 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=2.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=79.1578 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=3.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=183.006 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=4.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=293.266 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=5.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=403.334 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=6.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=493.799 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=7.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=598.306 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=8.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=707.982 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=9.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=817.513 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=10.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=909.189 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=11.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1017.25 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=12.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1126.16 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=13.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1211.47 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=14.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1322.05 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=15.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1431.31 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=16.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1522.1 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=17.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1630.15 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=18.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1739.64 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=19.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1843.03 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=20.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1935.12 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+  U400 t=21.8 s status=BITS: 80 01 C0 outputOn(0) outputAdjusting(15) outputConstantVoltage(16) outputLowCurrentRange(17) measured=1999.94 V
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u401 i 1
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+Monitoring U401 ramp for up to 22.0 s toward 2000 V.
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=0.0 s status=BITS: 00 01 40 outputAdjusting(15) outputLowCurrentRange(17) measured=0.02786 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=1.1 s status=BITS: 00 01 outputAdjusting(15) measured=21.9959 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=2.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=90.2547 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=3.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=181.364 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=4.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=285.19 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=5.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=394.716 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=6.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=504.684 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=7.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=596.123 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=8.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=705.255 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=9.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=809.132 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=10.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=917.288 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=11.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1008.77 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=12.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1117.13 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=13.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1226.14 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=14.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1334.97 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=15.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1426.57 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=16.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1529.86 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=17.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1638.68 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=18.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1730.9 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=19.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1839.93 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=20.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1948.28 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+  U401 t=21.9 s status=BITS: 80 01 C0 outputOn(0) outputAdjusting(15) outputConstantVoltage(16) outputLowCurrentRange(17) measured=1999.99 V
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u402 i 1
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+Monitoring U402 ramp for up to 22.0 s toward 2000 V.
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=0.0 s status=BITS: 00 01 40 outputAdjusting(15) outputLowCurrentRange(17) measured=0.028739 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=1.1 s status=BITS: 00 01 outputAdjusting(15) measured=20.1169 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=2.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=75.9423 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=3.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=187.442 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=4.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=293.484 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=5.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=386.635 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=6.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=492.426 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=7.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=604.15 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=8.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=709.985 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=9.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=802.863 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=10.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=909.121 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=11.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1015.04 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=12.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1108.4 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=13.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1214.77 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=14.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1325.96 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=15.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1431.41 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=16.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1518.78 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=17.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1631.03 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=18.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1737 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=19.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1849.25 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=20.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1936.86 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+  U402 t=21.8 s status=BITS: 80 01 C0 outputOn(0) outputAdjusting(15) outputConstantVoltage(16) outputLowCurrentRange(17) measured=1999.97 V
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u403 i 1
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+Monitoring U403 ramp for up to 22.0 s toward 2000 V.
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=0.0 s status=BITS: 00 01 40 outputAdjusting(15) outputLowCurrentRange(17) measured=0.038533 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=1.1 s status=BITS: 00 01 outputAdjusting(15) measured=23.3787 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=2.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=92.5085 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=3.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=180.547 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=4.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=286.944 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=5.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=400.005 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=6.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=488.077 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=7.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=595.132 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=8.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=701.877 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=9.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=814.92 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=10.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=903.6 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=11.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1010.36 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=12.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1117.56 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=13.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1211.8 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=14.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1318.28 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=15.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1425.14 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=16.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1519.36 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=17.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1626.01 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=18.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1732.87 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=19.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1820.79 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=20.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1933.04 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+  U403 t=21.7 s status=BITS: 80 01 C0 outputOn(0) outputAdjusting(15) outputConstantVoltage(16) outputLowCurrentRange(17) measured=1999.96 V
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u404 i 1
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+Monitoring U404 ramp for up to 22.0 s toward 2000 V.
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=0.0 s status=BITS: 00 01 40 outputAdjusting(15) outputLowCurrentRange(17) measured=0.037246 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=1.1 s status=BITS: 00 01 outputAdjusting(15) measured=31.4735 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=2.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=92.178 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=3.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=180.438 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=4.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=287.917 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=5.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=401.727 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=6.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=490.4 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=7.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=597.068 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=8.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=704.586 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=9.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=812.088 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=10.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=906.448 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=11.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1013.52 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=12.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1120.86 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=13.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1228.42 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=14.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1336.41 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=15.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1430.54 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=16.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1537.86 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=17.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1645.19 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=18.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1733.33 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=19.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1847.02 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=20.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1954.19 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+  U404 t=21.9 s status=BITS: 80 01 C0 outputOn(0) outputAdjusting(15) outputConstantVoltage(16) outputLowCurrentRange(17) measured=1999.97 V
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u405 i 1
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+Monitoring U405 ramp for up to 22.0 s toward 2000 V.
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=0.0 s status=BITS: 00 01 40 outputAdjusting(15) outputLowCurrentRange(17) measured=0.049487 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=1.1 s status=BITS: 00 01 outputAdjusting(15) measured=23.7513 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=2.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=80.3496 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=3.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=187.785 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=4.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=294.47 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=5.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=388.783 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=6.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=495.833 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=7.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=603.303 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=8.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=697.475 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=9.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=804.568 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=10.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=910.913 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=11.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1017.98 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=12.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1112.18 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=13.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1219.3 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=14.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1326.55 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=15.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1433.29 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=16.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1527.69 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=17.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1634.82 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=18.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1740.62 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=19.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1848.17 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=20.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1943.1 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+  U405 t=21.9 s status=BITS: 80 01 C0 outputOn(0) outputAdjusting(15) outputConstantVoltage(16) outputLowCurrentRange(17) measured=2000.02 V
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u406 i 1
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+Monitoring U406 ramp for up to 22.0 s toward 2000 V.
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=0.0 s status=BITS: 00 01 40 outputAdjusting(15) outputLowCurrentRange(17) measured=0.022839 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=1.1 s status=BITS: 00 01 outputAdjusting(15) measured=32.8546 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=2.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=81.7647 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=3.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=190.593 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=4.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=280.211 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=5.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=389.8 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=6.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=498.584 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=7.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=588.595 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=8.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=696.972 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=9.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=806.02 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=10.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=914.314 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=11.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1004.63 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=12.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1114 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=13.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1222.43 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=14.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1330.99 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=15.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1438.61 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=16.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1546.69 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=17.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1636.27 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=18.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1745.29 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=19.9 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1853.82 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=20.9 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1961 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+  U406 t=22.0 s status=BITS: 80 01 C0 outputOn(0) outputAdjusting(15) outputConstantVoltage(16) outputLowCurrentRange(17) measured=1999.97 V
+SNMP command: snmpset -v 2c -m +WIENER-CRATE-MIB -c guru 169.254.4.31 outputSwitch.u407 i 1
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+Monitoring U407 ramp for up to 22.0 s toward 2000 V.
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=0.0 s status=BITS: 00 01 40 outputAdjusting(15) outputLowCurrentRange(17) measured=0.040545 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=1.1 s status=BITS: 00 01 outputAdjusting(15) measured=27.3528 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=2.1 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=80.6004 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=3.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=189.365 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=4.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=298.1 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=5.2 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=387.276 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=6.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=495.531 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=7.3 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=603.801 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=8.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=693.435 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=9.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=802.317 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=10.4 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=911.789 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=11.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1019.96 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=12.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1109.65 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=13.5 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1218.51 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=14.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1327.41 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=15.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1417.08 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=16.6 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1525.22 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=17.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1633.74 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=18.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1723.68 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=19.7 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1831.64 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=20.8 s status=BITS: 80 11 80 outputOn(0) outputRampUp(11) outputAdjusting(15) outputConstantVoltage(16) measured=1940.76 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputStatus.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+  U407 t=21.8 s status=BITS: 80 01 C0 outputOn(0) outputAdjusting(15) outputConstantVoltage(16) outputLowCurrentRange(17) measured=2000.02 V
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u407
+  PASS with ramp warning(s):
+  - U400: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U401: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U402: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U403: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U404: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U405: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U406: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U407: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U400: ramp-rate readback was unreliable, but target 2000 V was reached in 21.8 s within the expected 22.0 s window.
+  - U401: ramp-rate readback was unreliable, but target 2000 V was reached in 21.9 s within the expected 22.0 s window.
+  - U402: ramp-rate readback was unreliable, but target 2000 V was reached in 21.8 s within the expected 22.0 s window.
+  - U403: ramp-rate readback was unreliable, but target 2000 V was reached in 21.7 s within the expected 22.0 s window.
+  - U404: ramp-rate readback was unreliable, but target 2000 V was reached in 21.9 s within the expected 22.0 s window.
+  - U405: ramp-rate readback was unreliable, but target 2000 V was reached in 21.9 s within the expected 22.0 s window.
+  - U406: ramp-rate readback was unreliable, but target 2000 V was reached in 22.0 s within the expected 22.0 s window.
+  - U407: ramp-rate readback was unreliable, but target 2000 V was reached in 21.8 s within the expected 22.0 s window.
+  PASS: settings verified and channels turned ON.
+
+Final readback check:
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u400
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u401
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u402
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u403
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u404
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u405
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u406
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltage.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputCurrent.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementSenseVoltage.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputMeasurementCurrent.u407
+SNMP command: snmpget -v 2c -m +WIENER-CRATE-MIB -c public 169.254.4.31 outputVoltageRiseRate.u407
+  PASS: final readback captured.
+
+Saved module test result data to /home/dune-daq/DUNE-HV-Crate-Testing/HV Modules Test Results/iseg_7200489_E08F2_07.52.csv
+
+Saved ramp warning report to /home/dune-daq/DUNE-HV-Crate-Testing/HV PMOD QC Ramp Warnings/iseg_7200489_E08F2_07.52_positive_U400-407_2026-07-17_105220_warnings.txt
+
+Skipped QC functionality tests for 2 module(s).
+
+========================================================
+  Final Summary Report
+========================================================
+PASS: ISEG SN 7200489 positive U400-407 (manual readback polarity)
+  WARNINGS:
+  - U400: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U401: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U402: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U403: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U404: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U405: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U406: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U407: ramp-rate readback mismatch (commanded 100 V/s, read back -100 V/s). Proceeding with timed voltage/status monitoring instead of trusting ramp-rate readback.
+  - U400: ramp-rate readback was unreliable, but target 2000 V was reached in 21.8 s within the expected 22.0 s window.
+  - U401: ramp-rate readback was unreliable, but target 2000 V was reached in 21.9 s within the expected 22.0 s window.
+  - U402: ramp-rate readback was unreliable, but target 2000 V was reached in 21.8 s within the expected 22.0 s window.
+  - U403: ramp-rate readback was unreliable, but target 2000 V was reached in 21.7 s within the expected 22.0 s window.
+  - U404: ramp-rate readback was unreliable, but target 2000 V was reached in 21.9 s within the expected 22.0 s window.
+  - U405: ramp-rate readback was unreliable, but target 2000 V was reached in 21.9 s within the expected 22.0 s window.
+  - U406: ramp-rate readback was unreliable, but target 2000 V was reached in 22.0 s within the expected 22.0 s window.
+  - U407: ramp-rate readback was unreliable, but target 2000 V was reached in 21.8 s within the expected 22.0 s window.
+
+QC complete: 1/1 module(s) passed.
+
+TEST COMPLETE: PASS

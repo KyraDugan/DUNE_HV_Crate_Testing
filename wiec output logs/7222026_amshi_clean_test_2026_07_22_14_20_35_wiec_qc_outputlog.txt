@@ -1,0 +1,207 @@
+WIEC output log: /home/dune-daq/DUNE-HV-Crate-Testing/wiec output logs/7222026_amshi_clean_test_2026_07_22_14_20_35_wiec_qc_outputlog.txt
+
+======================================================================
+Running dune_hv_crate_test.py...
+======================================================================
+
+======================================================================
+DUNE HV CRATE TEST TERMINAL GUI
+======================================================================
+Enter the WIB number you want to power on/off: Enter the power state (on/off) for WIB 0: Do you want to power on/off more WIBs? (y/n): Enter version number: Enter name of tester: Enter extra comments from test user: Enter config file path [default: config.json]: 
+======================================================================
+DUNE HV CRATE TEST RUN SUMMARY
+======================================================================
+Config file : /home/dune-daq/DUNE-HV-Crate-Testing/config.json
+Test name   : 005_amshi_clean_terminal
+======================================================================
+Start test now? [y/n]: dune_hv_crate_test.py passed.
+
+======================================================================
+Running wiec_ptc_power.py...
+======================================================================
+Stored current USB serial ports:
+  None
+Rigol DP832A --> Connected to RIGOL TECHNOLOGIES,DP832A,DP8B212500638,00.01.16
+
+Rigol DP832A --> Connected to RIGOL TECHNOLOGIES,DP832A,DP8B174901006,00.01.19
+
+Keysight DAQ 970A --> Connected to Keysight Technologies,DAQ970A,MY58032568,A.02.03-01.00-02.01-00.02-02.00-03-02
+
+Rigol DP832A --> Turned ON Power Supply 1, fan- Channel 1
+Rigol DP832A --> Turned ON Power Supply 2, fanread- Channel 3
+{'channel': 0, 'voltage_setpoint_v': 48.0, 'current_limit_a': 8.0, 'terminal_voltage_v': 0.0, 'sense_voltage_v': 0.0, 'measured_current_a': 0.0, 'switch_state': 'off', 'status': '"00 "'}
+error. PTC power is not on. will try again 3x times
+Retry Attempt # 1
+ --> PL506 channel 0 turned on with readback information:
+{'channel': 0, 'voltage_setpoint_v': 48.0, 'current_limit_a': 8.0, 'terminal_voltage_v': 47.583984, 'sense_voltage_v': 47.580078, 'measured_current_a': 0.172363, 'switch_state': 'on', 'status': '"80 "'}
+wiec_ptc_power.py passed.
+
+======================================================================
+Running wiec_wib_setup.py...
+======================================================================
+Waiting for Zynq boot before serial login: waiting 100 seconds
+Waiting for Zynq boot before serial login: 100s remainingWaiting for Zynq boot before serial login: 99s remainingWaiting for Zynq boot before serial login: 98s remainingWaiting for Zynq boot before serial login: 97s remainingWaiting for Zynq boot before serial login: 96s remainingWaiting for Zynq boot before serial login: 95s remainingWaiting for Zynq boot before serial login: 94s remainingWaiting for Zynq boot before serial login: 93s remainingWaiting for Zynq boot before serial login: 92s remainingWaiting for Zynq boot before serial login: 91s remainingWaiting for Zynq boot before serial login: 90s remainingWaiting for Zynq boot before serial login: 89s remainingWaiting for Zynq boot before serial login: 88s remainingWaiting for Zynq boot before serial login: 87s remainingWaiting for Zynq boot before serial login: 86s remainingWaiting for Zynq boot before serial login: 85s remainingWaiting for Zynq boot before serial login: 84s remainingWaiting for Zynq boot before serial login: 83s remainingWaiting for Zynq boot before serial login: 82s remainingWaiting for Zynq boot before serial login: 81s remainingWaiting for Zynq boot before serial login: 80s remainingWaiting for Zynq boot before serial login: 79s remainingWaiting for Zynq boot before serial login: 78s remainingWaiting for Zynq boot before serial login: 77s remainingWaiting for Zynq boot before serial login: 76s remainingWaiting for Zynq boot before serial login: 75s remainingWaiting for Zynq boot before serial login: 74s remainingWaiting for Zynq boot before serial login: 73s remainingWaiting for Zynq boot before serial login: 72s remainingWaiting for Zynq boot before serial login: 71s remainingWaiting for Zynq boot before serial login: 70s remainingWaiting for Zynq boot before serial login: 69s remainingWaiting for Zynq boot before serial login: 68s remainingWaiting for Zynq boot before serial login: 67s remainingWaiting for Zynq boot before serial login: 66s remainingWaiting for Zynq boot before serial login: 65s remainingWaiting for Zynq boot before serial login: 64s remainingWaiting for Zynq boot before serial login: 63s remainingWaiting for Zynq boot before serial login: 62s remainingWaiting for Zynq boot before serial login: 61s remainingWaiting for Zynq boot before serial login: 60s remainingWaiting for Zynq boot before serial login: 59s remainingWaiting for Zynq boot before serial login: 58s remainingWaiting for Zynq boot before serial login: 57s remainingWaiting for Zynq boot before serial login: 56s remainingWaiting for Zynq boot before serial login: 55s remainingWaiting for Zynq boot before serial login: 54s remainingWaiting for Zynq boot before serial login: 53s remainingWaiting for Zynq boot before serial login: 52s remainingWaiting for Zynq boot before serial login: 51s remainingWaiting for Zynq boot before serial login: 50s remainingWaiting for Zynq boot before serial login: 49s remainingWaiting for Zynq boot before serial login: 48s remainingWaiting for Zynq boot before serial login: 47s remainingWaiting for Zynq boot before serial login: 46s remainingWaiting for Zynq boot before serial login: 45s remainingWaiting for Zynq boot before serial login: 44s remainingWaiting for Zynq boot before serial login: 43s remainingWaiting for Zynq boot before serial login: 42s remainingWaiting for Zynq boot before serial login: 41s remainingWaiting for Zynq boot before serial login: 40s remainingWaiting for Zynq boot before serial login: 39s remainingWaiting for Zynq boot before serial login: 38s remainingWaiting for Zynq boot before serial login: 37s remainingWaiting for Zynq boot before serial login: 36s remainingWaiting for Zynq boot before serial login: 35s remainingWaiting for Zynq boot before serial login: 34s remainingWaiting for Zynq boot before serial login: 33s remainingWaiting for Zynq boot before serial login: 32s remainingWaiting for Zynq boot before serial login: 31s remainingWaiting for Zynq boot before serial login: 30s remainingWaiting for Zynq boot before serial login: 29s remainingWaiting for Zynq boot before serial login: 28s remainingWaiting for Zynq boot before serial login: 27s remainingWaiting for Zynq boot before serial login: 26s remainingWaiting for Zynq boot before serial login: 25s remainingWaiting for Zynq boot before serial login: 24s remainingWaiting for Zynq boot before serial login: 23s remainingWaiting for Zynq boot before serial login: 22s remainingWaiting for Zynq boot before serial login: 21s remainingWaiting for Zynq boot before serial login: 20s remainingWaiting for Zynq boot before serial login: 19s remainingWaiting for Zynq boot before serial login: 18s remainingWaiting for Zynq boot before serial login: 17s remainingWaiting for Zynq boot before serial login: 16s remainingWaiting for Zynq boot before serial login: 15s remainingWaiting for Zynq boot before serial login: 14s remainingWaiting for Zynq boot before serial login: 13s remainingWaiting for Zynq boot before serial login: 12s remainingWaiting for Zynq boot before serial login: 11s remainingWaiting for Zynq boot before serial login: 10s remainingWaiting for Zynq boot before serial login: 9s remainingWaiting for Zynq boot before serial login: 8s remainingWaiting for Zynq boot before serial login: 7s remainingWaiting for Zynq boot before serial login: 6s remainingWaiting for Zynq boot before serial login: 5s remainingWaiting for Zynq boot before serial login: 4s remainingWaiting for Zynq boot before serial login: 3s remainingWaiting for Zynq boot before serial login: 2s remainingWaiting for Zynq boot before serial login: 1s remainingWaiting for Zynq boot before serial login: done                    
+Waiting for Zynq boot before serial login: wait complete
+Found new Zynq serial device: /dev/ttyUSB0
+Opening serial console: /dev/ttyUSB0 @ 115200
+Checking initial terminal state...
+Waiting for PetaLinux login prompt...
+Sending username...
+Logged into PetaLinux.
+Waiting for PetaLinux login prompt...
+python setup_timing.py
+
+78root@ptc:~# 
+Setting date to Wed Jul 22 14:24:56 EDT 2026...
+Waiting for PetaLinux login prompt...
+Waiting for PetaLinux login prompt...
+
+ Set date output: sudo date -s 'Wed Jul 22 14:24:56 EDT 2026'
+Wed Jul 22 18:24:56 UTC 2026
+root@ptc:~# 
+root@ptc:~# date
+Wed Jul 22 18:24:56 UTC 2026
+root@ptc:~# 
+root@ptc:~# 
+Waiting for Zynq to settle after serial login: waiting 100 seconds
+Waiting for Zynq to settle after serial login: 100s remainingWaiting for Zynq to settle after serial login: 99s remainingWaiting for Zynq to settle after serial login: 98s remainingWaiting for Zynq to settle after serial login: 97s remainingWaiting for Zynq to settle after serial login: 96s remainingWaiting for Zynq to settle after serial login: 95s remainingWaiting for Zynq to settle after serial login: 94s remainingWaiting for Zynq to settle after serial login: 93s remainingWaiting for Zynq to settle after serial login: 92s remainingWaiting for Zynq to settle after serial login: 91s remainingWaiting for Zynq to settle after serial login: 90s remainingWaiting for Zynq to settle after serial login: 89s remainingWaiting for Zynq to settle after serial login: 88s remainingWaiting for Zynq to settle after serial login: 87s remainingWaiting for Zynq to settle after serial login: 86s remainingWaiting for Zynq to settle after serial login: 85s remainingWaiting for Zynq to settle after serial login: 84s remainingWaiting for Zynq to settle after serial login: 83s remainingWaiting for Zynq to settle after serial login: 82s remainingWaiting for Zynq to settle after serial login: 81s remainingWaiting for Zynq to settle after serial login: 80s remainingWaiting for Zynq to settle after serial login: 79s remainingWaiting for Zynq to settle after serial login: 78s remainingWaiting for Zynq to settle after serial login: 77s remainingWaiting for Zynq to settle after serial login: 76s remainingWaiting for Zynq to settle after serial login: 75s remainingWaiting for Zynq to settle after serial login: 74s remainingWaiting for Zynq to settle after serial login: 73s remainingWaiting for Zynq to settle after serial login: 72s remainingWaiting for Zynq to settle after serial login: 71s remainingWaiting for Zynq to settle after serial login: 70s remainingWaiting for Zynq to settle after serial login: 69s remainingWaiting for Zynq to settle after serial login: 68s remainingWaiting for Zynq to settle after serial login: 67s remainingWaiting for Zynq to settle after serial login: 66s remainingWaiting for Zynq to settle after serial login: 65s remainingWaiting for Zynq to settle after serial login: 64s remainingWaiting for Zynq to settle after serial login: 63s remainingWaiting for Zynq to settle after serial login: 62s remainingWaiting for Zynq to settle after serial login: 61s remainingWaiting for Zynq to settle after serial login: 60s remainingWaiting for Zynq to settle after serial login: 59s remainingWaiting for Zynq to settle after serial login: 58s remainingWaiting for Zynq to settle after serial login: 57s remainingWaiting for Zynq to settle after serial login: 56s remainingWaiting for Zynq to settle after serial login: 55s remainingWaiting for Zynq to settle after serial login: 54s remainingWaiting for Zynq to settle after serial login: 53s remainingWaiting for Zynq to settle after serial login: 52s remainingWaiting for Zynq to settle after serial login: 51s remainingWaiting for Zynq to settle after serial login: 50s remainingWaiting for Zynq to settle after serial login: 49s remainingWaiting for Zynq to settle after serial login: 48s remainingWaiting for Zynq to settle after serial login: 47s remainingWaiting for Zynq to settle after serial login: 46s remainingWaiting for Zynq to settle after serial login: 45s remainingWaiting for Zynq to settle after serial login: 44s remainingWaiting for Zynq to settle after serial login: 43s remainingWaiting for Zynq to settle after serial login: 42s remainingWaiting for Zynq to settle after serial login: 41s remainingWaiting for Zynq to settle after serial login: 40s remainingWaiting for Zynq to settle after serial login: 39s remainingWaiting for Zynq to settle after serial login: 38s remainingWaiting for Zynq to settle after serial login: 37s remainingWaiting for Zynq to settle after serial login: 36s remainingWaiting for Zynq to settle after serial login: 35s remainingWaiting for Zynq to settle after serial login: 34s remainingWaiting for Zynq to settle after serial login: 33s remainingWaiting for Zynq to settle after serial login: 32s remainingWaiting for Zynq to settle after serial login: 31s remainingWaiting for Zynq to settle after serial login: 30s remainingWaiting for Zynq to settle after serial login: 29s remainingWaiting for Zynq to settle after serial login: 28s remainingWaiting for Zynq to settle after serial login: 27s remainingWaiting for Zynq to settle after serial login: 26s remainingWaiting for Zynq to settle after serial login: 25s remainingWaiting for Zynq to settle after serial login: 24s remainingWaiting for Zynq to settle after serial login: 23s remainingWaiting for Zynq to settle after serial login: 22s remainingWaiting for Zynq to settle after serial login: 21s remainingWaiting for Zynq to settle after serial login: 20s remainingWaiting for Zynq to settle after serial login: 19s remainingWaiting for Zynq to settle after serial login: 18s remainingWaiting for Zynq to settle after serial login: 17s remainingWaiting for Zynq to settle after serial login: 16s remainingWaiting for Zynq to settle after serial login: 15s remainingWaiting for Zynq to settle after serial login: 14s remainingWaiting for Zynq to settle after serial login: 13s remainingWaiting for Zynq to settle after serial login: 12s remainingWaiting for Zynq to settle after serial login: 11s remainingWaiting for Zynq to settle after serial login: 10s remainingWaiting for Zynq to settle after serial login: 9s remainingWaiting for Zynq to settle after serial login: 8s remainingWaiting for Zynq to settle after serial login: 7s remainingWaiting for Zynq to settle after serial login: 6s remainingWaiting for Zynq to settle after serial login: 5s remainingWaiting for Zynq to settle after serial login: 4s remainingWaiting for Zynq to settle after serial login: 3s remainingWaiting for Zynq to settle after serial login: 2s remainingWaiting for Zynq to settle after serial login: 1s remainingWaiting for Zynq to settle after serial login: done                    
+Waiting for Zynq to settle after serial login: wait complete
+
+Setting power for WIBs as follows {'0': 'on'}...
+Waiting for PetaLinux login prompt...
+python3 power_on_wib.py 0 on
+Powering WIB 0 on
+root@ptc:~# 
+root@ptc:~# 
+python3 power_on_wib.py 0 on
+Powering WIB 0 on
+root@ptc:~# 
+root@ptc:~# 
+
+Power control raw outputs:
+
+--- WIB 0 ---
+python3 power_on_wib.py 0 on
+Powering WIB 0 on
+root@ptc:~# 
+root@ptc:~# 
+Running python3 ecat_test1b.py logfile.txt for 65 seconds...
+Error: Read failed
+Sensor 0x69 not readable
+
+Error: Read failed
+Sensor 0x6a not readable
+
+Error: Read failed
+Sensor 0x6b not readable
+
+Error: Read failed
+Sensor 0x6c not readable
+
+Voltage sensor addr 0x6d reads raw value: 0x800a
+ which is current: 0.84 A
+
+Voltage sensor addr 0x6e reads raw value: 0x9004
+ which is current: 0.73 A
+
+Value 0x04 written, readback matched
+Switching to alternate I2C bus
+Temp sensor addr 0x48 reads raw value: 0xe10b
+ which is temp: 23.8 C
+
+Temp sensor addr 0x49 reads raw value: 0x090c
+ which is temp: 24.1 C
+
+Temp sensor addr 0x4a reads raw value: 0xc50b
+ which is temp: 23.5 C
+
+Temp sensor addr 0x4b reads raw value: 0x0a0c
+ which is temp: 24.1 C
+
+Voltage sensor addr 0x6e reads raw value: 0xc00b
+ which is current: 0.24 A
+
+Voltage sensor addr 0x6f reads raw value: 0xf021
+ which is current: 0.68 A
+
+Value 0x08 written, readback matched
+switching back to default I2C bus
+^Z
+[1]+  Stopped(SIGTSTP)        python3 ecat_test1b.py logfile.txt
+root@ptc:~# 
+Waiting 45 seconds before I2C scan...
+Waiting for PetaLinux login prompt...
+i2cdetect -y -r 2
+     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+00:                         -- -- -- -- -- -- -- -- 
+10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+20: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+30: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+40: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+50: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+60: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+70: 70 -- -- -- -- -- -- --                         
+root@ptc:~# 
+root@ptc:~# 
+Waiting before WIB sensor readout: waiting 45 seconds
+Waiting before WIB sensor readout: 45s remainingWaiting before WIB sensor readout: 44s remainingWaiting before WIB sensor readout: 43s remainingWaiting before WIB sensor readout: 42s remainingWaiting before WIB sensor readout: 41s remainingWaiting before WIB sensor readout: 40s remainingWaiting before WIB sensor readout: 39s remainingWaiting before WIB sensor readout: 38s remainingWaiting before WIB sensor readout: 37s remainingWaiting before WIB sensor readout: 36s remainingWaiting before WIB sensor readout: 35s remainingWaiting before WIB sensor readout: 34s remainingWaiting before WIB sensor readout: 33s remainingWaiting before WIB sensor readout: 32s remainingWaiting before WIB sensor readout: 31s remainingWaiting before WIB sensor readout: 30s remainingWaiting before WIB sensor readout: 29s remainingWaiting before WIB sensor readout: 28s remainingWaiting before WIB sensor readout: 27s remainingWaiting before WIB sensor readout: 26s remainingWaiting before WIB sensor readout: 25s remainingWaiting before WIB sensor readout: 24s remainingWaiting before WIB sensor readout: 23s remainingWaiting before WIB sensor readout: 22s remainingWaiting before WIB sensor readout: 21s remainingWaiting before WIB sensor readout: 20s remainingWaiting before WIB sensor readout: 19s remainingWaiting before WIB sensor readout: 18s remainingWaiting before WIB sensor readout: 17s remainingWaiting before WIB sensor readout: 16s remainingWaiting before WIB sensor readout: 15s remainingWaiting before WIB sensor readout: 14s remainingWaiting before WIB sensor readout: 13s remainingWaiting before WIB sensor readout: 12s remainingWaiting before WIB sensor readout: 11s remainingWaiting before WIB sensor readout: 10s remainingWaiting before WIB sensor readout: 9s remainingWaiting before WIB sensor readout: 8s remainingWaiting before WIB sensor readout: 7s remainingWaiting before WIB sensor readout: 6s remainingWaiting before WIB sensor readout: 5s remainingWaiting before WIB sensor readout: 4s remainingWaiting before WIB sensor readout: 3s remainingWaiting before WIB sensor readout: 2s remainingWaiting before WIB sensor readout: 1s remainingWaiting before WIB sensor readout: done                    
+Waiting before WIB sensor readout: wait complete
+Getting sensor output for WIB 0...
+Waiting for PetaLinux login prompt...
+i2cset -y 2 0x70 0x0002
+root@ptc:~# 
+root@ptc:~# 
+Waiting for PetaLinux login prompt...
+i2cdetect -y -r 2
+     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+00:                         -- -- -- -- -- -- -- -- 
+10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+20: -- -- 22 23 -- -- -- -- -- -- -- -- -- -- -- -- 
+30: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+40: -- -- -- -- -- -- -- -- 48 49 4a 4b -- -- 4e -- 
+50: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+60: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+70: 70 -- -- -- -- -- -- --                         
+root@ptc:~# 
+root@ptc:~# 
+{'0': {'i2cset': 'i2cset -y 2 0x70 0x0002\r\nroot@ptc:~# \r\nroot@ptc:~# ', 'i2cdetect': 'i2cdetect -y -r 2\r\n     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f\r\n00:                         -- -- -- -- -- -- -- -- \r\n10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- \r\n20: -- -- 22 23 -- -- -- -- -- -- -- -- -- -- -- -- \r\n30: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- \r\n40: -- -- -- -- -- -- -- -- 48 49 4a 4b -- -- 4e -- \r\n50: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- \r\n60: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- \r\n70: 70 -- -- -- -- -- -- --                         \r\nroot@ptc:~# \r\nroot@ptc:~# '}}
+WIB 0 address check passed: found 0x70.
+----------------------------------------------------
+----------------------------------------------------
+WIB PING TEST
+----------------------------------------------------
+wib #0 ip address: 10.73.137.71 ==> True
+wiec_wib_setup.py passed.
+
+======================================================================
+Running femb_checkout.py...
+======================================================================
+/home/dune-daq/DUNE-HV-Crate-Testing/GUI/../init_setup.csv
+------------------ WIB 0 -----------------------------
+
+======================================================================
+  CTS FEMB CHECKOUT TEST
+======================================================================
+
+This script performs a quick checkout test for FEMB boards.
+Supports 4 slots. Empty slots will be skipped.
+
+
+Proceed with checkout test? (y/n): ℹ Test cancelled by user.
+femb_checkout.py raised an exception.
+Traceback (most recent call last):
+  File "/home/dune-daq/DUNE-HV-Crate-Testing/wiec_qc.py", line 51, in run_required_step
+    test_result = bool(test_function())
+  File "/home/dune-daq/DUNE-HV-Crate-Testing/wiec_femb_checkout.py", line 399, in main
+    test_results[wib] = start_femb_checkout(wib_ip)
+  File "/home/dune-daq/DUNE-HV-Crate-Testing/wiec_femb_checkout.py", line 333, in start_femb_checkout
+    sys.exit(0)
+SystemExit: 0
+
+
+Stopping sequence because femb_checkout.py did not pass.
+
+Running final shutdown logic...
+ --> PL506 channel 0 turned off
+Rigol DP832A --> Turned OFF Power Supply 1, fan- Channel 1
+Rigol DP832A --> Turned OFF Power Supply 2, fanread- Channel 3

@@ -4,6 +4,7 @@ Created on Wed Sept 25 10:51:58 2023
 
 @author: Eraguzin
 """
+import sys, time
 
 class Keysight970A:
     def __init__(self, rm, json_data):
@@ -20,6 +21,8 @@ class Keysight970A:
 
         #Keeps track of state to make sure commands don't collide
         self.state = None
+        self.relay_hv_state = None
+        self.relay_term_state = None
 
         #Build the string of the list of RTD channels
         self.rtd_ch_list = ""
@@ -89,13 +92,12 @@ class Keysight970A:
 
         self.state = "resistance"
 
-    def initialize_fan(self):
-        self.keysight.write(f"CONFigure:VOLTage:DC AUTO,DEF,({self.fan_ch_list})")
-        self.keysight.write(f"SENSe:VOLTage:DC:NPLCycles {self.json_data['keysight970a_fan_NPLcycles']},({self.fan_ch_list})")
-        self.keysight.write(f"SENSe:VOLTage:DC:ZERO:AUTO {self.json_data['keysight970a_fan_autozero']},({self.fan_ch_list})")
-        self.keysight.write(f"SENSe:VOLTage:DC:IMPedance:AUTO {self.json_data['keysight970a_fan_autoimpedance']},({self.fan_ch_list})")
+    def initialize_fan(self): #for new fans with PWM readback
+        self.keysight.write(f"CONFigure:FREQuency AUTO,DEF,({self.fan_ch_list})")
+        self.keysight.write(f"SENSe:FREQuency:RANGe:LOWer {self.json_data['keysight970a_fan_freqrange_lower']},({self.fan_ch_list})")
+        self.keysight.write(f"SENSe:FREQuency:APERture DEF,({self.fan_ch_list})")
         self.keysight.write("FORMat:READing:CHANnel ON")
-
+        
         self.state = "fan"
 
     #Sets the output channels for the HV relay control. Easier to split it into 2 blocks with separate functions
@@ -112,6 +114,7 @@ class Keysight970A:
 
         self.keysight.write(f"SOURce:DIGital:DATA:BYTE {hv},(@{self.json_data['keysight970a_907A_slot']}01)")
         self.keysight.write(f"SOURce:DIGital:DATA:BYTE {term},(@{self.json_data['keysight970a_907A_slot']}02)")
+
 
     def measure_rtd(self):
         if (self.state != "rtd"):
@@ -153,7 +156,7 @@ class Keysight970A:
         for i in range(0,(self.num_fans * 2)-1,2):
             results[self.fan_convert[f"{sep[i+1]}"]] = float(sep[i])
 
-        return results
+        return results     
 
     def beep(self):
         self.keysight.write("SYSTem:BEEPer:IMMediate")
