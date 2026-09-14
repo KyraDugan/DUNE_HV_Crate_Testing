@@ -144,6 +144,7 @@ def _phase(session, hv_results, chs_to_test, chs_string, spec):
         fit = analysis.hv_curve_fit(
             session.results_path, csv_name, ch,
             on=spec["on"], term=spec["termination"] == "term",
+            initial_b=float(json_data["hv_fit_initial_b"])
         )
         hv_results[i][f"{key}_{suffix}_fit"] = fit
 

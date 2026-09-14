@@ -42,12 +42,15 @@ def get_ch_data(data_file, ch):
     return ch_time, ch_voltage, ch_current
 
 
-def hv_curve_fit(results_path, name, ch, on=True, term=False):
+def hv_curve_fit(results_path, name, ch, on=True, term=False, initial_b=0.02):
     """Fits a*exp(-b*t)+c to the ramp.
 
     Returns the raw scipy result; fit[0][1] is b, and the spreadsheet reports
     the time constant as 1/b.  A fit that does not converge comes back as
     [[0, 0]], which fails the threshold check rather than crashing the run.
+
+    Added initial parameters to allow for better convergence.
+    initial_b is included in config.json for adjustment while calling the function.
     """
     ch_time, ch_voltage, ch_current = get_ch_data(
         os.path.join(results_path, name), ch
@@ -62,7 +65,10 @@ def hv_curve_fit(results_path, name, ch, on=True, term=False):
     time_seconds = [dt.timestamp() - first_timestamp for dt in ch_time]
 
     try:
-        return curve_fit(exp_fit, time_seconds, data)
+        p0=[data[0] - data[1],
+            initial_b,
+            data[-1]]
+        return curve_fit(exp_fit, time_seconds, data, p0=p0)
     except RuntimeError:
         return [[0, 0]]
 

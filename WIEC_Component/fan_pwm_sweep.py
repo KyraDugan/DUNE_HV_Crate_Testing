@@ -9,6 +9,8 @@ PNG curves.
 import csv
 import os
 import sys
+from unittest import result
+import numpy as np
 
 import matplotlib
 
@@ -33,6 +35,127 @@ def _save_plot(folder, filename, x, y, title, xlabel, ylabel):
     plt.grid(True)
     plt.savefig(os.path.join(folder, filename), bbox_inches="tight")
     plt.close()
+
+
+def evaluate_fan_pwm_profiles(fan_signals, min_correlation = 0.90, max_rmse = 0.15):
+
+    """
+    Compares fan PWM-frequency curves against each other by creating a group profile.
+
+    Absolute fan speed is removed by min-mix normalization. Each fan is compared with the median normalized curve.
+
+    """
+    fan_numbers = sorted(fan_signals)
+    details = {}
+    curves = {}
+
+    #Check to make sure there are at least two fan curves to compare.
+    if len(fan_numbers) < 2:
+        return False, {
+            fan: {
+                "pass": False,
+                "reason": "At least two fan curves are required for comparison"
+            }
+            for fan in fan_numbers
+        }
+
+    expected_length = None
+
+    # Validate and normalize each fan curve
+    for fan in fan_numbers:
+        curve = np.array(fan_signals[fan], dtype=float)
+
+        #Checks for sufficient data points
+        if curve.size < 2:
+            details[fan] = {
+                "pass": False,
+                "reason": "Insufficient frequency data points"
+            }
+            continue
+
+        #Checks for finite values
+        if not np.all(np.isfinite(curve)):
+            details[fan] = {
+                "pass": False,
+                "reason": "Non-finite values in frequency data"
+            }
+            continue
+
+        # Checks that each curve has the same number of points
+        # Potential problem is if the first curve has the off number of points, the rest will be compared there.
+        if expected_length is None:
+            expected_length = curve.size
+        elif curve.size != expected_length:
+            details[fan] = {
+                "pass": False,
+                "reason": f"Curve has different number of points ({curve.size}) than expected ({expected_length})"
+            }
+            continue
+
+
+        curve_min = np.min(curve)
+        curve_max = np.max(curve)
+        curve_range = curve_max - curve_min
+
+        #Checks for variation from min to max of curve
+        if curve_range <= 0:
+            details[fan] = {
+                "pass": False,
+                "reason": "Curve has no variation (min equals max)"
+            }
+            continue
+
+        normalized_curve = (curve - curve_min) / curve_range
+        curves[fan] = normalized_curve
+
+
+    # Checks if there are remaining good curves to compare
+    if len(curves) < 2:
+        for fan in fan_numbers:
+            if fan not in details:
+                details[fan] = {
+                    "pass": False,
+                    "reason": "Not enough valid curves for comparison"
+                }
+        return False, details
+
+
+    # Create median profile to check
+    profile_array = np.vstack(list(curves.values()))
+    reference_profile = np.median(profile_array, axis=0)
+
+    overall_pass = True
+
+    #Catches if fan not in curves if not caught above
+    for fan in fan_numbers:
+        if fan not in curves:
+            overall_pass = False
+            continue
+
+        curve = curves[fan]
+        rmse = float(
+            np.sqrt(np.mean((curve - reference_profile) ** 2))
+        )
+
+        if (np.std(curve) == 0) or np.std(reference_profile) == 0:
+            correlation = 0.0
+        else:
+            correlation = float(
+                np.corrcoef(curve, reference_profile)[0, 1]
+            )
+
+        passed = (correlation >= min_correlation and rmse <= max_rmse)
+        details[fan] = {
+            "pass": passed,
+            "correlation": correlation,
+            "rmse": rmse,
+        }
+
+        if not passed:
+            overall_pass = False
+
+    return overall_pass, details
+
 
 
 def run(session):
@@ -77,8 +200,17 @@ def run(session):
 
             read_voltage.append(readings["fan_voltage"])
             read_current.append(readings["fan_current"])
-            for fan in range(1, num_fans + 1):
-                fan_signals[fan].append(readings["fan_read_signal"].get(fan, -1))
+
+
+            signal = readings["fan_read_signal"].get(fan)
+            if signal is None:
+                fan_signals[fan].append(np.nan)
+            else:
+                fan_signals[fan].append(signal)
+
+            #for fan in range(1, num_fans + 1):
+                #fan_signals[fan].append(readings["fan_read_signal"].get(fan, -1))
+
     finally:
         # Put the supply back where the rest of the run expects it
         json_data["rigol832a_fan_voltage"] = nominal_fan_voltage
@@ -86,6 +218,23 @@ def run(session):
             session.rigol0.setup_fan()
         except Exception:
             pass
+
+    #Before storing data, it will check the fan PWM profiles for correlation and RMSE against each other.
+    profile_pass, profile_details = evaluate_fan_pwm_profiles(
+        fan_signals, 
+        min_correlation=float(json_data["fan_pwm_min_correlation"]),
+        max_rmse=float(json_data["fan_pwm_max_rmse"]))
+
+    session.datastore["fan_pwm_profile_pass"] = profile_pass
+    session.datastore["fan_pwm_profile_details"] = profile_details
+
+    for fan_number, details in profile_details.items():
+        session.log(f"Fan {fan_number} profile:"
+                    f"{'PASS' if details['pass'] else 'FAIL'} "
+                    f"{details.get('reason', '')} "
+                    f"correlation={details.get('correlation', 'n/a')} "
+                    f"RMSE={details.get('rmse', 'n/a')}")
+                                
 
     session.datastore["fan_pwm_programmed_voltage"] = prog_voltage
     session.datastore["fan_pwm_read_voltage"] = read_voltage
@@ -142,8 +291,8 @@ def run(session):
     session.log("Fan PWM plots, one-row CSV data, and spreadsheet data saved")
     session.log(f"Fan PWM results folder: {fan_results_folder}")
 
-    # The sweep is characterisation, not a pass/fail gate: it reports data.
-    return True
+
+    return profile_pass
 
 
 if __name__ == "__main__":
