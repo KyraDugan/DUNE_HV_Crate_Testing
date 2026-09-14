@@ -2,3 +2,9 @@ venv/
 .idea/
 __pycache__/
 *.pyc
+
+# Ignore generated results and output logs
+results/
+HV PMOD QC Output Text Files/
+HV PMOD QC Ramp Warnings/
+wiec\ output\ logs/
