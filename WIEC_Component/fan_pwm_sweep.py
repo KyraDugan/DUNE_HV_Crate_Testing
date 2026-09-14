@@ -201,15 +201,8 @@ def run(session):
             read_voltage.append(readings["fan_voltage"])
             read_current.append(readings["fan_current"])
 
-
-            signal = readings["fan_read_signal"].get(fan)
-            if signal is None:
-                fan_signals[fan].append(np.nan)
-            else:
-                fan_signals[fan].append(signal)
-
-            #for fan in range(1, num_fans + 1):
-                #fan_signals[fan].append(readings["fan_read_signal"].get(fan, -1))
+            for fan in range(1, num_fans + 1):
+                fan_signals[fan].append(readings["fan_read_signal"].get(fan, -1))
 
     finally:
         # Put the supply back where the rest of the run expects it
