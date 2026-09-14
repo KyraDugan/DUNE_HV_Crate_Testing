@@ -348,7 +348,7 @@ parsed out of `moduleDescription.ma2` (field 4 of
    CHECK  Green LED ON?                    (safe)
 
 3. Safety Jumper Loop Test   (x3, generated)
-   USER   Reconfigure (jumper only / test kit only / restore)
+   USER   Reconfigure (test kit only / jumper only / restore)
    AUTO   Power cycle
    AUTO   Read safety loop bit             (safe)
    CHECK  Green LED OFF? / OFF? / ON?      (safe)

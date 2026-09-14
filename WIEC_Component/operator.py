@@ -64,6 +64,10 @@ class Step:
     allow_empty: bool = False
     # TBD steps are recorded but never counted in the verdict
     informational: bool = False
+    # USER / CHECK only: the protocol page to show in a pop-up window first.
+    # A page number, or a file name; the Console resolves it.  AUTO steps do
+    # not get one -- a full-screen window would cover the live progress line.
+    image: str = ""
 
     def result_key(self):
         return self.key or self.title.lower().replace(" ", "_")
@@ -88,7 +92,16 @@ class StepResult:
 # Terminal front end
 # ----------------------------------------------------------------------
 class Console:
-    """Terminal prompts.  A GUI subclasses this and overrides the four asks."""
+    """Terminal prompts.  A GUI subclasses this and overrides the four asks.
+
+    `popup(title, page)` is optional: when it is there, a step that names a
+    protocol page gets a window showing it before the terminal asks anything.
+    The window is only ever a picture -- every verdict is still typed here, so
+    there is one place that decides PASS/FAIL whether the pictures work or not.
+    """
+
+    def __init__(self, popup=None):
+        self._popup = popup
 
     def _box(self, heading, body, char="═"):
         top = "╔" + char * (WIDTH - 2) + "╗"
@@ -123,6 +136,23 @@ class Console:
 
     def header(self, heading, body):
         self._box(heading, body)
+
+    def show_page(self, title, page):
+        """Show one protocol page.  Used for the pages that are not steps."""
+        if self._popup is None or not page:
+            return
+        self._popup(title, page)
+
+    def show_image(self, step):
+        """The step's own picture, shown before it asks the operator anything.
+
+        AUTO steps are skipped even if one is set: the window is full screen
+        and blocks until it is closed, which during the ramp would hide the
+        very progress line the operator is meant to be watching.
+        """
+        if not step.image or step.kind == AUTO:
+            return
+        self.show_page(step.title, step.image)
 
     # -- input -------------------------------------------------------
     def ask_continue(self, title, prompt):
@@ -190,9 +220,14 @@ class AutoConsole(Console):
     """Answers its own prompts, for --dry-run walkthroughs of the flow text."""
 
     def __init__(self, serial_number="DRYRUN123", answers=None):
+        super().__init__(popup=None)
         self.serial_number = serial_number
         self.answers = dict(answers or {})
         self.answers.setdefault("expected_serial", serial_number)
+
+    def show_page(self, title, page):
+        """Named, not opened: a dry run must not put 12 windows on the screen."""
+        print(f"              [dry run] pop-up: page {page}  ({title})")
 
     def ask_continue(self, title, prompt):
         self._box("USER ACTION REQUIRED", prompt)
@@ -258,6 +293,7 @@ class FlowRunner:
         total = len(steps)
         for index, step in enumerate(steps, start=1):
             self.console.step_header(index, total, step)
+            self.console.show_image(step)
             try:
                 passed, detail = self._run_step(step)
             except AbortFlow as exc:

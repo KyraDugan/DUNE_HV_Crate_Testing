@@ -31,6 +31,7 @@ import traceback
 from datetime import datetime
 
 from . import hv_limit_adjust
+from . import popups
 from .hv_limit_adjust import IMAX_STAGE, VMAX_STAGE
 from .iseg_mpod import ModuleInfo, SNMPError, TripError
 from .operator import (
@@ -67,6 +68,13 @@ DEFAULTS = {
     # power on, behind other slots.  Give the module a little longer after its
     # description appears before reading or writing any of its settings.
     "iseg_power_on_settle_s": 5.0,
+
+    # The operator pop-ups: the pages of GUI/ISEG_Qualification_Protocol.pdf,
+    # exported to GUI/protocol_pngs/<page>.png.  Set false for a run over ssh,
+    # or anywhere a full-screen window would be in the way -- the terminal
+    # prompts carry the whole test on their own, as they always did.
+    "iseg_popups_enabled": True,
+    "iseg_popup_dir": "GUI/protocol_pngs",
 
     "iseg_ramp_target_voltage": 1000.0,
     "iseg_ramp_rate": 10.0,
@@ -938,15 +946,32 @@ def hv_limit_test(ctx):
 #
 # So the LED does have an automatic cross-check after all.  Getting here took
 # two wrong guesses; see the devlog before changing any of it.
+#
+# Pages of GUI/ISEG_Qualification_Protocol.pdf, exported to
+# GUI/protocol_pngs/<page>.png.  Named rather than written as bare numbers at
+# the call sites, so re-ordering the deck is one edit here.
+PAGE_TITLE = 1              # ISEG Module Qualification Standard
+PAGE_GAUNTLET = 2           # The Verification Gauntlet -- the 5 stages
+PAGE_UNBOXING = 3           # Initial Unboxing & Documentation Match
+PAGE_INTEGRITY = 4          # Hardware Integrity Check
+PAGE_SEATING = 5            # Crate De-Energization & Module Seating
+PAGE_HANDSHAKE = 6          # System Initialization & Handshake (LED on, SN read)
+PAGE_SAFETY_01 = 7          # Safety Test 01 -- remove the jumper
+PAGE_SAFETY_01_LED = 9      # ...at this condition the LED is off
+PAGE_SAFETY_02 = 10         # Safety Test 02 -- remove the test components
+PAGE_SAFETY_02_LED = 12     # ...at this condition the LED is off
+PAGE_RESTORE = 13           # Restoring Normal Configuration & Arming
+PAGE_POT_SETUP = 17         # Physical Limitation Calibration Setup -- the pots
+PAGE_POT_TARGETS = 18       # The Limitation Translation Matrix -- the numbers
+PAGE_TEARDOWN = 19          # Teardown & Safe Repackaging
+PAGE_INTERLOCK = 20         # The Safety Loop Interlock Matrix -- all three states
+
+# The order follows ISEG_Qualification_Protocol.pdf, which the operator has in
+# front of them: its "Safety Test 01" pulls the jumper (test kit still fitted)
+# and its "Safety Test 02" pulls the test components (jumper still fitted).
+# Only the order changed -- nothing reads these entries positionally, and every
+# expectation is still derived from jumper_in / test_kit_in.
 JUMPER_CONFIGS = [
-    {
-        "key": "jumper_only",
-        "title": "Jumper Only Test",
-        "prompt": ("Remove the module.\nRemove the test kit.\n"
-                   "Keep the jumper installed.\nReinsert the module."),
-        "jumper_in": True,
-        "test_kit_in": False,
-    },
     {
         "key": "test_kit_only",
         "title": "Test Kit Only Test",
@@ -954,6 +979,18 @@ JUMPER_CONFIGS = [
                    "Install the test kit.\nReinsert the module."),
         "jumper_in": False,
         "test_kit_in": True,
+        "page": PAGE_SAFETY_01,
+        "led_page": PAGE_SAFETY_01_LED,
+    },
+    {
+        "key": "jumper_only",
+        "title": "Jumper Only Test",
+        "prompt": ("Remove the module.\nRemove the test kit.\n"
+                   "Keep the jumper installed.\nReinsert the module."),
+        "jumper_in": True,
+        "test_kit_in": False,
+        "page": PAGE_SAFETY_02,
+        "led_page": PAGE_SAFETY_02_LED,
     },
     {
         "key": "restore",
@@ -962,6 +999,8 @@ JUMPER_CONFIGS = [
                    "jumper.\nReinsert the module."),
         "jumper_in": True,
         "test_kit_in": True,
+        "page": PAGE_RESTORE,
+        "led_page": PAGE_INTERLOCK,
     },
 ]
 
@@ -1015,7 +1054,7 @@ def jumper_steps(ctx, config):
     led_state = "ON" if led_on else "OFF"
     return (
         power_down_steps(ctx, config["key"], config["title"])
-        + [Step(USER, config["title"], config["prompt"])]
+        + [Step(USER, config["title"], config["prompt"], image=config["page"])]
         + power_up_steps(ctx, config["key"], config["title"])
         + [
             Step(AUTO, f"Read Safety Loop ({config['key']})",
@@ -1030,7 +1069,7 @@ def jumper_steps(ctx, config):
                  "moduleIsGood is read separately and must agree -- look at "
                  "the module, do not assume.",
                  expect=f"Green LED = {led_state}",
-                 key=f"{config['key']}_led"),
+                 key=f"{config['key']}_led", image=config["led_page"]),
         ]
     )
 
@@ -1040,17 +1079,19 @@ def build_flow(ctx):
 
     # 1. Visual inspection
     steps += [
-        Step(USER, "Open Box", "Open the box and take out the HV module."),
+        Step(USER, "Open Box", "Open the box and take out the HV module.",
+             image=PAGE_UNBOXING),
         Step(CHECK, "Check Components",
              "Visually inspect the module and its components.\n"
              "Are there any visible defects?",
              expect="No visible damage and no missing components.",
-             key="visual_inspection"),
+             key="visual_inspection", image=PAGE_INTEGRITY),
         Step(USER, "Enter Serial Number",
              "Type the serial number printed on the module label.",
-             input_key="expected_serial"),
+             input_key="expected_serial", image=PAGE_UNBOXING),
         Step(USER, "Install Test Kit and Jumper",
-             "Install the test kit and the safety jumper on the module."),
+             "Install the test kit and the safety jumper on the module.",
+             image=PAGE_RESTORE),
     ]
 
     # 2. Insert the module
@@ -1058,7 +1099,8 @@ def build_flow(ctx):
     steps += [
         Step(USER, "Insert Module into Test Slot",
              f"The crate is powered down and the module bay has been confirmed "
-             f"dead.\n\nInsert the module into Slot {ctx.slot}."),
+             f"dead.\n\nInsert the module into Slot {ctx.slot}.",
+             image=PAGE_SEATING),
     ]
     steps += power_up_steps(ctx, "insert", "Insert")
     steps += [
@@ -1070,7 +1112,7 @@ def build_flow(ctx):
              key="initial_module_good"),
         Step(CHECK, "Check Green LED",
              f"Look at the green LED on Slot {ctx.slot}.\nIs the green LED ON?",
-             expect="Green LED = ON", key="initial_led"),
+             expect="Green LED = ON", key="initial_led", image=PAGE_HANDSHAKE),
     ]
 
     # 3. Safety jumper loop test
@@ -1099,7 +1141,11 @@ def build_flow(ctx):
                      f"{hv_limit_adjust.MAX_CHANNEL}) is wired to "
                      f"{stage.what} output?" + default_text,
                      input_key=f"{stage.key}_daq_channel",
-                     allow_empty=default not in (None, "", 0)),
+                     allow_empty=default not in (None, "", 0),
+                     # Vmax gets the page showing where the pots are, Imax the
+                     # one with the target numbers; by then the tester has
+                     # already seen the setup page once.
+                     image=PAGE_POT_SETUP if stage is VMAX_STAGE else PAGE_POT_TARGETS),
                 Step(AUTO, f"{stage.label} Limit Adjustment",
                      action=lambda c, st=stage: limit_stage(c, st),
                      key=f"limit_{stage.key}"),
@@ -1379,7 +1425,12 @@ def run(session, console=None, mpod=None, dry_run=False, daq=None):
     if mpod is None:
         mpod = session.mpod
     if console is None:
-        console = AutoConsole() if dry_run else Console()
+        if dry_run:
+            console = AutoConsole()
+        else:
+            # Resolved once, here, so an operator on a machine with no desktop
+            # is told at start-up instead of finding out at step 16.
+            console = Console(popup=popups.make_popup(cfg, log=lambda m: print(f"    {m}")))
 
     ctx = Context(session, mpod, console, cfg, dry_run=dry_run)
     if daq is not None:
@@ -1398,6 +1449,11 @@ def run(session, console=None, mpod=None, dry_run=False, daq=None):
         "The module is brought to 0 V and the crate switched off if anything "
         "goes wrong, including Ctrl-C.",
     )
+
+    # The two title pages are not steps, so they are shown here rather than
+    # through Step.image.
+    console.show_page("ISEG Module Qualification Standard", PAGE_TITLE)
+    console.show_page("The Verification Gauntlet", PAGE_GAUNTLET)
 
     aborted = False
     try:
@@ -1458,6 +1514,10 @@ def run(session, console=None, mpod=None, dry_run=False, daq=None):
         print(f" {'Plot':<12}: {path}")
     print("=" * 70)
 
+    # Last, after the paths are on screen: the module still has to come out of
+    # the crate and go back in its box, and that is the page describing it.
+    console.show_page("Teardown & Safe Repackaging", PAGE_TEARDOWN)
+
     if session is not None:
         session.datastore.setdefault("hv_module_test", {})
         session.datastore["hv_module_test"] = {
@@ -1487,10 +1547,18 @@ class SimulatedMPOD:
         self.actual = {c: 0.0 for c in self.channels}
         self.rate_v_per_s = 100.0
         self.last_update = time.monotonic()
-        # In the order the flow asks: inserted, jumper only, test kit only,
-        # restored.  The loop follows the jumper; moduleIsGood follows the LED.
-        self.safety_loop_script = [True, True, False, True]
-        self.module_good_script = [True, False, False, True]
+        # What is fitted each time the flow asks: the module as inserted, then
+        # one entry per jumper configuration.  Derived from JUMPER_CONFIGS
+        # rather than written out, because these used to be two hand-written
+        # lists whose positions had to match the configuration order -- and
+        # re-ordering the configurations to follow the protocol deck silently
+        # made both of them wrong.  The bits themselves follow the hardware:
+        # the loop is the jumper, moduleIsGood is jumper AND test kit.
+        fitted = [(True, True)] + [
+            (config["jumper_in"], config["test_kit_in"]) for config in JUMPER_CONFIGS
+        ]
+        self.safety_loop_script = [jumper for jumper, _kit in fitted]
+        self.module_good_script = [jumper and kit for jumper, kit in fitted]
 
     # -- crate
     def _advance(self):

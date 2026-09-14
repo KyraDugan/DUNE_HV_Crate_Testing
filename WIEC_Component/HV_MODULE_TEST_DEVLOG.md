@@ -526,6 +526,41 @@ is observed.
 Per-channel spread is 3.4 %, so whatever the ratio turns out to be it has to
 be per channel, not one global number.
 
+### Operator pop-up windows — 2026-09-10
+
+The `[see pop windows]` placeholder in `notify_tester` is now real, and the
+three configurations were re-ordered to match the protocol deck.
+
+- **Order.** `ISEG_Qualification_Protocol.pdf` calls "remove the jumper"
+  Safety Test **01** and "remove the test components" Safety Test **02**, the
+  opposite of the order the code ran them in.  `JUMPER_CONFIGS` now follows the
+  deck, because that is the document in the operator's hands.  No logic
+  changed: every expectation is still derived from `jumper_in`/`test_kit_in`,
+  which is exactly the payoff §5.0 was written for.
+- **But the simulator was positional.** `SimulatedMPOD.safety_loop_script` and
+  `module_good_script` were two hand-written lists whose *positions* had to
+  line up with the configuration order, and re-ordering silently made both
+  wrong — a clean dry run turned into two FAILs.  Both lists are now derived
+  from `JUMPER_CONFIGS` itself.  The same lesson as §5.0, one layer down: a
+  reading is worthless without knowing what was fitted when it was taken, and
+  that includes a simulated one.
+- **The windows.** `GUI/pop_window.py` is a copy of the FEMB checkout's, so
+  both test stands look the same to an operator; `WIEC_Component/popups.py`
+  wraps it so nothing can raise.  A pop-up that escaped would abort the flow,
+  and an abort here powers the crate off, so no DISPLAY, no python3-tk, or a
+  missing PNG all degrade to a printed line.  Checked once at start-up rather
+  than at step 16.
+- **Where they appear.** `Step.image` names a page; `Console.show_image`
+  opens it before the terminal asks anything.  **AUTO steps never get one** —
+  the window is full screen and blocks, which during the ramp would cover the
+  progress line the operator is there to watch.  Verdicts are still typed in
+  the terminal, so PASS/FAIL is decided in one place whether the pictures work
+  or not.  `--dry-run` prints the page number instead of opening 16 windows.
+- Pages come from `pdftoppm -png -r 150 GUI/ISEG_Qualification_Protocol.pdf
+  GUI/protocol_pngs/page`, then renamed to bare numbers.  Re-export after any
+  edit to the deck — page 18's Imax figure was corrected from 4.0 mA to
+  0.25 mA on 2026-09-10, which is what the code had all along.
+
 ### Still open
 
 - The rest of the limitation procedure — "output reaches 1.2 kV, does not

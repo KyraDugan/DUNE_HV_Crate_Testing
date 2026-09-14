@@ -1,0 +1,41 @@
+step,kind,title,result,detail,timestamp,serial_number,model,firmware,slot,test_name,overall
+1,USER,Open Box,PASS,,2026-09-10T18:03:45,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+2,CHECK,Check Components,PASS,operator answered PASS,2026-09-10T18:03:45,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+3,USER,Enter Serial Number,PASS,entered 'DRYRUN123',2026-09-10T18:03:45,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+4,USER,Install Test Kit and Jumper,PASS,,2026-09-10T18:03:45,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+5,AUTO,Power OFF MPOD [Insert],PASS,"outputs off, sysMainSwitch off",2026-09-10T18:03:45,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+6,AUTO,Confirm Crate Is Off [Insert],PASS,simulated crate (after 0 s),2026-09-10T18:03:55,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+7,USER,Insert Module into Test Slot,PASS,,2026-09-10T18:03:55,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+8,AUTO,Power ON MPOD [Insert],PASS,"crate is up after 0 s (1 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",2026-09-10T18:04:00,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+9,AUTO,Read Serial Number,PASS,"E08F2 SN DRYRUN123 fw 07.52, negative polarity, 2000 V full scale",2026-09-10T18:04:00,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+10,AUTO,Check Module Health,PASS,"module, supply and temperature all report good",2026-09-10T18:04:00,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+11,AUTO,Read Safety Loop,PASS,"safety loop reads closed, expected closed",2026-09-10T18:04:00,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+12,AUTO,Read Module State,PASS,"module reads good (moduleIsGood=set, moduleIsNoSumError=set), expected good",2026-09-10T18:04:00,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+13,CHECK,Check Green LED,PASS,operator answered PASS,2026-09-10T18:04:00,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+14,AUTO,Power OFF MPOD [Test Kit Only Test],PASS,"outputs off, sysMainSwitch off",2026-09-10T18:04:00,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+15,AUTO,Confirm Crate Is Off [Test Kit Only Test],PASS,simulated crate (after 0 s),2026-09-10T18:04:10,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+16,USER,Test Kit Only Test,PASS,,2026-09-10T18:04:10,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+17,AUTO,Power ON MPOD [Test Kit Only Test],PASS,"crate is up after 0 s (1 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",2026-09-10T18:04:15,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+18,AUTO,Read Safety Loop (test_kit_only),PASS,"safety loop reads open, expected open",2026-09-10T18:04:15,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+19,AUTO,Read Module State (test_kit_only),PASS,"module reads not good (moduleIsGood=clear, moduleIsNoSumError=clear), expected not good",2026-09-10T18:04:15,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+20,CHECK,Check Green LED (test_kit_only),PASS,operator answered PASS,2026-09-10T18:04:15,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+21,AUTO,Power OFF MPOD [Jumper Only Test],PASS,"outputs off, sysMainSwitch off",2026-09-10T18:04:15,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+22,AUTO,Confirm Crate Is Off [Jumper Only Test],PASS,simulated crate (after 0 s),2026-09-10T18:04:25,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+23,USER,Jumper Only Test,PASS,,2026-09-10T18:04:25,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+24,AUTO,Power ON MPOD [Jumper Only Test],PASS,"crate is up after 0 s (1 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",2026-09-10T18:04:30,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+25,AUTO,Read Safety Loop (jumper_only),PASS,"safety loop reads closed, expected closed",2026-09-10T18:04:30,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+26,AUTO,Read Module State (jumper_only),PASS,"module reads not good (moduleIsGood=clear, moduleIsNoSumError=clear), expected not good",2026-09-10T18:04:30,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+27,CHECK,Check Green LED (jumper_only),PASS,operator answered PASS,2026-09-10T18:04:30,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+28,AUTO,Power OFF MPOD [Restore Normal Configuration],PASS,"outputs off, sysMainSwitch off",2026-09-10T18:04:30,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+29,AUTO,Confirm Crate Is Off [Restore Normal Configuration],PASS,simulated crate (after 0 s),2026-09-10T18:04:40,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+30,USER,Restore Normal Configuration,PASS,,2026-09-10T18:04:40,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+31,AUTO,Power ON MPOD [Restore Normal Configuration],PASS,"crate is up after 0 s (1 modules enumerated, slot 2 present), sysMainSwitch on, settled 5 s",2026-09-10T18:04:45,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+32,AUTO,Read Safety Loop (restore),PASS,"safety loop reads closed, expected closed",2026-09-10T18:04:45,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+33,AUTO,Read Module State (restore),PASS,"module reads good (moduleIsGood=set, moduleIsNoSumError=set), expected good",2026-09-10T18:04:45,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+34,CHECK,Check Green LED (restore),PASS,operator answered PASS,2026-09-10T18:04:45,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+35,AUTO,HV Ramp Test,PASS,"up 0 s, down 2 s, measured ramp 50.0-50.0 V/s; DAQ observed ratio 43.34-44.88 (nominal 21.0, not graded)",2026-09-10T18:04:49,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+36,USER,Select Vmax DAQ Channel,PASS,entered '20',2026-09-10T18:04:49,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+37,AUTO,Vmax Limit Adjustment,PASS,"Vmax = 1.562500 V (target 1.5625 V, window 1.562 - 1.563 V) -- good",2026-09-10T18:04:55,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+38,USER,Select Imax DAQ Channel,PASS,entered '19',2026-09-10T18:04:55,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+39,AUTO,Imax Limit Adjustment,PASS,"Imax = 0.156250 V (target 0.15625 V, window 0.156 - 0.1565 V) -- good",2026-09-10T18:05:01,DRYRUN123,E08F2,07.52,2,dry_run,Pass
+40,AUTO,HV Limit Readback,PASS,"voltage pot 62.50 % = 1250 V, current pot 6.25 % = 0.250 mA",2026-09-10T18:05:01,DRYRUN123,E08F2,07.52,2,dry_run,Pass
