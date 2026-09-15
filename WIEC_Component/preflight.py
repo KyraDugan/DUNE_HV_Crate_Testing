@@ -1,4 +1,20 @@
-"""Environment checks and first-run guidance for the WIEC_Component top script."""
+"""Environment checks and first-run guidance for the WIEC_Component top script.
+
+-------------------------------------------------------------------------------------------------------
+config.json keys used:
+
+"caenR8033DM"                                   CAEN HV crate IP for network reachability check
+"keysight970a"                                  Keysight DAQ970A IP for network reachability check
+"rigol832a0"                                    Rigol DP832A #0 IP for network reachability check
+"rigol832a1"                                    Rigol DP832A #1 IP for network reachability check
+"PL506_IP_ADDR"                                 PL506 IP for network reachability check
+"iseg_ip"                                       WIENER MPOD (iseg) IP for network reachability check
+"hv_minutes_duration_long"                      Duration of each long HV test phase, minutes
+"hv_minutes_duration_short"                     Duration of each short HV test phase, minutes
+"simultaneous_test"                             True if all channels are tested at once
+"channels_to_test"                              List of channels to test, e.g. ["1", "2", "3", "4"]
+-------------------------------------------------------------------------------------------------------
+"""
 
 import importlib
 import json

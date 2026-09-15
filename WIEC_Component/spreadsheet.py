@@ -9,6 +9,18 @@ produces, so both scripts keep appending to the same workbook:
     12+    Fan PWM sweep   (num_fans * sweep_points * 4 columns)
     +8     TC1-4 resistance, TC1-4 temperature rise
     +96    HV, 12 columns per channel for 8 channels
+
+    -------------------------------------------------------------------------------------------------------
+config.json keys used:
+
+"rounding_factor"                               Rounding factor for spreadsheet output
+"keysight970a_fan_num"                          Number of fans for spreadsheet sections
+"rigol832a_fan_voltage_number_of_data_samples"  Number of voltage points in the fan PWM sweep
+"rigol832a_fan_voltage_min"                     Minimum voltage in the fan PWM sweep for header
+"rigol832a_fan_voltage_max"                     Maximum voltage in the fan PWM sweep for header
+"output_file"                                   Name of the spreadsheet file
+"sheet_name"                                    Name of the spreadsheet when creating new
+-------------------------------------------------------------------------------------------------------
 """
 
 import os
