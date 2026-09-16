@@ -1,10 +1,24 @@
 venv/
 .idea/
 __pycache__/
+**/__pycache__/
 *.pyc
+**/*.pyc
+.wiec_component_state.json
+**/.~lock.*
+**/._* 
 
 # Ignore generated results and output logs
 results/
+HV Module Test/results/
+HV Module Test/dry-run/
+HV Module Test/*.csv
+HV Module Test/*.json
+HV Module Test/*.html
+HV Module Test/*.png
+HV Module Test/*.xlsx
+HV Modules Test Results/
 HV PMOD QC Output Text Files/
 HV PMOD QC Ramp Warnings/
+ISEG_E-Tests_RampRate/
 wiec\ output\ logs/
