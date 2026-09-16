@@ -2,6 +2,24 @@
 
 Brings the PL506 48 V up only after every fan is confirmed to be spinning at
 the expected frequency, and takes it back down before the fans on the way out.
+
+
+-------------------------------------------------------------------------------------------------------
+config.json keys used:
+
+"WIEC_fan_voltage"                              WIEC PTC fan voltage
+"WIEC_fan_current"                              WIEC PTC fan current
+"rigol832a_fan_voltage"                         Rigol 832A fan voltage setting, copied from WIEC_fan_voltage
+"rigol832a_fan_current"                         Rigol 832A fan current setting, copied from WIEC_fan_current
+"keysight970a_fan_num"                          Number of fans
+"fan_osc_freq"                                  Minimum fan oscillation frequency, Hz
+"PL506_channel"                                 PL506 channel to turn on to power the PTC
+"PL506_voltage_max"                             PL506 maximum voltage for safe turn-on, V 
+"PL506_sense_voltage"                           PL506 expected readback voltage at turn-on, V
+"PL506_current_max"                             PL506 maximum current for safe turn-on, A
+"PL506_current_limit"                           PL506 current limit, A
+"PL506_settle_seconds"                          PL506 delay after enabling channel, s
+-------------------------------------------------------------------------------------------------------
 """
 
 import sys

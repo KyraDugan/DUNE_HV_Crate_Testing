@@ -4,6 +4,20 @@ Steps the fan supply from rigol832a_fan_voltage_min to _max and records the
 PWM oscillation frequency of every fan at each point, then writes the whole
 sweep into the single spreadsheet row as well as a standalone CSV and a set of
 PNG curves.
+
+Checks the fan PWM curves against each other for correlation and RMSE, and returns a pass/fail result.
+  
+-------------------------------------------------------------------------------------------------------
+config.json keys used:
+
+"keysight970a_fan_num"                          Number of fans to test
+"rigol832a_fan_voltage_number_of_data_samples"  Number of voltage points in sweep
+"rigol832a_fan_voltage_max"                     Upper voltage limit of sweep
+"rigol832a_fan_voltage_min"                     Lower voltage limit of sweep
+"rigol832a_fan_voltage"                         Nominal fan voltage to restore after sweep
+"fan_pwm_min_correlation"                       Minimum correlation required for PWM curves
+"fan_pwm_max_rmse"                              Maximum root mean square error allowed for PWM curves
+-------------------------------------------------------------------------------------------------------
 """
 
 import csv

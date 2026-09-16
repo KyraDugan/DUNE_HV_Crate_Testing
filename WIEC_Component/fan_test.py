@@ -3,6 +3,20 @@
 Powers the fans from Rigol #0 and the readback pullup from Rigol #1, waits for
 steady state, then records the supply voltage/current and the RD signal of
 every fan.
+
+-------------------------------------------------------------------------------------------------------
+config.json keys used:
+
+'rigol832a_fan_voltage'                         Nominal voltage to power the fans
+'fan_wait'                                      Seconds to wait for fans to reach steady state 
+'fan_voltage_min'                               Minimum acceptable fan supply voltage
+'fan_voltage_max'                               Maximum acceptable fan supply voltage
+'fan_current_min'                               Minimum acceptable fan supply current
+'fan_current_max'                               Maximum acceptable fan supply current
+"keysight970a_fan_num"                          Number of fans to test
+"fan_read_min"                                  Minimum acceptable fan RD signal (Hz)
+"fan_read_max"                                  Maximum acceptable fan RD signal (Hz)
+-------------------------------------------------------------------------------------------------------
 """
 
 import sys

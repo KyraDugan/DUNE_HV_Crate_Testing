@@ -5,6 +5,20 @@ directory, the datastore that becomes the output JSON, and the spreadsheet row
 this run writes into.  Instruments are opened lazily so that importing this
 module -- listing items, printing suggestions, running preflight -- works fine
 on a machine with no hardware attached.
+
+-------------------------------------------------------------------------------------------------------
+config.json keys used:
+
+"rounding_factor"                               Rounding factor for stored/displayed measurements
+"relative"                                      Whether output_directory is relative to current dir
+"output_directory"                              Root directory for results folder
+"PL506_IP_ADDR"                                 IP address of the PL506 PTC supply
+"PL506_channel"                                 Channel number of the PL506 PTC supply for emergency shutdown
+"iseg_ip"                                       IP address of the WIENER MPOD crate passed to driver
+"iseg_read_community"                           SNMP read community string for the WIENER MPOD crate
+"iseg_write_community"                          SNMP write community string for the WIENER MPOD crate
+"iseg_slot"                                     Slot number of the WIENER MPOD crate under test
+-----------------------------------------------------------------------------------------------------
 """
 
 import copy

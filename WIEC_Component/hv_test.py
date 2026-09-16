@@ -13,6 +13,29 @@ thresholds.
 
 Relay bytes: the first selects the positive (bit 0) or negative (bit 1) branch,
 the second selects open (bit 1) or 10k terminated (bit 0).
+
+-------------------------------------------------------------------------------------------------------
+config.json keys used:
+
+"hv_max_connection_retries"                     Maximum number of connection retries
+"hv_minutes_duration_short"                     Duration to run 10 kOhm termination phases (minutes)
+"hv_minutes_duration_long"                      Duration to run open circuit phases (minutes)
+"hv_seconds_interval"                           Time between voltage/current samples (seconds)
+"pcb_ch{i}_{polarity}"                          CAEN channel number for PCB channel i, polarity pos/neg
+"caenR8033DM_open_voltage"                      Voltage to ramp to for open circuit phases
+"caenR8033DM_term_voltage"                      Voltage to ramp to for 10 kOhm termination phases
+"hv_stability_wait"                             Seconds to wait for the open circuit phases to stabilize
+"hv_termination_wait"                           Seconds to wait for the 10 kOhm termination phases to stabilize
+"hv_fit_initial_b"                              Initial b parameter for the exp fit, to help convergence
+"hv_resistance_open_min"                        Minimum acceptable open circuit resistance
+"hv_resistance_open_max"                        Maximum acceptable open circuit resistance
+"hv_resistance_term_min"                        Minimum acceptable 10 kOhm termination resistance
+"hv_resistance_term_max"                        Maximum acceptable 10 kOhm termination resistance
+"hv_tau_min"                                    Minimum acceptable time constant (1/b) for the exp fit
+"hv_tau_max"                                    Maximum acceptable time constant (1/b) for the exp fit
+"simultaneous_test"                             Whether to test all channels at once or one at a time
+"channels_to_test"                              List of PCB channels to test
+-------------------------------------------------------------------------------------------------------
 """
 
 import csv

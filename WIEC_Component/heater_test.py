@@ -2,6 +2,16 @@
 
 Measures the resistance of the four heating elements with no power applied,
 then powers them and records the RTD temperature rise.
+
+-------------------------------------------------------------------------------------------------------
+config.json keys used:
+
+"heating_element_min"                           Minimum acceptable heating element resistance
+"heating_element_max"                           Maximum acceptable heating element resistance
+'heat_wait'                                     Seconds to wait for the heaters to reach steady state
+'temp_increase_min'                             Minimum acceptable temperature increase
+'temp_increase_max'                             Maximum acceptable temperature increase
+-------------------------------------------------------------------------------------------------------
 """
 
 import sys
