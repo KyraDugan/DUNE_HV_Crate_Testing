@@ -27,7 +27,7 @@
     "fan_current_min": 0.85,
     "fan_read_max": 2.5,
     "fan_read_min": 1.1,
-    "fan_osc_freq": 300,
+    "fan_osc_freq": 200,
     "fan_pwm_min_correlation": 0.90,
     "fan_pwm_max_rmse": 0.15,
     "heating_element_max": 20.0,

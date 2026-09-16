@@ -15,5 +15,5 @@
     "femb_checkout": "True",
     "continuity_tests": "True",
     "errors": "[]",
-    "full_wiec_test_sequence": "False"
+    "full_wiec_test_sequence": "True"
 }

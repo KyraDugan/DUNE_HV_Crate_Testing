@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>FEMB Report</title>
+</head>
+<body>
+<br><br>
+<h1><span style='color: green;'>FEMB SN FEMB_002	      PASS	  CHECKOUT</span></h1>
+<br>
+<br>
+<h3>PART 01 INPUT INFORMATION</h3>
+<table border='1' style='border-collapse: collapse;'><tr><th>Operator</th><th>env</th><th>Toy_TPC</th><th>Note</th><th>FEMB ID</th><th>Date UTC</th></tr><tr><td>Test User</td><td>Warm</td><td>PCB_Based</td><td>Checkout test</td><td>{'femb0': 'FEMB_001', 'femb1': 'FEMB_002', 'femb2': 'FEMB_003', 'femb3': 'FEMB_004'}</td><td>09_14_2026_21_20_24</td></tr></table><br>
+FEMB ID FEMB_002<br>
+COLDATA_SN_CD0: 0<br>
+COLDATA_SN_CD1: 0<br>
+<div>
+<h3> Here is the Summary
+</div>
+<hr>
+</body>
+</html>
+<h3><span style="color: green;">PART 02 POR Measurement &nbsp;&nbsp; &lt; Pass &gt;</span></h3>
+<h4>2.1 Initial Current Measurement</h4>
+<table border='1' style='border-collapse: collapse;'><tr><th>2.1 Initial Current Measurement</th><th>CH0</th><th>CH1</th><th>CH2</th><th>CH3</th></tr>
+<tr><td>name</td><td>BIAS</td><td>LArASIC</td><td>ColdDATA</td><td>ColdADC</td></tr>
+<tr><td>V_set/V</td><td>5.000</td><td>3.000</td><td>3.000</td><td>3.500</td></tr>
+<tr><td>V_meas/V</td><td>5.0</td><td>2.947</td><td>2.974</td><td>3.413</td></tr>
+<tr><td>I_meas/A</td><td>0.0</td><td>0.427</td><td>0.223</td><td>1.556</td></tr>
+<tr><td>P_meas/W</td><td>0.0</td><td>1.258</td><td>0.663</td><td>5.311</td></tr>
+<tr><td>Total Power</td><td>7.232</td><td></td><td></td><td></td></tr>
+</table><br>
+<h4>2.2 Check FEMB Registers</h4>
+<table border='1' style='border-collapse: collapse;'><tr><th>COLDATA_REG_1</th><th>ColdADC_REG_1</th><th>COLDATA_REG_2</th><th>ColdADC_REG_2</th><th>Result</th></tr><tr><td>Pass</td><td>Pass</td><td>Pass</td><td>Pass</td><td>True</td></tr></table><br>
+<h3><span style="color: green;">PART 03 SE OFF Measurement &nbsp;&nbsp; &lt; Pass &gt;</span></h3>
+<h4>3.1 Noise Measurement  200 mVBL  14 mV/fC  2 us</h4>
+<div>
+<img src="./ped_Raw_SE_200mVBL_14_0mVfC_2_0us_0x00.png" alt="ped" style="max-width: 45%; margin-right: 10px;">
+<img src="./rms_Raw_SE_200mVBL_14_0mVfC_2_0us_0x00.png" alt="rms" style="max-width: 45%;">
+</div><br>
+<table border='1' style='border-collapse: collapse;'><tr><th>3.1 Noise Measurement  200 mVBL  14 mV/fC  2 us</th><th>VALUE</th></tr><tr><td>Result</td><td>True</td></tr></table><br>
+<h4>3.2 SE OFF Power Measurement</h4>
+<table border='1' style='border-collapse: collapse;'><tr><th>3.2 SE OFF Power Measurement</th><th>CH0</th><th>CH1</th><th>CH2</th><th>CH3</th></tr>
+<tr><td>name</td><td>BIAS</td><td>LArASIC</td><td>ColdDATA</td><td>ColdADC</td></tr>
+<tr><td>V_set/V</td><td>5.000</td><td>3.000</td><td>3.000</td><td>3.500</td></tr>
+<tr><td>V_meas/V</td><td>5.0</td><td>2.949</td><td>2.974</td><td>3.413</td></tr>
+<tr><td>I_meas/A</td><td>0.0</td><td>0.421</td><td>0.223</td><td>1.587</td></tr>
+<tr><td>P_meas/W</td><td>0.0</td><td>1.242</td><td>0.663</td><td>5.416</td></tr>
+<tr><td>Total Power</td><td>7.321</td><td></td><td></td><td></td></tr>
+</table><br>
+<h4>3.3 SE OFF LDO Measurement / mV</h4>
+<table border='1' style='border-collapse: collapse;'><tr><th>CDVDDA</th><th>CDVDDIO</th><th>ADCRVDDD1P2</th><th>ADCLVDDD1P2</th><th>FERVDDP</th><th>FELVDDP</th><th>ADCRP25V_1</th><th>ADCLP25V_1</th><th>ADCRP25V</th><th>ADCLP25V</th><th>GND</th></tr><tr><td>1190</td><td>2236</td><td>1098</td><td>1098</td><td>1801</td><td>1801</td><td>2236</td><td>2237</td><td>2235</td><td>2237</td><td>21</td></tr></table><br>
+<h4>3.4 SE OFF Pulse Response [900mV 14mV/fC 2us]</h4>
+<div>
+<img src="./pulse_Raw_SE_900mVBL_14_0mVfC_2_0us_0x10.bin.png" alt="pulse response" style="max-width: 90%;">
+</div><br>
+<table border='1' style='border-collapse: collapse;'><tr><th>3.4 SE OFF Pulse Response [900mV 14mV/fC 2us]</th><th>VALUE</th></tr><tr><td>Result</td><td>True</td></tr></table><br>
+<h3><span style="color: green;">PART 04 DIFF Measurement &nbsp;&nbsp; &lt; Pass &gt;</span></h3>
+<h2>4.1 DIFF Pulse Measurement at 900mV, 14mV/fC, 2us</h2>
+<div>
+<img src="./pulse_Raw_DIFF_900mVBL_14_0mVfC_2_0us_0x10.png" alt="diff pulse" style="max-width: 90%;">
+</div><br>
+<table border='1' style='border-collapse: collapse;'><tr><th>4.1 DIFF Pulse Measurement at 900mV, 14mV/fC, 2us</th><th>VALUE</th></tr><tr><td>Result</td><td>True</td></tr></table><br>
+<h2>4.2 DIFF Power Measurement</h2>
+<table border='1' style='border-collapse: collapse;'><tr><th>4.2 DIFF Power Measurement</th><th>CH0</th><th>CH1</th><th>CH2</th><th>CH3</th></tr>
+<tr><td>name</td><td>BIAS</td><td>LArASIC</td><td>ColdDATA</td><td>ColdADC</td></tr>
+<tr><td>V_set/V</td><td>5.000</td><td>3.000</td><td>3.000</td><td>3.500</td></tr>
+<tr><td>V_meas/V</td><td>5.0</td><td>2.906</td><td>2.972</td><td>3.412</td></tr>
+<tr><td>I_meas/A</td><td>0.0</td><td>0.668</td><td>0.226</td><td>1.617</td></tr>
+<tr><td>P_meas/W</td><td>0.0</td><td>1.941</td><td>0.672</td><td>5.517</td></tr>
+<tr><td>Total Power</td><td>8.13</td><td></td><td></td><td></td></tr>
+</table><br>
+<h2>4.3 DIFF LDO Measurement / mV</h2>
+<table border='1' style='border-collapse: collapse;'><tr><th>CDVDDA</th><th>CDVDDIO</th><th>ADCRVDDD1P2</th><th>ADCLVDDD1P2</th><th>FERVDDP</th><th>FELVDDP</th><th>ADCRP25V_1</th><th>ADCLP25V_1</th><th>ADCRP25V</th><th>ADCLP25V</th><th>GND</th></tr><tr><td>1190</td><td>2240</td><td>1099</td><td>1098</td><td>1673</td><td>1674</td><td>2237</td><td>2240</td><td>2237</td><td>2240</td><td>24</td></tr></table><br>
+<h2><span style="color: green;">PART 05 Monitoring Measurement &nbsp;&nbsp; &lt; Pass &gt;</span></h2>
+<h2>Detail / mV</h2>
+<table border='1' style='border-collapse: collapse;'><tr><th>Monitor Path</th><th>CH0</th><th>CH1</th><th>CH2</th><th>CH3</th><th>CH4</th><th>CH5</th><th>CH6</th><th>CH7</th></tr>
+<tr><td>ASIC #</td><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td></tr>
+<tr><td>FE T</td><td>915.7</td><td>902.6</td><td>912.3</td><td>907.0</td><td>909.8</td><td>913.2</td><td>901.6</td><td>912.0</td></tr>
+<tr><td>FE BGP</td><td>1200.5</td><td>1196.8</td><td>1198.8</td><td>1200.2</td><td>1200.8</td><td>1201.0</td><td>1194.6</td><td>1201.4</td></tr>
+<tr><td>ADC_VCMI</td><td>923.2</td><td>922.8</td><td>921.9</td><td>923.2</td><td>924.8</td><td>923.0</td><td>924.5</td><td>922.7</td></tr>
+<tr><td>ADC_VCMO</td><td>1207.9</td><td>1209.0</td><td>1208.4</td><td>1210.1</td><td>1209.4</td><td>1209.4</td><td>1208.8</td><td>1209.8</td></tr>
+<tr><td>ADC_VREFP</td><td>1919.5</td><td>1919.1</td><td>1921.4</td><td>1919.6</td><td>1921.3</td><td>1921.3</td><td>1922.4</td><td>1923.1</td></tr>
+<tr><td>ADC_VREFN</td><td>490.6</td><td>491.0</td><td>489.6</td><td>491.2</td><td>493.3</td><td>491.0</td><td>492.1</td><td>490.4</td></tr>
+<tr><td>VSSA</td><td>61.2</td><td>60.5</td><td>60.5</td><td>60.9</td><td>59.5</td><td>59.5</td><td>59.4</td><td>58.9</td></tr>
+</table><br>
+------
+<br>
+lke@bnl.gov<br>
