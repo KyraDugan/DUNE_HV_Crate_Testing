@@ -96,17 +96,16 @@ def prompt_config_file() -> str:
         print("Please enter a valid path.")
 
 
-def build_test_name(version_number: str, tester_name: str, comments: str) -> str:
+def build_test_name(timestamp: str, tester_name: str) -> str:
     """
     Builds final test name:
-        [version number]_[name of tester]_[extra comments from test user]
+        [timestamp]_[name of tester]
     """
 
-    version_number = clean_name_field(version_number)
+    timestamp = clean_name_field(timestamp)
     tester_name = clean_name_field(tester_name)
-    comments = clean_name_field(comments)
 
-    return f"{version_number}_{tester_name}_{comments}"
+    return f"{timestamp}_{tester_name}"
 
 
 active_test = None
@@ -218,15 +217,14 @@ def main():
 
         prompt_wib_power_states()
 
-        version_number = prompt_required("Enter version number: ")
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
         tester_name = prompt_required("Enter name of tester: ")
-        comments = prompt_required("Enter extra comments from test user: ")
         config_file = prompt_config_file()
 
         test_name = build_test_name(
-            version_number=version_number,
-            tester_name=tester_name,
-            comments=comments
+            timestamp=timestamp,
+            tester_name=tester_name
         )
 
     print("\n" + "=" * 70)

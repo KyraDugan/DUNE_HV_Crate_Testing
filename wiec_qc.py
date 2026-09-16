@@ -137,15 +137,16 @@ def prompt_wib_power_states():
 
 def prompt_wiec_test_info():
     print_prompt_section("WIEC QC : Test Info")
-    version_number = wiec_crate_gui.prompt_required("Enter version number: ")
+
+    #Creates name of test with timestamp and tester name
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     tester_name = wiec_crate_gui.prompt_required("Enter name of tester: ")
-    comments = wiec_crate_gui.prompt_required("Enter extra comments from test user: ")
     config_file = wiec_crate_gui.prompt_config_file()
     run_mode = prompt_run_mode()
     test_name = wiec_crate_gui.build_test_name(
-        version_number=version_number,
+        timestamp=timestamp,
         tester_name=tester_name,
-        comments=comments,
     )
 
     wibs = {}
