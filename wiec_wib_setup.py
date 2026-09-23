@@ -1,3 +1,16 @@
+"""
+LEGACY FILE. GO TO WIEC_Component/wib_setup.py FOR THE NEW IMPLEMENTATION.
+
+
+This is kept here for backwards compatability.
+
+Real implementation is in WIEC_Component/wib_setup.py and follows the WIEC Component pattern:
+NAME, KEY, DESCRIPTION, EST_MINUTES, run(session)
+
+For actual implementation, please go to the new file!
+"""
+
+
 import json
 import traceback
 import subprocess

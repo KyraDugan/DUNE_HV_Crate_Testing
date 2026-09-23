@@ -81,10 +81,12 @@ def prompt_config_file() -> str:
     """
 
     while True:
-        config_path = input("Enter config file path [default: config.json]: ").strip()
+        not_default = input("Do you want to use the default config.json? Under standard use, respond with 'y'. (y/n): ").strip().lower()
 
-        if not config_path:
+        if not_default in ("y", "yes"):
             config_path = "config.json"
+        else:
+            config_path = input("Enter config file path (default: config.json): ").strip()
 
         config_path = os.path.expanduser(config_path)
         config_path = os.path.abspath(config_path)

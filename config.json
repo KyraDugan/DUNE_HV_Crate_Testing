@@ -86,6 +86,8 @@
     ],
     "rc_filter_curve_points": 500,
     "rc_filter_curve_time_multiplier": 5.0,
+    "wib_ip_prefix": "10.73.137",
+    "wib_ip_last_octet_base": 71,
     "caenR8033DM": "169.254.12.34",
     "caenR8033DM_driver": "libcaenhvwrapper.so.6.6",
     "caenR8033DM_current_range": 1,

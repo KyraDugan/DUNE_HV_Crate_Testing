@@ -1,4 +1,18 @@
 """
+LEGACY FILE. GO TO WIEC_Component/femb_checkout.py FOR THE NEW IMPLEMENTATION.
+
+
+This is kept here for backwards compatability.
+
+Real implementation is in WIEC_Component/femb_checkout.py and follows the WIEC Component pattern:
+NAME, KEY, DESCRIPTION, EST_MINUTES, run(session)
+
+For actual implementation, please go to the new file!
+"""
+
+
+
+"""
 CTS Checkout Script
 Performs quick checkout test for FEMB boards in 4 slots.
 Scans QR codes, runs checkout, provides result summary, and sends email notification.

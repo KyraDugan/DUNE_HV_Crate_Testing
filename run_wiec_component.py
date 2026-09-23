@@ -6,7 +6,7 @@ same spreadsheet row and results folder.
 
     python3 run_wiec_component.py                       menu
     python3 run_wiec_component.py --all                 every crate item
-    python3 run_wiec_component.py --items fan_test,heater_test
+    python3 run_wiec_component.py --items               fan_test,heater_test
     python3 run_wiec_component.py --list                what is available
     python3 run_wiec_component.py --suggest             the first-run notes
     python3 run_wiec_component.py --preflight           checks only
@@ -22,16 +22,18 @@ import os
 import sys
 import traceback
 
-from WIEC_Component import fan_test, fan_pwm_sweep, heater_test, hv_test, ptc_power
+import wiec_qc
+from WIEC_Component import fan_test, fan_pwm_sweep, heater_test, hv_test
 from WIEC_Component import hv_module_test
 from WIEC_Component import preflight
 from WIEC_Component.session import TestSession, shutdown_only
 
+
+
 # The crate test items, in the order they should normally run
-CRATE_ITEMS = [fan_test, fan_pwm_sweep, heater_test, hv_test]
-# Not part of the crate test -- WIEC PTC work and single HV module QC
-EXTRA_ITEMS = [ptc_power, hv_module_test]
-ALL_ITEMS = CRATE_ITEMS + EXTRA_ITEMS
+CRATE_ITEMS = [fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_qc]
+#EXTRA_ITEMS = [wiec_qc]
+ALL_ITEMS = CRATE_ITEMS #+ EXTRA_ITEMS
 
 BANNER = "=" * 70
 
