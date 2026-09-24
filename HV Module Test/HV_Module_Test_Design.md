@@ -362,6 +362,25 @@ parsed out of `moduleDescription.ma2` (field 4 of
           the divider is 10M:500k (nominally 21.0) but measures ~44, and that
           is unresolved -- iseg_ramp_daq_enabled
 
+4b. HV I-V Test   (iseg_iv_enabled; before section 5, which turns Vmax down)
+   AUTO   HV I-V Measurement               (unsafe)
+          DC staircase 50/100/200/500/1000 V @ 100 V/s, all 8 channels;
+          at each point dwell 10 s (charging current dies away), then
+          average 5 SNMP readings 1 s apart; one 34970A scan per point if
+          iseg_ramp_daq_enabled (recorded, not graded).  Then back to 0 V.
+          Fit per channel: I = V / R_load + I0
+   AUTO   HV I-V Linearity                 (safe)
+          worst residual <= 2 % of the top-point current, and at least
+          1 uA at the top point (else "is the test kit load fitted?")
+   AUTO   HV I-V Channel Uniformity        (safe)
+          every channel's R_load within +/-5 % of the median of the eight
+   Why separate from the ramp: during the ramp C*dV/dt charging current
+   rides on the load current; here every point is DC.  Why three steps: a
+   trip must abort (unsafe), but a grading FAIL is taken with the HV off
+   and must not power the crate down.
+   July data, SN 7200489: linearity 0.19-0.29 %, spread -1.6..+1.8 %,
+   R_load ~14.1 MOhm -- which is the test kit, not module leakage.
+
 5. HV Limitation Test
    USER   Select Vmax DAQ Channel           34970A slot 1, 11-20
    AUTO   Vmax Limit Adjustment             target 1.5625 V, accept 1.562-1.563
@@ -381,7 +400,7 @@ parsed out of `moduleDescription.ma2` (field 4 of
 | `WIEC_Component/operator.py` | `Step`, `StepResult`, the `Console` prompts and the `FlowRunner` engine.  Knows nothing about MPODs |
 | `WIEC_Component/hv_module_test.py` | the flow itself, the AUTO actions, the outputs, and a `SimulatedMPOD` for `--dry-run` |
 | `HV Module Test/hv_module_test_results.xlsx` | one row per run; columns are discovered from the flow, so adding a step does not break an old workbook |
-| `HV Module Test/results/<stamp>_SN<serial>/` | ramp CSV, voltage and current PNGs, and the full JSON step record |
+| `HV Module Test/results/<stamp>_SN<serial>/` | ramp CSV, voltage and current PNGs, I-V points and trace CSVs (`hv_iv_SN*.csv`, `hv_iv_trace_SN*.csv`), `hv_iv.png`, and the full JSON step record |
 
 How to run it:
 

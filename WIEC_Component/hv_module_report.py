@@ -16,6 +16,7 @@ run wrote:
     hv_module_test_SN*_results.csv   the same steps as a flat table
     hv_ramp_SN*.csv                  the per-channel ramp samples
     hv_ramp_daq_SN*.csv              the 34970A readings, when it was wired
+    hv_iv_SN*.csv                    the averaged I-V points
     *.png                            the curves
 """
 
@@ -83,6 +84,10 @@ PLOTS = [
     ("hv_ramp_daq.png",
      "34970A through the HV divider. Recorded only — nothing is converted or "
      "graded, because the divider is 10M:500k (nominally 21.0) but measures ~44."),
+    ("hv_iv.png",
+     "I-V staircase: DC points after the dwell with the fit I = V/R + I0, the "
+     "residuals against the linearity limit, and each channel's R_load against "
+     "the median."),
 ]
 
 
@@ -144,6 +149,7 @@ def build_html(directory):
 
     ramp_rows, ramp_csv = _read_csv(directory, "hv_ramp_SN*.csv")
     daq_rows, daq_csv = _read_csv(directory, "hv_ramp_daq_SN*.csv")
+    iv_rows, iv_csv = _read_csv(directory, "hv_iv_SN*.csv")
 
     parts = ['<div class="wrap">']
     parts.append(
@@ -219,6 +225,27 @@ def build_html(directory):
             numeric=(1, 2),
         ))
 
+    # -- the I-V staircase
+    iv = (measurements.get("iv_analysis") or {}).get("per_channel") or {}
+    if iv:
+        median = measurements["iv_analysis"].get("median_load_mohm", float("nan"))
+        parts.append("<h2>I-V, per channel</h2>")
+        parts.append(
+            f'<div class="note">DC points {_e(", ".join(f"{v:g}" for v in measurements.get("iv_voltages", [])))} V. '
+            f'Linearity is the worst residual from the fitted line as a share of '
+            f'the top-point current; deviation is R_load against the median '
+            f'{median:.3f} MΩ.</div>'
+        )
+        parts.append(_table(
+            ["Channel", "R_load [MΩ]", "I0 [µA]", "I at top [µA]",
+             "Linearity", "vs median"],
+            [[a["channel"].upper(), f"{a['load_mohm']:.3f}", f"{a['offset_ua']:.3f}",
+              f"{a['top_current_ua']:.2f}", f"{a['linearity_fraction']:.2%}",
+              f"{a['load_deviation_fraction']:+.2%}"]
+             for a in sorted(iv.values(), key=lambda a: a["channel"])],
+            numeric=(1, 2, 3, 4, 5),
+        ))
+
     # -- the DAQ observation
     observation = measurements.get("daq_observation")
     if observation:
@@ -256,6 +283,8 @@ def build_html(directory):
         counts.append(f"{len(ramp_rows)} ramp samples ({os.path.basename(ramp_csv)})")
     if daq_rows:
         counts.append(f"{len(daq_rows)} DAQ samples ({os.path.basename(daq_csv)})")
+    if iv_rows:
+        counts.append(f"{len(iv_rows)} I-V points ({os.path.basename(iv_csv)})")
     parts.append(
         "<footer>"
         + ("Data: " + "; ".join(counts) + ".<br>" if counts else "")

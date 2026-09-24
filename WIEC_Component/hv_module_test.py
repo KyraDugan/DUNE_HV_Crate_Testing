@@ -6,6 +6,7 @@ An operator-guided flow, built out of the three step kinds in operator.py:
     2. Insert module, SN, LED       USER / AUTO / CHECK
     3. Safety jumper loop test      three configurations, generated
     4. HV ramp test                 AUTO, 0 -> 1000 V @ 10 V/s, hold, back down
+       HV I-V test                  AUTO, DC staircase 50 -> 1000 V, linearity + uniformity
     5. HV limitation test           AUTO, parameters still TBD
 
 Unlike the other WIEC_Component items this one tests a *module*, not the
@@ -25,6 +26,7 @@ import csv
 import json
 import math
 import os
+import statistics
 import sys
 import time
 import traceback
@@ -42,7 +44,7 @@ from .operator import (
 NAME = "HV Module Test"
 KEY = "hv_module_test"
 DESCRIPTION = "Operator-guided QC of one iseg HV module in an MPOD slot"
-EST_MINUTES = 15
+EST_MINUTES = 17
 
 RESULTS_ROOT = "HV Module Test"
 
@@ -114,6 +116,29 @@ DEFAULTS = {
     # be quantised a little; this is the "did the write take at all?" guard.
     "iseg_ramp_rate_readback_tolerance_fraction": 0.05,
 
+    # Section 4b -- the I-V (U-I) staircase, run straight after the ramp.
+    # Each point: ramp there, dwell so the C*dV/dt charging current dies
+    # away, then average a few readings.  Stops at 1000 V like the ramp; the
+    # protocol does not ask for more.  Uses the ramp's timeout and reach
+    # tolerance settings, and the ramp's DAQ switch for the divider readings.
+    "iseg_iv_enabled": True,
+    "iseg_iv_voltages": [50.0, 100.0, 200.0, 500.0, 1000.0],
+    "iseg_iv_ramp_rate": 100.0,
+    "iseg_iv_dwell_s": 10.0,
+    "iseg_iv_samples_per_point": 5,
+    "iseg_iv_sample_interval_s": 1.0,
+    # Worst residual from I = V/R + I0, as a fraction of the top-point
+    # current.  The six July runs on SN 7200489 give 0.19-0.29 % (against
+    # set voltage -- they did not record the readback).
+    "iseg_iv_linearity_tolerance_fraction": 0.02,
+    # Each channel's R_load against the median of the eight.  The July runs
+    # spread -1.6 % .. +1.8 %, the same pattern every run, so most of it is
+    # the test kit's own resistors rather than the module.
+    "iseg_iv_channel_spread_tolerance_fraction": 0.05,
+    # Below this at the top point nothing is connected: the test kit load
+    # draws ~70 uA at 1 kV.
+    "iseg_iv_min_current_a": 1e-6,
+
     # Section 5 -- the potentiometer adjustment is defined and graded; the
     # "output reaches 1.2 kV but not 1.3 kV" part of the procedure is not
     # written yet, so it is not attempted.
@@ -173,6 +198,8 @@ class Context:
         self.data = {}              # everything that ends up in the JSON
         self.ramp_samples = []      # rows written to the ramp CSV
         self.daq_samples = []       # independent 34970A readings during the ramp
+        self.iv_trace = []          # every I-V step reading, same shape as ramp_samples
+        self.iv_points = []         # one averaged row per I-V point and channel
         self.results_dir = None
         self.runner = None
         self._daq = None
@@ -534,15 +561,21 @@ def check_safety_loop(ctx, expect_closed):
 # ----------------------------------------------------------------------
 # Section 4 -- the HV ramp
 # ----------------------------------------------------------------------
-def _sample(ctx, phase, started_at, target_v):
-    """One reading of all channels, appended to the CSV rows.  Raises on a trip."""
+def _sample(ctx, phase, started_at, target_v, samples=None):
+    """One reading of all channels, appended to the CSV rows.  Raises on a trip.
+
+    Rows go to ctx.ramp_samples unless another list is given -- the I-V step
+    keeps its own trace so it never shows up in the ramp CSV or the ramp fit.
+    """
     now = time.monotonic()
     reading = ctx.mpod.read_all(ctx.channels)
     timestamp = datetime.now().isoformat(timespec="milliseconds")
+    if samples is None:
+        samples = ctx.ramp_samples
 
     tripped = []
     for channel, values in reading.items():
-        ctx.ramp_samples.append({
+        samples.append({
             "phase": phase,
             "timestamp": timestamp,
             "elapsed_s": round(now - started_at, 3),
@@ -607,7 +640,7 @@ def _progress(ctx, phase, reading, elapsed):
     )
 
 
-def _ramp_to(ctx, phase, target_magnitude_v, timeout_s):
+def _ramp_to(ctx, phase, target_magnitude_v, timeout_s, samples=None, daq=True):
     """Sets every channel to the target and samples until they all get there."""
     tolerance = float(ctx.cfg["iseg_ramp_reach_tolerance_v"])
     interval = float(ctx.cfg["iseg_ramp_sample_interval_s"])
@@ -616,9 +649,9 @@ def _ramp_to(ctx, phase, target_magnitude_v, timeout_s):
         ctx.mpod.set_voltage(channel, target_magnitude_v)
 
     started_at = time.monotonic()
-    next_daq = started_at if ctx.cfg["iseg_ramp_daq_enabled"] else None
+    next_daq = started_at if daq and ctx.cfg["iseg_ramp_daq_enabled"] else None
     while True:
-        reading, now = _sample(ctx, phase, started_at, target_magnitude_v)
+        reading, now = _sample(ctx, phase, started_at, target_magnitude_v, samples)
         elapsed = now - started_at
         _progress(ctx, phase, reading, elapsed)
 
@@ -684,6 +717,31 @@ def _fit_ramp_rate(samples, phase, channel, target_magnitude_v):
     return abs(slope)
 
 
+def _set_module_ramp_rate(ctx, rate):
+    """Module-level ramp speed, then read it back.
+
+    Per-channel ramp rate writes are silently discarded by this module (see
+    the devlog), so the only write that works is the module percentage.
+    Returns (commanded %, module %, channel V/s readback, problem or None).
+    """
+    commanded_percent = ctx.mpod.set_ramp_rate(ctx.module_id, rate, ctx.nominal_voltage)
+    percent = ctx.mpod.get_module_ramp_percent(ctx.module_id)
+    readback = ctx.mpod.get_ramp_rate(ctx.channels[0])
+    ctx.console.info(
+        f"Ramp rate set to {rate:g} V/s = {commanded_percent:.3f} % of full "
+        f"scale; module reads {percent:.3f} %, channels read {readback:.2f} V/s"
+    )
+
+    tolerance = float(ctx.cfg["iseg_ramp_rate_readback_tolerance_fraction"])
+    if rate > 0 and abs(readback - rate) > tolerance * rate:
+        return commanded_percent, percent, readback, (
+            f"ramp rate readback {readback:.2f} V/s does not match the "
+            f"commanded {rate:g} V/s ({commanded_percent:.3f} %, module reads "
+            f"{percent:.3f} %) -- refusing to ramp"
+        )
+    return commanded_percent, percent, readback, None
+
+
 def hv_ramp_test(ctx):
     """0 -> target @ rate, hold, target -> 0.  All 8 channels together."""
     cfg = ctx.cfg
@@ -709,25 +767,13 @@ def hv_ramp_test(ctx):
         except SNMPError:
             pass
 
-    commanded_percent = ctx.mpod.set_ramp_rate(ctx.module_id, rate, ctx.nominal_voltage)
-    percent = ctx.mpod.get_module_ramp_percent(ctx.module_id)
-    readback = ctx.mpod.get_ramp_rate(ctx.channels[0])
-    ctx.console.info(
-        f"Ramp rate set to {rate:g} V/s = {commanded_percent:.3f} % of full "
-        f"scale; module reads {percent:.3f} %, channels read {readback:.2f} V/s"
-    )
+    commanded_percent, percent, readback, problem = _set_module_ramp_rate(ctx, rate)
     ctx.data["ramp_rate_commanded_v_per_s"] = rate
     ctx.data["ramp_rate_commanded_percent"] = commanded_percent
     ctx.data["ramp_rate_readback_v_per_s"] = readback
     ctx.data["ramp_rate_module_percent"] = percent
-
-    tolerance = float(cfg["iseg_ramp_rate_readback_tolerance_fraction"])
-    if rate > 0 and abs(readback - rate) > tolerance * rate:
-        return False, (
-            f"ramp rate readback {readback:.2f} V/s does not match the "
-            f"commanded {rate:g} V/s ({commanded_percent:.3f} %, module reads "
-            f"{percent:.3f} %) -- refusing to ramp"
-        )
+    if problem:
+        return False, problem
 
     for channel in ctx.channels:
         ctx.mpod.set_current(channel, float(cfg["iseg_current_limit_a"]))
@@ -790,6 +836,262 @@ def hv_ramp_test(ctx):
         if out_of_range:
             return False, summary + f" -- outside +/-{tolerance:.0%} of {rate:g} V/s"
 
+    return True, summary
+
+
+# ----------------------------------------------------------------------
+# Section 4b -- the U-I staircase, next to the ramp
+# ----------------------------------------------------------------------
+# The ramp already draws a current-voltage line, but a moving one: while the
+# voltage changes, C*dV/dt charging current rides on top of the DC load
+# current.  Here the voltage stops at each point and the readings are taken
+# only after a dwell, so every point is DC.
+#
+# Split into three steps on purpose.  The measurement is UNSAFE -- a trip or a
+# voltage not reached aborts and powers the crate down.  Linearity and channel
+# uniformity are verdicts on numbers already taken with the HV off again, so a
+# FAIL there is an ordinary FAIL and the flow carries on.
+
+def _iv_point(ctx, target_v):
+    """Dwell at target_v, then average N readings of every channel."""
+    cfg = ctx.cfg
+    interval = float(cfg["iseg_iv_sample_interval_s"])
+    count = max(1, int(cfg["iseg_iv_samples_per_point"]))
+    phase = f"IV {target_v:g} V"
+
+    started_at = time.monotonic()
+    dwell = float(cfg["iseg_iv_dwell_s"])
+    # Still sampled during the dwell: a trip is caught, and the trace shows
+    # the charging current dying away.
+    while time.monotonic() - started_at < dwell:
+        reading, now = _sample(ctx, f"{phase} dwell", started_at, target_v, ctx.iv_trace)
+        _progress(ctx, f"{phase} dwell", reading, now - started_at)
+        time.sleep(interval)
+    print()
+
+    readings = []
+    for index in range(count):
+        reading, now = _sample(ctx, phase, started_at, target_v, ctx.iv_trace)
+        readings.append(reading)
+        _progress(ctx, phase, reading, now - started_at)
+        if index < count - 1:
+            time.sleep(interval)
+    print()
+
+    volts = None
+    first = int(cfg["iseg_ramp_daq_first_channel"])
+    if cfg["iseg_ramp_daq_enabled"]:
+        volts = ctx.daq().read_scan(first, first + len(ctx.channels) - 1)
+
+    timestamp = datetime.now().isoformat(timespec="milliseconds")
+    for index, channel in enumerate(ctx.channels):
+        voltages = [abs(r[channel]["voltage"]) for r in readings]
+        currents = [abs(r[channel]["current"]) * 1e6 for r in readings]
+        row = {
+            "set_voltage_v": target_v,
+            "channel": channel,
+            "samples": count,
+            "timestamp": timestamp,
+            "voltage_v": statistics.fmean(voltages),
+            "voltage_std_v": statistics.stdev(voltages) if count > 1 else 0.0,
+            "current_ua": statistics.fmean(currents),
+            "current_std_ua": statistics.stdev(currents) if count > 1 else 0.0,
+            "daq_channel": "",
+            "daq_voltage_v": "",
+            "implied_ratio": "",
+        }
+        # Recorded, not converted -- the divider ratio is still unresolved,
+        # see _daq_sample.
+        if volts is not None and index < len(volts):
+            raw = volts[index]
+            row["daq_channel"] = first + index
+            row["daq_voltage_v"] = raw
+            row["implied_ratio"] = row["voltage_v"] / raw if raw else float("nan")
+        ctx.iv_points.append(row)
+
+
+def _fit_line(points):
+    """Least-squares y = slope * x + offset.  None when it cannot be fitted."""
+    n = len(points)
+    if n < 2:
+        return None
+    mean_x = sum(x for x, _ in points) / n
+    mean_y = sum(y for _, y in points) / n
+    denominator = sum((x - mean_x) ** 2 for x, _ in points)
+    if denominator == 0:
+        return None
+    slope = sum((x - mean_x) * (y - mean_y) for x, y in points) / denominator
+    return slope, mean_y - slope * mean_x
+
+
+def _analyse_iv(ctx):
+    """Per channel: I = V / R_load + I0, and how far the points sit off it.
+
+    Linearity is the worst residual as a fraction of the current at the top
+    point, so it reads the same whatever the load is.  Uniformity is each
+    channel's R_load against the median of the eight.
+    """
+    per_channel = {}
+    for channel in ctx.channels:
+        points = sorted(
+            (r["voltage_v"], r["current_ua"]) for r in ctx.iv_points
+            if r["channel"] == channel
+        )
+        fit = _fit_line(points)
+        if fit is None or len(points) < 3:
+            continue
+        slope, offset = fit
+        top_v, top_i = points[-1]
+        worst = max(abs(i - (slope * v + offset)) for v, i in points)
+        per_channel[channel] = {
+            "channel": channel,
+            "points": len(points),
+            "slope_ua_per_v": slope,
+            # V / uA = MOhm
+            "load_mohm": 1.0 / slope if slope > 0 else float("nan"),
+            "offset_ua": offset,
+            "top_voltage_v": top_v,
+            "top_current_ua": top_i,
+            "max_residual_ua": worst,
+            "linearity_fraction": worst / top_i if top_i > 0 else float("nan"),
+        }
+
+    loads = [a["load_mohm"] for a in per_channel.values() if not math.isnan(a["load_mohm"])]
+    median = statistics.median(loads) if loads else float("nan")
+    for analysis in per_channel.values():
+        analysis["load_deviation_fraction"] = (
+            (analysis["load_mohm"] - median) / median
+            if loads and not math.isnan(analysis["load_mohm"]) else float("nan")
+        )
+    return {"median_load_mohm": median, "per_channel": per_channel}
+
+
+def hv_iv_measurement(ctx):
+    """0 -> each point in iseg_iv_voltages, dwell, average; then back to 0 V."""
+    cfg = ctx.cfg
+    voltages = sorted(abs(float(v)) for v in cfg["iseg_iv_voltages"])
+    if not voltages:
+        return False, "iseg_iv_voltages is empty"
+    full_scale = abs(ctx.nominal_voltage)
+    if full_scale and voltages[-1] > full_scale:
+        return False, (
+            f"highest I-V point {voltages[-1]:g} V is above the module's "
+            f"{full_scale:g} V full scale -- refusing"
+        )
+
+    rate = float(cfg["iseg_iv_ramp_rate"])
+    factor = float(cfg["iseg_ramp_timeout_factor"])
+    margin = float(cfg["iseg_ramp_timeout_margin_s"])
+
+    ctx.console.info(
+        f"HV I-V Test: {', '.join(f'{v:g}' for v in voltages)} V at {rate:g} V/s, "
+        f"{float(cfg['iseg_iv_dwell_s']):g} s dwell, "
+        f"{int(cfg['iseg_iv_samples_per_point'])} readings per point, "
+        f"{len(ctx.channels)} channels together"
+    )
+
+    for channel in ctx.channels:
+        try:
+            ctx.mpod.clear_channel_events(channel)
+        except SNMPError:
+            pass
+
+    _commanded, _percent, readback, problem = _set_module_ramp_rate(ctx, rate)
+    ctx.data["iv_ramp_rate_v_per_s"] = rate
+    ctx.data["iv_ramp_rate_readback_v_per_s"] = readback
+    if problem:
+        return False, problem
+
+    for channel in ctx.channels:
+        ctx.mpod.set_current(channel, float(cfg["iseg_current_limit_a"]))
+        ctx.mpod.set_voltage(channel, 0.0)
+    for channel in ctx.channels:
+        ctx.mpod.channel_on(channel)
+
+    previous = 0.0
+    try:
+        for target in voltages:
+            timeout = abs(target - previous) / rate * factor + margin
+            _ramp_to(ctx, f"IV to {target:g} V", target, timeout,
+                     samples=ctx.iv_trace, daq=False)
+            _iv_point(ctx, target)
+            previous = target
+        _ramp_to(ctx, "IV down", 0.0, previous / rate * factor + margin,
+                 samples=ctx.iv_trace, daq=False)
+    finally:
+        try:
+            ctx.mpod.all_off(ctx.channels)
+        except Exception:
+            print(traceback.format_exc())
+
+    analysis = _analyse_iv(ctx)
+    ctx.data["iv_voltages"] = voltages
+    ctx.data["iv_analysis"] = analysis
+
+    per_channel = analysis["per_channel"]
+    if not per_channel:
+        return True, f"{len(voltages)} points recorded, too few to fit"
+    loads = [a["load_mohm"] for a in per_channel.values()]
+    tops = [a["top_current_ua"] for a in per_channel.values()]
+    return True, (
+        f"{len(voltages)} points {voltages[0]:g}-{voltages[-1]:g} V; "
+        f"R_load {min(loads):.2f}-{max(loads):.2f} MOhm, "
+        f"I at {voltages[-1]:g} V {min(tops):.2f}-{max(tops):.2f} uA"
+    )
+
+
+def _iv_missing(ctx, per_channel):
+    return [c.upper() for c in ctx.channels if c not in per_channel]
+
+
+def hv_iv_linearity(ctx):
+    """Every channel's points on a straight line, within tolerance."""
+    per_channel = (ctx.data.get("iv_analysis") or {}).get("per_channel") or {}
+    if not per_channel:
+        return False, "no I-V data to judge"
+
+    tolerance = float(ctx.cfg["iseg_iv_linearity_tolerance_fraction"])
+    minimum_ua = float(ctx.cfg["iseg_iv_min_current_a"]) * 1e6
+    problems = [f"{c}: no fit" for c in _iv_missing(ctx, per_channel)]
+    for channel, a in sorted(per_channel.items()):
+        if a["top_current_ua"] < minimum_ua:
+            # Nothing to be linear about: the divider draws ~70 uA at 1 kV, so
+            # a few nA means nothing is connected to this output.
+            problems.append(
+                f"{channel.upper()}: only {a['top_current_ua']:.3f} uA at "
+                f"{a['top_voltage_v']:.0f} V -- is the test kit load fitted?"
+            )
+        elif math.isnan(a["linearity_fraction"]) or a["linearity_fraction"] > tolerance:
+            problems.append(f"{channel.upper()}: {a['linearity_fraction']:.2%}")
+
+    worst = max(a["linearity_fraction"] for a in per_channel.values())
+    summary = (f"worst deviation from the fitted line {worst:.2%} of the "
+               f"top-point current (limit {tolerance:.0%})")
+    if problems:
+        return False, summary + " -- " + "; ".join(problems)
+    return True, summary
+
+
+def hv_iv_uniformity(ctx):
+    """Every channel's R_load within tolerance of the median of all eight."""
+    analysis = ctx.data.get("iv_analysis") or {}
+    per_channel = analysis.get("per_channel") or {}
+    if len(per_channel) < 2:
+        return False, "fewer than two channels with an I-V fit"
+
+    tolerance = float(ctx.cfg["iseg_iv_channel_spread_tolerance_fraction"])
+    median = analysis["median_load_mohm"]
+    deviations = {c: a["load_deviation_fraction"] for c, a in per_channel.items()}
+    problems = [f"{c}: no fit" for c in _iv_missing(ctx, per_channel)]
+    problems += [
+        f"{c.upper()}: {d:+.1%}" for c, d in sorted(deviations.items())
+        if math.isnan(d) or abs(d) > tolerance
+    ]
+    summary = (f"R_load median {median:.2f} MOhm, channels "
+               f"{min(deviations.values()):+.1%} .. {max(deviations.values()):+.1%} "
+               f"(limit +/-{tolerance:.0%})")
+    if problems:
+        return False, summary + " -- " + "; ".join(problems)
     return True, summary
 
 
@@ -1124,6 +1426,19 @@ def build_flow(ctx):
         Step(AUTO, "HV Ramp Test", action=hv_ramp_test, severity=UNSAFE, key="hv_ramp")
     )
 
+    # 4b. I-V staircase.  The measurement is unsafe (trips abort); the two
+    # verdicts are taken on recorded numbers with the HV already off.  Before
+    # the limitation test, which leaves the Vmax pot turned down.
+    if ctx.cfg["iseg_iv_enabled"]:
+        steps += [
+            Step(AUTO, "HV I-V Measurement", action=hv_iv_measurement,
+                 severity=UNSAFE, key="hv_iv"),
+            Step(AUTO, "HV I-V Linearity", action=hv_iv_linearity,
+                 key="hv_iv_linearity"),
+            Step(AUTO, "HV I-V Channel Uniformity", action=hv_iv_uniformity,
+                 key="hv_iv_uniformity"),
+        ]
+
     # 5. HV limitation test -- potentiometer adjustment, then an SNMP readback
     if ctx.cfg["iseg_limit_test_enabled"]:
         for stage in (VMAX_STAGE, IMAX_STAGE):
@@ -1295,6 +1610,106 @@ def plot_ramp(ctx):
         paths.append(path)
 
     return paths
+
+
+IV_POINT_FIELDS = ["set_voltage_v", "channel", "samples", "timestamp",
+                   "voltage_v", "voltage_std_v", "current_ua", "current_std_ua",
+                   "daq_channel", "daq_voltage_v", "implied_ratio"]
+
+
+def write_iv_csvs(ctx):
+    """The averaged points, and the full trace they were taken from."""
+    paths = []
+    for rows, name, fields in (
+        (ctx.iv_points, f"hv_iv_SN{ctx.serial()}.csv", IV_POINT_FIELDS),
+        (ctx.iv_trace, f"hv_iv_trace_SN{ctx.serial()}.csv",
+         ["phase", "timestamp", "elapsed_s", "channel", "target_voltage_v",
+          "voltage_v", "current_a", "faults"]),
+    ):
+        if not rows:
+            continue
+        path = os.path.join(ctx.make_results_dir(), name)
+        with open(path, "w", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fields)
+            writer.writeheader()
+            writer.writerows(rows)
+        paths.append(path)
+    return paths
+
+
+def plot_iv(ctx):
+    """I against V with the fits, the residuals, and each channel's R_load."""
+    analysis = ctx.data.get("iv_analysis") or {}
+    per_channel = analysis.get("per_channel") or {}
+    if not ctx.iv_points or not per_channel:
+        return []
+
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        ctx.log("matplotlib is not available -- skipping the I-V plot")
+        return []
+
+    linearity_tol = float(ctx.cfg["iseg_iv_linearity_tolerance_fraction"])
+    spread_tol = float(ctx.cfg["iseg_iv_channel_spread_tolerance_fraction"])
+    figure, (top, middle, bottom) = plt.subplots(3, 1, figsize=(10, 13))
+
+    for channel in sorted(per_channel):
+        a = per_channel[channel]
+        points = sorted((r["voltage_v"], r["current_ua"], r["current_std_ua"])
+                        for r in ctx.iv_points if r["channel"] == channel)
+        v = [p[0] for p in points]
+        i = [p[1] for p in points]
+        line = top.errorbar(v, i, yerr=[p[2] for p in points], fmt="o",
+                            markersize=4, capsize=2, label=channel.upper())
+        colour = line[0].get_color()
+        top.plot([0.0, v[-1]], [a["offset_ua"], a["slope_ua_per_v"] * v[-1] + a["offset_ua"]],
+                 color=colour, linewidth=0.8)
+        residuals = [100.0 * (y - (a["slope_ua_per_v"] * x + a["offset_ua"])) / a["top_current_ua"]
+                     for x, y in zip(v, i)] if a["top_current_ua"] > 0 else []
+        if residuals:
+            middle.plot(v, residuals, marker="o", markersize=4, linewidth=0.8,
+                        color=colour, label=channel.upper())
+
+    top.set_xlabel("Module reported |Voltage| [V]")
+    top.set_ylabel("|Current| [uA]")
+    top.set_title(f"HV I-V Test -- {ctx.module.model if ctx.module else ''} "
+                  f"SN {ctx.serial()} -- DC points after "
+                  f"{float(ctx.cfg['iseg_iv_dwell_s']):g} s dwell, fit I = V/R + I0")
+    top.grid(True, alpha=0.3)
+    top.legend(ncol=4, fontsize="small")
+
+    for sign in (1, -1):
+        middle.axhline(sign * 100.0 * linearity_tol, color="red", linestyle="--", linewidth=1.0)
+    middle.set_xlabel("Module reported |Voltage| [V]")
+    middle.set_ylabel("residual [% of top-point current]")
+    middle.set_title(f"Linearity -- limit +/-{linearity_tol:.0%}")
+    middle.grid(True, alpha=0.3)
+
+    channels = sorted(per_channel)
+    deviations = [100.0 * per_channel[c]["load_deviation_fraction"] for c in channels]
+    colours = ["tab:red" if abs(d) > 100.0 * spread_tol else "tab:green" for d in deviations]
+    bars = bottom.bar([c.upper() for c in channels], deviations, color=colours)
+    for bar, channel in zip(bars, channels):
+        bottom.annotate(f"{per_channel[channel]['load_mohm']:.2f} M",
+                        (bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                        ha="center", va="bottom" if bar.get_height() >= 0 else "top",
+                        fontsize="small")
+    for sign in (1, -1):
+        bottom.axhline(sign * 100.0 * spread_tol, color="red", linestyle="--", linewidth=1.0)
+    bottom.axhline(0.0, color="black", linewidth=0.6)
+    bottom.set_ylabel("R_load vs median [%]")
+    bottom.set_title(f"Channel uniformity -- median R_load "
+                     f"{analysis['median_load_mohm']:.2f} MOhm, limit +/-{spread_tol:.0%}")
+    bottom.grid(True, alpha=0.3, axis="y")
+
+    path = os.path.join(ctx.make_results_dir(), "hv_iv.png")
+    figure.tight_layout()
+    figure.savefig(path, dpi=120)
+    plt.close(figure)
+    return [path]
 
 
 def write_results_csv(ctx, results, overall):
@@ -1480,7 +1895,8 @@ def run(session, console=None, mpod=None, dry_run=False, daq=None):
 
     csv_path = write_ramp_csv(ctx)
     daq_csv_path = write_daq_csv(ctx)
-    plot_paths = plot_ramp(ctx)
+    iv_csv_paths = write_iv_csvs(ctx)
+    plot_paths = plot_ramp(ctx) + plot_iv(ctx)
     results_csv_path = write_results_csv(ctx, runner.results, overall)
     json_path = write_json(ctx, runner.results, overall)
     sheet_path = write_spreadsheet(ctx, runner.results, overall)
@@ -1510,6 +1926,8 @@ def run(session, console=None, mpod=None, dry_run=False, daq=None):
                         ("JSON", json_path), ("Spreadsheet", sheet_path)):
         if path:
             print(f" {label:<12}: {path}")
+    for path in iv_csv_paths:
+        print(f" {'I-V CSV':<12}: {path}")
     for path in plot_paths:
         print(f" {'Plot':<12}: {path}")
     print("=" * 70)
@@ -1547,6 +1965,10 @@ class SimulatedMPOD:
         self.actual = {c: 0.0 for c in self.channels}
         self.rate_v_per_s = 100.0
         self.last_update = time.monotonic()
+        # The test kit load: ~13.9 MOhm per output, as the July I-V runs show,
+        # with a little per-channel spread.
+        self.load_ohm = {c: 13.9e6 * (1.0 + 0.005 * (i - 3))
+                         for i, c in enumerate(self.channels)}
         # What is fitted each time the flow asks: the module as inserted, then
         # one entry per jumper configuration.  Derived from JUMPER_CONFIGS
         # rather than written out, because these used to be two hand-written
@@ -1677,7 +2099,8 @@ class SimulatedMPOD:
     def read_all(self, channels):
         self._advance()
         return {
-            channel: {"voltage": self.actual[channel], "current": -1e-7,
+            channel: {"voltage": self.actual[channel],
+                      "current": -(self.actual[channel] / self.load_ohm[channel] + 1e-9),
                       "faults": [], "ramping": False, "on": True}
             for channel in channels
         }
@@ -1771,6 +2194,11 @@ def main(argv):
             # exercise the cross-check even without the divider wired up
             "iseg_ramp_daq_enabled": True,
             "iseg_ramp_daq_interval_s": 0.4,
+            "iseg_iv_voltages": [20.0, 50.0, 100.0],
+            "iseg_iv_ramp_rate": 50.0,
+            "iseg_iv_dwell_s": 0.4,
+            "iseg_iv_samples_per_point": 3,
+            "iseg_iv_sample_interval_s": 0.1,
         })
         mpod = SimulatedMPOD(slot=int(cfg["iseg_slot"]))
         console = AutoConsole(

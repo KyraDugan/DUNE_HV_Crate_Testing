@@ -45,6 +45,8 @@ HV Module Test/results/<stamp>_SN<serial>/
     hv_module_test_SN*_results.csv    one row per step
     hv_ramp_SN*.csv                   per-channel ramp samples
     hv_ramp_daq_SN*.csv               34970A readings, when wired
+    hv_iv_SN*.csv                     averaged I-V points, one row per point and channel
+    hv_iv_trace_SN*.csv               every reading taken during the I-V staircase
     hv_module_test_SN*.json           everything, machine readable
     *.png                             the curves
 HV Module Test/dry-run/<stamp>_SN<serial>/           --dry-run output only
@@ -560,6 +562,45 @@ three configurations were re-ordered to match the protocol deck.
   GUI/protocol_pngs/page`, then renamed to bare numbers.  Re-export after any
   edit to the deck — page 18's Imax figure was corrected from 4.0 mA to
   0.25 mA on 2026-09-10, which is what the code had all along.
+
+### I-V staircase next to the ramp — 2026-09-23
+
+Asked for: the U-I curve with DAQ readout, as an item parallel to the ramp.
+The old `iseg_HV_electrical_test.py` already did an IV test (July runs in
+`ISEG_E-Tests_RampRate/*/IVtest_*.csv`), but it could not be reused as is:
+
+- it wrote the ramp rate **per channel** -- discarded by this module (§5.3);
+- it slept a fixed `V/rate + 5 s` instead of checking the target was reached;
+- one reading per point, no trip check, no SNMP voltage readback recorded;
+- it switched the crate on and off itself.
+
+Now flow section 4b, three AUTO steps straight after the ramp:
+`HV I-V Measurement` (unsafe), `HV I-V Linearity` and `HV I-V Channel
+Uniformity` (both safe).  The split matters: `FlowRunner` powers the crate
+down on *any* failure of an unsafe step, and a linearity FAIL is a verdict on
+numbers taken with the HV already off -- it should be an ordinary FAIL.
+
+Settled with the user: top point **1000 V** (what the protocol asks, and above
+it the Vmax pot, once adjusted, would block the point anyway); 10 s dwell,
+5 readings per point; **both linearity and channel uniformity graded**.
+
+Thresholds checked against all six July runs on SN 7200489 before choosing
+them: linearity 0.19-0.29 % (limit 2 %), channel spread -1.6 .. +1.8 % (limit
++/-5 %), all PASS; an injected +10 % current on one channel and a no-load
+case both FAIL with a readable message.  The July numbers are against *set*
+voltage, the new step fits against the module's *readback*.
+
+**What the curve really measures.** R_load comes out at ~14.1 MOhm on every
+channel, dead linear -- that is the test kit's divider, not module leakage,
+which is buried far below it.  So the step qualifies the module's current
+measurement and output linearity *with a known load*, and per-channel
+uniformity.  It also gives a second handle on the divider puzzle: V/I ~ 14.1
+MOhm total and V_DAQ/I ~ 0.32 MOhm bottom leg fit neither 10M:500k nor
+20M:500k.  Measure the resistors with the HV off.
+
+Dry run: the simulator now draws `V / 13.9 MOhm` per channel (with a +/-1.7 %
+spread) instead of a constant -0.1 uA, so the grading is exercised.  The
+full `--dry-run` passes, 43 steps.  **Not yet run on hardware.**
 
 ### Still open
 

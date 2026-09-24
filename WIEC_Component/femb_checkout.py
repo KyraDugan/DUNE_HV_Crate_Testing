@@ -1,7 +1,17 @@
 """
-CTS Checkout Script
+WIEC FEMB checkout
+
 Performs quick checkout test for FEMB boards in 4 slots.
-Scans QR codes, runs checkout, provides result summary, and sends email notification.
+Called by WIEC WIB QC script after WIB is validated and powered.
+
+-------------------------------------------------------------------------------------------------------
+config.json keys used:
+
+"wib_checkout_wait_seconds"                     Wait time for WIB checkout in seconds
+"femb_qc_data_root_folder"                      
+"femb_checkout_default_site"                    
+
+-------------------------------------------------------------------------------------------------------
 """
 
 import os
@@ -18,7 +28,7 @@ QC_PACKAGE_DIR = BASE_DIR
 from qc_utils import QC_Process
 from qc_results import analyze_test_results, display_qc_results
 
-
+from . import wib_setup
 
 # Image paths for instruction popups
 IMG_DIR = os.path.join(QC_PACKAGE_DIR, 'GUI', 'output_pngs')

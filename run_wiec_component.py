@@ -22,16 +22,14 @@ import os
 import sys
 import traceback
 
-import wiec_qc
-from WIEC_Component import fan_test, fan_pwm_sweep, heater_test, hv_test
-from WIEC_Component import hv_module_test
+from WIEC_Component import fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_wib_qc
 from WIEC_Component import preflight
 from WIEC_Component.session import TestSession, shutdown_only
 
 
 
 # The crate test items, in the order they should normally run
-CRATE_ITEMS = [fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_qc]
+CRATE_ITEMS = [fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_wib_qc]
 #EXTRA_ITEMS = [wiec_qc]
 ALL_ITEMS = CRATE_ITEMS #+ EXTRA_ITEMS
 
