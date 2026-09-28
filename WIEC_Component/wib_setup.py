@@ -127,6 +127,27 @@ def ping_wib(session, ip_address):
     packet_loss = float(loss_match.group(1))
     return result.returncode == 0 and packet_loss == 0.0
 
+def login_zynq(session):
+    """
+    Logs into the zynq
+    """
+
+    config_data = session.json_data
+    WIEC_utils.countdown_sleep(session,
+                    "Waiting for Zynq boot before serial login",
+                    config_data.get("wib_zynq_settle_time"))
+    try:
+        ser = WIEC_SERIAL.login()
+    except (Exception, SystemExit) as exc:
+        session.log(f"Zynq serial login failed ({exc!r}): Check the USB cable and PTC power.")
+        return None
+    
+    WIEC_utils.countdown_sleep(session, 
+                    "Waiting for Zynq to settle after serial login", 
+                    config_data.get("wib_zynq_settle_time"))
+
+    return ser
+    
 
 def validate_wib_ip(session, wib_number):
     """
@@ -158,44 +179,36 @@ def power_single_wib(session, wib_number):
     WIEC_utils.print_prompt_section(f"WIB {wib_number} powering ON")
     session.log(f"Power WIB {wib_number} ON")
 
-    WIEC_utils.countdown_sleep(session,
-                    "Waiting for Zynq boot before serial login",
-                    config_data.get("wib_zynq_settle_time"))
-    try:
-        ser = WIEC_SERIAL.login()
-    except Exception as exc:
-        raise RuntimeError(
-        f"Zynq serial login failed during WIB power-up for slot {wib_number}. "
-        f"Check USB port detection, board power, and serial console state. "
-        f"Original error: {exc}"
-        ) from exc
+    ser = login_zynq(session)
+
+    if ser is None:
+        return False
     
-    WIEC_utils.countdown_sleep(session, 
-                    "Waiting for Zynq to settle after serial login", 
-                    config_data.get("wib_zynq_settle_time"))
+    try:
+        power_map = {wib_number: "on"}
+        power_outputs = WIEC_SERIAL.power_wib(ser, power_map)
+        print(f"Power output for WIB {wib_number}: {power_outputs}")
 
-    power_map = {wib_number: "on"}
-    power_outputs = WIEC_SERIAL.power_wib(ser, power_map)
-    print(f"Power output for WIB {wib_number}: {power_outputs}")
+        WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
+        WIEC_utils.countdown_sleep(session, 
+                        "Waiting before WIB sensor readout", 
+                        config_data.get("wib_sensor_read_wait_seconds"))
 
-    WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
-    WIEC_utils.countdown_sleep(session, 
-                    "Waiting before WIB sensor readout", 
-                    config_data.get("wib_sensor_read_wait_seconds"))
-
-    sensor_outputs = WIEC_SERIAL.sensors_addr(ser, power_map)
-    print(f"Sensor outputs for WIB {wib_number}: {sensor_outputs}")
+        sensor_outputs = WIEC_SERIAL.sensors_addr(ser, power_map)
+        print(f"Sensor outputs for WIB {wib_number}: {sensor_outputs}")
 
 
-    i2c_ok = validate_wib_i2c_outputs(session, wib_number, sensor_outputs)
-    if not i2c_ok:
-        print(f"WIB {wib_number} I2C address validation failed")
-        return False
+        i2c_ok = validate_wib_i2c_outputs(session, wib_number, sensor_outputs)
+        if not i2c_ok:
+            print(f"WIB {wib_number} I2C address validation failed")
+            return False
 
-    ip_ok = validate_wib_ip(session, wib_number)
-    if not ip_ok:
-        print(f"WIB {wib_number} IP ping validation failed")
-        return False
+        ip_ok = validate_wib_ip(session, wib_number)
+        if not ip_ok:
+            print(f"WIB {wib_number} IP ping validation failed")
+            return False
+    finally:
+        WIEC_SERIAL.close_serial(ser)
 
     return True
 

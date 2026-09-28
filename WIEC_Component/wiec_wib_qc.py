@@ -15,6 +15,7 @@ helper scripts:
 config.json keys used:
 
 "wib_test_slots"                                Possible WIB test slots to be used in the setup
+"wib_boards_available"                          WIB boards that will be available to use for testing
 
 -------------------------------------------------------------------------------------------------------
 
@@ -128,7 +129,22 @@ def prompt_wiec_test_info(session):
 
         print("\nSelection invalid. Please choose a or s.")
 
+def get_boards_available(session);
+    config_data = session.json_data
+    boards = config_data.get("wib_boards_available")
+    slots = len(config_data.get("wib_test_slots"))
+    if not boards in range(1, slots):
+        raise ValueError(f"wib_boards_available is {boards}. It must be between 1 and {slots}.")
 
+
+def make_batches(session):
+    config_data = session.json_data
+    boards = config_data.get("wib_boards_available")
+    slots = session.WIBS_testing
+
+
+
+    
 def run_single_wib(session, wib_number):
     """
     Runs the passthrough testing on a single WIB, including the FEMB Checkout

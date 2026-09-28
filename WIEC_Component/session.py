@@ -119,6 +119,7 @@ class TestSession:
     def keysight(self):
         if self._keysight is None:
             self._keysight = Keysight970A(self.rm, self.json_data)
+            self._keysight.keysight.timeout = 20000 #ms, allows slightly extended timing
         return self._keysight
 
     @property

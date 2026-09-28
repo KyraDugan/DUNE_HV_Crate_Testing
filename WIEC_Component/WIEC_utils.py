@@ -8,7 +8,6 @@ def countdown_sleep(session, message, wait_time):
     """
     Creates a countdown to display in the log with an associated message and wait time.
     """
-    config_data = session.json_data
     wait_time = int(wait_time)
     session.log(f"{message}: waiting {wait_time} seconds\n")
 
@@ -19,7 +18,7 @@ def countdown_sleep(session, message, wait_time):
         print(f"\r{message} [{bar}] {remaining:3d}s left", end="", flush=True)
 
         time.sleep(1)
-    print(f"\r{message} [{'#' * width}] 0s left")
+    print(f"\r{message} [{'#' * width}] {0:3d}s left")
     session.log(f"{message}: wait complete")
 
 

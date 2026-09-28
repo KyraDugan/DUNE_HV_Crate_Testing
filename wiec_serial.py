@@ -6,6 +6,7 @@ import glob
 import re
 
 import wiec_output_log
+from WIEC_Component import WIEC_utils
 
 
 try:
@@ -106,7 +107,7 @@ def check_host_serial_device(timeout=100, poll_interval=1):
                 else:
                     serial_log(f"Found new Zynq serial device: {DEVICE}")
                 return None
-
+    
             time.sleep(poll_interval)
 
         serial_error("Zynq serial device was not found as a new USB port.")

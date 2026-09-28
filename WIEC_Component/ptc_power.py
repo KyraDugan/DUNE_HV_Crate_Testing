@@ -27,6 +27,7 @@ import sys
 import time
 import pyvisa
 import wiec_serial as WIEC_SERIAL
+
 from . import cli
 from . import WIEC_utils
 
@@ -55,6 +56,7 @@ def ensure_fans_on(session):
     session.rigol1.power("ON", "fanread")
 
     try:
+        session.keysight.keysight.timeout = 20000 #ms, increases time for scan.
         session.keysight.initialize_fan()
         fan_read_signal = session.keysight.measure_fan()
 
@@ -68,6 +70,7 @@ def ensure_fans_on(session):
             pass
         session._keysight = None
         time.sleep(2)
+        session.keysight.keysight.timeout = 20000 #ms, needs to be done again for new fan scan
         session.keysight.initialize_fan()
         fan_read_signal = session.keysight.measure_fan()
 

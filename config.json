@@ -87,6 +87,7 @@
     "rc_filter_curve_points": 500,
     "rc_filter_curve_time_multiplier": 5.0,
     "wib_test_slots": [0, 1, 2, 3, 4, 5],
+    "wib_boards_available": 1,
     "wib_ip_prefix": "10.73.137",
     "wib_ip_last_octet_base": 71,
     "wib_ping_timeout_seconds": 10,
