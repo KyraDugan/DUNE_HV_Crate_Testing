@@ -1,6 +1,6 @@
 """ WIEC WIB Setup
 
-Helper script for the wiec_wib_wc.
+Helper script for the wiec_wib_qc.
 This validates one WIB at a time.
 
 -------------------------------------------------------------------------------------------------------
@@ -11,7 +11,8 @@ config.json keys used:
 "wib_ping_timeout_seconds"                      Seconds to wait for ping before timeout
 "wib_ping_count"                                Ping number
 "wib_expected_i2c_prefix"                       Expected prefix for i2c                    
-"wib_sensor_read_wait_seconds"
+"wib_sensor_read_wait_seconds"                  Time to wait for wib sensor readout
+"wib_zynq_settle_time"                          Time to wait for zynq connection to settle
 
 -------------------------------------------------------------------------------------------------------
 """
@@ -25,40 +26,45 @@ import sys
 import re
 import time 
 
-from . import wiec_wib_qc
 import wiec_serial as WIEC_SERIAL
 import wiec_output_log
 
+from . import WIEC_utils
+
 
 VALID_POWER_STATES = {"on", "off"}
-WIB_IP_PREFIX = "10.73.137"
-WIB_IP_LAST_OCTET_BASE = 71
-
-wib_ips = {}
 
 
-# Expected ip address for the selected WIB
 def expected_wib_ip(session, wib_number):
+    """
+    Expected ip address for the selected WIB
+    """
     config_data = session.json_data
     prefix = config_data.get("wib_ip_prefix")
     base = int(config_data.get("wib_ip_last_octet_base"))
     return f"{prefix}.{base + int(wib_number)}"
 
 
-# Creates a dictionary of WIB number to the expected IP for this WIB
 def get_wib_ip_map(session, wib_number):
+    """
+    Creates a dictionary of WIB number to the expected IP for this WIB
+    """
     return{int(wib_number): expected_wib_ip(session, wib_number)}
 
 
-#Generates the expected i2c address for the wib based on prefix
 def expected_wib_i2c_address(session, wib_number):
+    """
+    Generates the expected i2c address for the wib based on prefix
+    """
     config_data = session.json_data
     i2c_prefix = config_data.get("wib_expected_i2c_prefix")
     return f"{int(i2c_prefix)}{int(wib_number):x}"
 
 
-# Extract hex I2C addresses from the i2cdetect table, normalizes into clean hex addresses
 def i2cdetect_addresses(session, output):
+    """
+    Extracts hex I2C addresses from the i2cdetect table, normalizes into clean hex addresses
+    """
     addresses = set()
 
     #Splits i2cdetect output into separate lines
@@ -87,8 +93,10 @@ def i2cdetect_addresses(session, output):
     return addresses
 
 
-# Ping wib
 def ping_wib(session, ip_address):
+    """
+    Pings the WIB, times out after time set in config.json.
+    """
     config_data = session.json_data
     timeout_s = int(config_data.get("wib_ping_timeout_seconds"))
     count = int(config_data.get("wib_ping_count"))
@@ -120,46 +128,69 @@ def ping_wib(session, ip_address):
     return result.returncode == 0 and packet_loss == 0.0
 
 
-# Pings wib to ensure correct ip address
 def validate_wib_ip(session, wib_number):
+    """
+    Validates WIB IP address is as expected for WIB number.
+    """
     ip_address = expected_wib_ip(session, wib_number)
     return ping_wib(session, ip_address)
 
 
-#Validates i2c outputs
 def validate_wib_i2c_outputs(session, wib_number, sensor_outputs):
-    expected_addresses = expected_wib_i2c_address(wib_number)
-    detect_output = sensor_outputs.get("i2cdetect", "")
-    detected_addresses = i2cdetect_addresses(detect_output)
+    """
+    Validates WIB I2C output is as expected for WIB number.
+    """
+    expected_addresses = expected_wib_i2c_address(session, wib_number)
+
+    detect_output = sensor_outputs[wib_number]["i2cdetect"]
+    detected_addresses = i2cdetect_addresses(session, detect_output)
     return expected_addresses in detected_addresses
 
 
-#Powers single WIB, validates IP and I2C
 def power_single_wib(session, wib_number):
+    """
+    Powers single WIB, validates IP and I2C.
+    """
 
     config_data = session.json_data
     wib_number = int(wib_number)
-    wiec_wib_qc.print_prompt_section(f"WIB {wib_number} ON")
+
+    WIEC_utils.print_prompt_section(f"WIB {wib_number} powering ON")
     session.log(f"Power WIB {wib_number} ON")
-    ser = WIEC_SERIAL.login()
+
+    WIEC_utils.countdown_sleep(session,
+                    "Waiting for Zynq boot before serial login",
+                    config_data.get("wib_zynq_settle_time"))
+    try:
+        ser = WIEC_SERIAL.login()
+    except Exception as exc:
+        raise RuntimeError(
+        f"Zynq serial login failed during WIB power-up for slot {wib_number}. "
+        f"Check USB port detection, board power, and serial console state. "
+        f"Original error: {exc}"
+        ) from exc
+    
+    WIEC_utils.countdown_sleep(session, 
+                    "Waiting for Zynq to settle after serial login", 
+                    config_data.get("wib_zynq_settle_time"))
 
     power_map = {wib_number: "on"}
     power_outputs = WIEC_SERIAL.power_wib(ser, power_map)
     print(f"Power output for WIB {wib_number}: {power_outputs}")
 
-    with wiec_output_log.terminal_suppressed():
-        WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
-
-    time.sleep(float(config_data["wib_sensor_read_wait_seconds"]))
+    WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
+    WIEC_utils.countdown_sleep(session, 
+                    "Waiting before WIB sensor readout", 
+                    config_data.get("wib_sensor_read_wait_seconds"))
 
     sensor_outputs = WIEC_SERIAL.sensors_addr(ser, power_map)
     print(f"Sensor outputs for WIB {wib_number}: {sensor_outputs}")
+
 
     i2c_ok = validate_wib_i2c_outputs(session, wib_number, sensor_outputs)
     if not i2c_ok:
         print(f"WIB {wib_number} I2C address validation failed")
         return False
-
 
     ip_ok = validate_wib_ip(session, wib_number)
     if not ip_ok:

@@ -7,7 +7,7 @@ The hardware will need to be moved between each WIB test, handled here.
 runs under run_wiec_component.py umbrella
 
 helper scripts:
-- wib_setup.py          Initializes WIBs, in charge of actual test
+- wib_setup.py          Initializes WIBs
 - femb_checkout.py      Runs simplified FEMB checkout for WIEC 
 - ptc_power.py          Runs PTC powering for the WIBs
 
@@ -15,7 +15,6 @@ helper scripts:
 config.json keys used:
 
 "wib_test_slots"                                Possible WIB test slots to be used in the setup
-                                                For six WIB slot WIEC, should be [0, 1, 2, 3, 4, 5]
 
 -------------------------------------------------------------------------------------------------------
 
@@ -32,7 +31,7 @@ from . import ptc_power
 from . import wib_setup
 from . import femb_checkout
 from . import cli
-from .. import wiec_ptc_power
+from . import WIEC_utils
 
 
 NAME = "WIEC WIB QC test"
@@ -42,21 +41,17 @@ EST_MINUTES = 30
 
 
 
-
-#Creates section title
-def print_prompt_section(title):
-    print("\n" + "-" * 15 + f" {title} " + "-" * 15)
-
-
-# Asks the user which WIBs will be tested, confirms choice through reentry
-# Writes the confirmed WIB choice to session.WIBs_testing
 def prompt_wiec_test_info(session):
+    """
+    Asks the user which WIBs will be tested, confirms choice through reentry.
+    Writes the confirmed WIB choice to session.WIBs_testing
+    """
     config_data = session.json_data
     possible_slots = list(config_data.get("wib_test_slots"))
     if not possible_slots:
         raise ValueError("config.json is missing wib_test_slots")
     
-    print_prompt_section("WIEC QC : Test Info")
+    WIEC_utils.print_prompt_section("WIEC QC : Test Info")
 
     while True:
         print("Which WIBs will you test?")
@@ -134,21 +129,14 @@ def prompt_wiec_test_info(session):
         print("\nSelection invalid. Please choose a or s.")
 
 
-def fan_check(session):
-    """
-    Verify the crate fans are running before powering WIB with PTC.
-    """
-
-    try: 
-        return bool(ptc_power.ensure_fans_on(session))
-    except AttributeError:
-        session.log("No fan-check function available in ptc_power.py")
-        return False
-
-
-# Runs the passthrough testing on a single WIB, including the FEMB Checkout
-# Prompts the user to properly set up the hardware for next WIB slot
 def run_single_wib(session, wib_number):
+    """
+    Runs the passthrough testing on a single WIB, including the FEMB Checkout
+    Prompts the user to properly set up the hardware for next WIB slot
+    """
+
+    WIEC_utils.print_prompt_section(f"Testing WIB {wib_number}")
+
     session.log(f"Preparing test for WIB {wib_number}.")
 
     print(f"\nMove hardware to WIB {wib_number} and press Enter")
@@ -157,11 +145,7 @@ def run_single_wib(session, wib_number):
 
     input()
 
-    if not fan_check(session):
-        #Should have to manually confirm fans are on?
-        session.log(f"WIB {wib_number} not started: fan check failed.")
-        return False
-
+    # ptc_power ensures the fans are on within the function, no need to check here.
     if not ptc_power.power_up(session):
         session.log(f"WIB {wib_number} not started: PTC power-up failed.")
         return False

@@ -23,6 +23,7 @@ import sys
 import time
 
 from . import cli
+from . import WIEC_utils
 
 NAME = "Fan Test"
 KEY = "fan_test"
@@ -46,11 +47,8 @@ def measure(session):
         f"Fans tested at the nominal voltage specified ..... "
         f"{json_data['rigol832a_fan_voltage']}"
     )
-    session.log(
-        f"Fans turned on, waiting {json_data['fan_wait']} seconds "
-        "for the fans to reach steady state..."
-    )
-    time.sleep(json_data["fan_wait"])
+    
+    WIEC_utils.countdown_sleep(session, "Fans on, waiting for steady state", json_data['fan_wait'])
 
     # Take all data twice, the first set is discarded for good measure
     for _ in range(2):

@@ -205,6 +205,31 @@ class TestSession:
         self.rigol1
         self.keysight
 
+
+    def close_instruments(self):
+        """
+        Leave the instruments idle and close every VISA connection this session opened.
+        Cancel anything the DAQ is still doing so the next run does not inherit a half-finished measurement.
+        """
+
+        if self._keysight is not None:
+            try:
+                self._keysight.keysight.clear()
+            except Exception:
+                pass
+
+        for attr, handle in (("_rigol0", "rigol"), ("_rigol1", "rigol"), ("_keysight", "keysight")):
+            instrument = getattr(self, attr)
+            if instrument is None:
+                continue
+            try:
+                getattr(instrument, handle).close()
+            except Exception:
+                pass
+            setattr(self, attr, None)
+
+
+
     # ------------------------------------------------------------------
     # Safety
     # ------------------------------------------------------------------
@@ -288,8 +313,8 @@ class TestSession:
         """Write the overall verdict, save the JSON, and report where it went."""
         passed = bool(self.results) and all(self.results.values())
         self.datastore["overall"] = "Pass" if passed else "Fail"
-        self.sheet.write_overall(self.test_name, passed)
         self.save_datastore()
+        self.sheet.write_overall(self.test_name, passed)
 
         self.log(f"Test result: {self.datastore['overall']}")
         self.log(f"Spreadsheet: {self.sheet.path}")
@@ -346,31 +371,66 @@ def shutdown_only(config_file, prefix="WIEC Component"):
     def rigol0_off():
         rm = pyvisa.ResourceManager("@py")
         rigol = RigolDP832A(rm, json_data, 0)
-        rigol.setup_fan()
-        rigol.setup_heater_supply()
-        rigol.setup_heater_switch()
-        rigol.power("OFF", "heat_supply")
-        rigol.power("OFF", "heat_switch")
-        rigol.power("OFF", "fan")
+        failed = []
+
+        try:
+            rigol.setup_fan()
+            rigol.setup_heater_supply()
+            rigol.setup_heater_switch()
+            for channel in ("heat_supply", "heat_switch", "fan"):
+                try:
+                    rigol.power("OFF", channel)
+                except Exception:
+                    failed.append(channel)
+
+        finally:
+            rigol.rigol.close()
+
+        if failed:
+            raise RuntimeError(f"Rigol #0 could not turn off: {', '.join(failed)}")
+        
 
     def rigol1_off():
         rm = pyvisa.ResourceManager("@py")
         rigol = RigolDP832A(rm, json_data, 1)
-        rigol.setup_hvpullup()
-        rigol.setup_hvpullup2()
-        rigol.setup_fanread()
-        rigol.power("OFF", "hvpullup")
-        rigol.power("OFF", "hvpullup2")
-        rigol.power("OFF", "fanread")
+        failed = []
+
+        
+        try:
+            rigol.setup_hvpullup()
+            rigol.setup_hvpullup2()
+            rigol.setup_fanread()
+            for channel in ("hvpullup", "hvpullup2", "fanread"):
+                try:
+                    rigol.power("OFF", channel)
+                except Exception:
+                    failed.append(channel)
+
+        finally:
+            rigol.rigol.close()
+
+        if failed:
+            raise RuntimeError(f"Rigol #1 could not turn off: {', '.join(failed)}")
 
     def pl506_off():
         supply = PL506(ip=json_data["PL506_IP_ADDR"])
-        supply.channel_off(json_data["PL506_channel"])
+        channel_error = None
+        try:
+            supply.channel_off(json_data["PL506_channel"])
+        except Exception as exc:
+            channel_error = exc
         supply.main_off()
+        if channel_error is not None:
+            raise RuntimeError(f"PL506 channel off failed (main switch was still turned off): {channel_error}")
+
 
     def relays_off():
         rm = pyvisa.ResourceManager("@py")
-        Keysight970A(rm, json_data).set_relay(0, 0)
+        keysight = Keysight970A(rm, json_data)
+        try:
+            keysight.set_relay(0, 0)
+        finally:
+            keysight.keysight.close()
 
     def mpod_slot_off():
         """The slot under test only -- the crate may power other things."""

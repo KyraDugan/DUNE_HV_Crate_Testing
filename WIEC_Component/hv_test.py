@@ -47,6 +47,7 @@ from datetime import datetime
 
 from . import analysis
 from . import cli
+from . import WIEC_utils
 
 NAME = "HV Test"
 KEY = "hv_test"
@@ -114,10 +115,7 @@ def _ramp_on(session, chs, relay_hv, relay_term, wait_seconds):
         try:
             session.keysight.set_relay(relay_hv, relay_term)
             session.caen.turn_on(chs)
-            session.log(
-                f"HV reached max value, waiting {wait_seconds} seconds to stabilize..."
-            )
-            time.sleep(wait_seconds)
+            WIEC_utils.countdown_sleep(session, "HV Stabilization wait time", wait_seconds)
             return
         except (ConnectionResetError, BrokenPipeError):
             print(traceback.format_exc())

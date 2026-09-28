@@ -18,6 +18,7 @@ import sys
 import time
 
 from . import cli
+from . import WIEC_utils
 
 NAME = "Heater Test"
 KEY = "heater_test"
@@ -56,12 +57,9 @@ def run(session):
 
     session.rigol0.power("ON", "heat_supply")
     session.rigol0.power("ON", "heat_switch")
-    session.log(
-        f"Heat turned on, waiting {json_data['heat_wait']} seconds "
-        "for the sensors to heat up..."
-    )
+
     try:
-        time.sleep(json_data["heat_wait"])
+        WIEC_utils.countdown_sleep(session, "Heat turned on, waiting for sensors to heat up", json_data['heat_wait'])
         supply_voltage = session.rigol0.get_voltage("heat_supply")
         supply_current = session.rigol0.get_current("heat_supply")
         switch_voltage = session.rigol0.get_voltage("heat_switch")

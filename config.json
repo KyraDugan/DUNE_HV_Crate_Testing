@@ -92,6 +92,7 @@
     "wib_ping_timeout_seconds": 10,
     "wib_ping_count": 4,
     "wib_expected_i2c_prefix": "7",
+    "wib_zynq_settle_time": 100,
     "wib_sensor_read_wait_seconds": 45,
     "wib_checkout_wait_seconds": 30,
     "femb_qc_data_root_folder": "/home/dune/Documents/data",

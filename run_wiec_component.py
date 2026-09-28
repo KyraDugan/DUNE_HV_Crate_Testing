@@ -88,12 +88,17 @@ def build_session(args, state):
 
 
 def finish(session, beep=True):
+    
     if session is None:
         return True
-    session.emergency_shutoff()
-    passed = session.finalize()
-    if beep:
-        session.beep_sequence()
+
+    try:
+        session.emergency_shutoff()
+        passed = session.finalize()
+        if beep:
+            session.beep_sequence()
+    finally:
+        session.close_instruments()
     return passed
 
 

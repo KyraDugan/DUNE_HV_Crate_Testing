@@ -33,7 +33,10 @@ def run_single_item(module):
         session.record(module.KEY, False)
         raise
     finally:
-        session.emergency_shutoff()
-        session.finalize()
+        try:
+            session.emergency_shutoff()
+            session.finalize()
+        finally:
+            session.close_instruments()
 
     return 0 if passed else 1
