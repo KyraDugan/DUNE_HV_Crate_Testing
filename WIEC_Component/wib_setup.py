@@ -168,6 +168,27 @@ def validate_wib_i2c_outputs(session, wib_number, sensor_outputs):
     return expected_addresses in detected_addresses
 
 
+def check_slot(session, wib_number, sensor_outputs):
+        """
+        Checks to make sure each slot with an expected WIB has one, and that its i2c and ip are as expected.   
+        Returns [boolean, string].   
+        boolean: Pass/Fail.   
+        string: reason for failure.   
+        """
+
+        i2c_ok = validate_wib_i2c_outputs(session, wib_number, sensor_outputs)
+        if not i2c_ok:
+            session.log(f"WIB {wib_number} I2C address validation failed")
+            return (False, "I2C address validation failed")
+
+        ip_ok = validate_wib_ip(session, wib_number)
+        if not ip_ok:
+            session.log(f"WIB {wib_number} IP ping validation failed")
+            return (False, "IP ping validation failed")
+
+        return(True, "Passed I2C and ping checks")
+
+
 def power_single_wib(session, wib_number):
     """
     Powers single WIB, validates IP and I2C.
@@ -198,15 +219,7 @@ def power_single_wib(session, wib_number):
         print(f"Sensor outputs for WIB {wib_number}: {sensor_outputs}")
 
 
-        i2c_ok = validate_wib_i2c_outputs(session, wib_number, sensor_outputs)
-        if not i2c_ok:
-            print(f"WIB {wib_number} I2C address validation failed")
-            return False
 
-        ip_ok = validate_wib_ip(session, wib_number)
-        if not ip_ok:
-            print(f"WIB {wib_number} IP ping validation failed")
-            return False
     finally:
         WIEC_SERIAL.close_serial(ser)
 

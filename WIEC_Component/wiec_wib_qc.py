@@ -28,6 +28,7 @@ import os
 import sys
 import importlib
 
+import wiec_serial as WIEC_SERIAL
 from . import ptc_power
 from . import wib_setup
 from . import femb_checkout
@@ -56,7 +57,7 @@ def prompt_wiec_test_info(session):
 
     while True:
         print("Which WIBs will you test?")
-        print("  a) test all 6 WIB slots")
+        print(f"  a) test all {possible_slots} WIB slots")
         print("  s) select which WIBs to be tested")
         choice = input().strip().lower()
 
@@ -95,7 +96,7 @@ def prompt_wiec_test_info(session):
 
                 valid = set(possible_slots)
                 if not set(planned).issubset(valid):
-                    print("\nSelection invalid. Valid WIBs are 0 through 5.")
+                    print(f"\nSelection invalid. Valid WIBs are {min(possible_slots)} through {max(possible_slots)}.")
                     print('Example: "0 2 3"  (not "0,2,3")')
                     continue
 
@@ -129,77 +130,116 @@ def prompt_wiec_test_info(session):
 
         print("\nSelection invalid. Please choose a or s.")
 
-def get_boards_available(session);
+def get_boards_available(session):
+    """
+    Make sure boards available to test with is a proper value
+    """
+
     config_data = session.json_data
     boards = config_data.get("wib_boards_available")
     slots = len(config_data.get("wib_test_slots"))
-    if not boards in range(1, slots):
-        raise ValueError(f"wib_boards_available is {boards}. It must be between 1 and {slots}.")
+    if not isinstance(boards, int) or not 1 <= boards <= slots:
+        raise ValueError(f"wib_boards_available is {boards!r}. It must be between 1 and {slots}.")
+    return boards
 
 
 def make_batches(session):
-    config_data = session.json_data
-    boards = config_data.get("wib_boards_available")
-    slots = session.WIBS_testing
-
-
-
-    
-def run_single_wib(session, wib_number):
     """
-    Runs the passthrough testing on a single WIB, including the FEMB Checkout
+    Splits the desired slots to be tested into batches based on the WIBs available to test with.
+    """
+
+
+    slots = sorted(int(slot) for slot in session.WIBs_testing)
+    boards = get_boards_available(session)
+    return [slots[start:start + boards] for start in range(0, len(slots), boards)]
+
+
+def run_batch(session, ser, batch):
+    """
+    Runs the passthrough testing on the selected batch of WIBs, including the FEMB Checkout
     Prompts the user to properly set up the hardware for next WIB slot
     """
 
-    WIEC_utils.print_prompt_section(f"Testing WIB {wib_number}")
+    config_data = session.json_data
 
-    session.log(f"Preparing test for WIB {wib_number}.")
+    #Separates if only one WIB tested for grammar reasons in prompting the user
+    if len(batch) == 1:
 
-    print(f"\nMove hardware to WIB {wib_number} and press Enter")
+        WIEC_utils.print_prompt_section(f"Testing WIB {batch[0]}")
+        session.log(f"Preparing test for WIB {batch[0]}.")
+        print(f"\nMove hardware to WIB {batch[0]} and press Enter.")
+    else:
+
+        WIEC_utils.print_prompt_section(f"Testing WIBs {batch}")
+        session.log(f"Preparing test for WIBs {batch}")
+        print(f"Move WIBs to slots {batch} and press Enter.")
 
     #PLACEHOLDER FOR BETTER INSTRUCTIONS!!!!!
 
     input()
 
-    # ptc_power ensures the fans are on within the function, no need to check here.
-    if not ptc_power.power_up(session):
-        session.log(f"WIB {wib_number} not started: PTC power-up failed.")
-        return False
+    power_map = {slot: "on" for slot in batch}
+    batch_results = []
 
-    try:
-        setup_ok = bool(wib_setup.run(session, wib_number))
-        if not setup_ok:
-            session.log(f"WIB {wib_number} setup validation failed.")
-            return False
+    try: 
+        WIEC_SERIAL.power_wib(ser, power_map)
+        WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
+        WIEC_utils.countdown_sleep(session, "Waiting before WIB sensor readout", config_data.get("wib_sensor_read_wait_seconds"))
+        sensor_outputs = WIEC_SERIAL.sensors_addr(ser, power_map)
 
-        checkout_ok = bool(femb_checkout.run(session, wib_number))
-        if not checkout_ok:
-            session.log(f"WIB {wib_number} FEMB checkout failed.")
-            return False
 
-        session.log(f"WIB {wib_number} passed.")
-        return True
+        for wib in batch:
+            passed, reason = wib_setup.check_slot(session, wib, sensor_outputs)
+            if not passed:
+                batch_results.append([wib, passed, reason])
+                continue
+
+            #FEMB to be implemented
+            
+            #passed, reason = femb_checkout.run(session, wib)
+           #if not passed:
+               # batch_results.append([wib, passed, reason])
+              #  continue
+
+            session.log(f"WIB {wib} passed.")
+            batch_results.append([wib, True, "WIB passed"])
+
     finally:
-        ptc_power.power_down(session)
+        WIEC_SERIAL.power_wib(ser, {slot: "off" for slot in batch})
+
+    return batch_results
+
 
 
 #Loops through WIB testing loop for each WIB specified by user
 def run(session):
     json_data = session.json_data
-
     prompt_wiec_test_info(session)
-    selected = sorted({int(w) for w in session.WIBs_testing})
-    session.log(f"WIBs to be tested, in order: {selected}")
+    batches = make_batches(session)
+    session.log(f"Testing in batches: {batches}")
 
-    results = {}
-    for wib in selected:
-        results[wib] = run_single_wib(session, wib)
-        if not results[wib]:
-            session.datastore["wiec_wib_qc_results"] = results
+    if not ptc_power.power_up(session):
+        return False
+
+    WIB_results = []
+    ser = None
+    try:
+        ser = wib_setup.login_zynq(session)
+
+
+        if ser is None:
             return False
+        for b in batches:
+            WIB_results.append(run_batch(session, ser, b))
+    finally:
+        if ser is not None:
+            WIEC_SERIAL.close_serial(ser)
+        ptc_power.power_down(session)
+        session.datastore["wiec_wib_qc_results"] = WIB_results
 
-    session.datastore["wiec_wib_qc_results"] = results
-    return True
+    return bool(WIB_results) and all(passed for _, passed, _ in WIB_results)
+
+    
 
 
 if __name__ == "__main__":
