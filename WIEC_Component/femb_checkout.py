@@ -10,7 +10,19 @@ config.json keys used:
 "wib_checkout_wait_seconds"                     Wait time for WIB checkout in seconds
 "femb_qc_data_root_folder"                      
 "femb_checkout_default_site"                    
-
+"wib_software_dir"                              Directory for FEMB checkout software
+"wiec_femb_sets"                                Sets of FEMBs used for testing. Add more if more are available.
+"wiec_femb_checkout_timeout_s"                  Time to wait for femb checkout before timeout 
+"wiec_femb_limits"                              Limits for FEMB checkout to determine if pass/fail
+                                                Includes:
+                                                        power_V
+                                                        power_A
+                                                        rail_monitor_mV
+                                                        monitor_path_mV
+"wib_ssh_connect_timeout_s"                     Time to wait for ssh connection before timeout
+"wiec_femb_safety_A"                            presence_min_A: below this DC-DC current a FEMB counts as not
+                                                connected; BIAS/LArASIC/ColdDATA: BNL's safety current cut
+"wiec_femb_i2c_tries"                           I2C configuration retries before a FEMB is dropped (BNL: 100)
 -------------------------------------------------------------------------------------------------------
 """
 
@@ -18,317 +30,403 @@ import os
 import sys
 import time
 import csv
-from datetime import datetime
+from datetime import datetime, timezone
 from colorama import init, Fore, Style
 import json
+import subprocess
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-QC_PACKAGE_DIR = BASE_DIR
-
-from qc_utils import QC_Process
-from qc_results import analyze_test_results, display_qc_results
 
 from . import wib_setup
 
-# Image paths for instruction popups
-IMG_DIR = os.path.join(QC_PACKAGE_DIR, 'GUI', 'output_pngs')
 
-init(strip=False)
+def wib_ssh(session, wib_ip, command, timeout, stdin_text=None):
+    """
+    Runs command inside BNL_CE_WIB_SW_QC on the WIB, handles timeout 
+    """
+    config_data = session.json_data
+    WIB_SW_DIR = config_data.get("wib_software_dir")
+    wib_timeout = config_data.get("wib_ssh_connect_timeout_s")
+    ssh_command = ["ssh", 
+                   "-o", 
+                   "BatchMode = yes", 
+                   "-o", 
+                   f"ConnectTimeout={wib_timeout}", 
+                   f"root@{wib_ip}",
+                   f"cd {WIB_SW_DIR}; {command}",
+                   ]
 
-# Email configuration
-SENDER_EMAIL = "bnlr216@gmail.com"
-SENDER_PASSWORD = "vvef tosp minf wwhf"
-
-CSV_FILE = os.path.join(QC_PACKAGE_DIR, 'femb_info.csv')
-INIT_SETUP_CSV = os.path.join(QC_PACKAGE_DIR, 'init_setup.csv')
-RESULTS_FILE = os.path.join(BASE_DIR, 'results.json')
-
-
-
-def read_init_setup():
-    """Read configuration from init_setup.csv"""
-    config = {}
-    with open(INIT_SETUP_CSV, mode='r', newline='', encoding='utf-8-sig') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            if len(row) == 2:
-                key, value = row
-                config[key.strip()] = value.strip()
-    return config
-
-
-def print_header(title):
-    """Print a formatted header"""
-    print("\n" + Fore.CYAN + "=" * 70)
-    print(f"  {title.upper()}")
-    print("=" * 70 + Style.RESET_ALL + "\n")
+    try:
+        result = subprocess.run(ssh_command, input = stdin_text, capture_output = True, text = True, timeout = timeout)
+    except subprocess.TimeoutExpired as exc:
+        partial = exc.stdout or ""
+        if isinstance(partial, bytes):
+            partial = partial.decode(errors="replace")
+        return False, partial + f"\n[timed out after {timeout} s]"
+    return result.returncode == 0, result.stdout + result.stderr
 
 
-def print_step(step_num, total, description):
-    """Print a formatted step"""
-    print(Fore.CYAN + f"[{step_num}/{total}] {description}" + Style.RESET_ALL)
+def get_femb_sets(session):
+    """
+    Make sure FEMBs available variable in config.json is a proper value
+    """
 
 
-def print_status(status_type, message):
-    """Print status message with icon"""
-    icons = {
-        'success': ('✓', Fore.GREEN),
-        'error': ('✗', Fore.RED),
-        'warning': ('⚠', Fore.YELLOW),
-        'info': ('ℹ', Fore.CYAN)
+    positions = session.json_data["wib_femb_positions"]
+    femb_sets = session.json_data.get("wiec_femb_sets")
+    if not isinstance(femb_sets, list) or not femb_sets:
+        raise ValueError(
+            f"wiec_femb_sets is {femb_sets!r}. It must be a list with at least one FEMB set."
+        )
+
+    for number, femb_set in enumerate(femb_sets):
+        if not isinstance(femb_set, list) or len(femb_set) != positions:
+            raise ValueError(
+                f"FEMB set {number} is {femb_set!r}. Each set must list exactly "
+                f'{positions} serial numbers (use "" for an empty position).'
+            )
+        if not all(isinstance(serial, str) for serial in femb_set):
+            raise ValueError(f"FEMB set {number} is {femb_set!r}. Serial numbers must be strings.")
+        if not any(serial.strip() for serial in femb_set):
+            raise ValueError(f"FEMB set {number} has no serial numbers. At least one position must be filled.")
+
+    return [[serial.strip() for serial in femb_set] for femb_set in femb_sets]
+
+
+def fembs_off(session, wib_number):
+    """
+    Turns off power to all 4 FEMBs on the WIB in the specified slot.  
+    Returns True only if the WIB script confirms it finished successfully.
+    """
+    wib_ip = wib_setup.expected_wib_ip(session, wib_number)
+    off = " ".join(["off"] * session.json_data["wib_femb_positions"])
+    wib_ok, wib_output = wib_ssh(session, wib_ip, f"python3 top_femb_powering.py {off}",
+                                 session.json_data["wib_command_timeout_s"])
+
+    if wib_ok and "Done" in wib_output:
+        session.log(f"WIB {wib_number} FEMBs powered off successfully.")
+        return True
+    
+    session.log(f"WIB {wib_number} FEMB power off failed. FEMBs may still be powered.")
+    print(Fore.RED + "Check the FEMBs are off before moving any cables" + Style.RESET_ALL)
+    print(wib_output)
+    return False
+
+
+def prepare_wib(session, wib_number):
+    """
+    Sets the WIB clock and runs wib_startup.py on the WIB in the specified slot.
+    Must run once after each WIB power cycle, before the FEMB checkout.
+    Returns True only if both steps succeed.
+    """
+    wib_ip = wib_setup.expected_wib_ip(session, wib_number)
+    config_data = session.json_data
+
+    # Step 1: set the WIB clock. The WIB has no battery clock, so its date is wrong after power up
+    now = datetime.now(timezone.utc)
+    formatted_now = now.strftime('%a %b %d %H:%M:%S UTC %Y')
+    wib_ok, wib_output = wib_ssh(session, wib_ip, f"date -s '{formatted_now}'", config_data["wib_command_timeout_s"])
+    if not wib_ok:
+        session.log(f"WIB {wib_number} clock sync failed. Check the SSH connection to {wib_ip}.")
+        print(wib_output)
+        return False
+    session.log(f"WIB {wib_number} clock set to {wib_output.strip()}")
+
+    # Step 2: initialize WIB timing and I2C. Prints "Done" when finished
+    wib_ok, wib_output = wib_ssh(session, wib_ip, "python3 wib_startup.py", config_data["wib_startup_timeout_s"])
+    if wib_ok and "Done" in wib_output:
+        session.log(f"WIB {wib_number} startup complete.")
+        return True
+
+    session.log(f"WIB {wib_number} startup failed.")
+    print(wib_output)
+    return False
+
+
+RESULT_MARKER = "WIEC_RESULT_JSON"                                  # must match RESULT_MARKER in wiec_femb_chk.py
+# Must match TEST_NAMES in wiec_femb_chk.py (all of BNL's warm tests, in the order they run).
+TEST_NAMES = ("power", "registers", "noise", "noise_peaking_times", "se_power", "se_rails",
+              "se_pulse", "diff_pulse", "diff_power", "diff_rails", "monitor_path")
+
+# How each kind of test is graded: test name -> the label used in the check names.
+POWER_TESTS = {"power": "initial", "se_power": "SE", "diff_power": "DIFF"}        # power_V / power_A limits
+RAIL_TESTS = {"se_rails": "SE", "diff_rails": "DIFF"}                             # rail_monitor_mV limits
+DATA_TESTS = {"noise": "noise", "noise_peaking_times": "noise peaking times",     # BNL verdict, plus optional
+              "se_pulse": "SE pulse", "diff_pulse": "DIFF pulse"}                 # wiec_femb_limits[test] limits
+
+# The wiec_femb_limits sections a switched-on test cannot be graded without.
+REQUIRED_LIMITS = {"power": ["power_V", "power_A"], "se_power": ["power_V", "power_A"],
+                   "diff_power": ["power_V", "power_A"], "se_rails": ["rail_monitor_mV"],
+                   "diff_rails": ["rail_monitor_mV"], "monitor_path": ["monitor_path_mV"]}
+
+
+def script_path(session):
+    """Full path of the WIB-side script, which lives next to this file."""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), session.json_data["wiec_femb_script"])
+
+
+def get_femb_tests(session):
+    """
+    Reads wiec_femb_tests from the config: which parts of the FEMB checkout to run.
+    A test missing from the config counts as off. Returns {test name: True/False}.
+    """
+    tests = session.json_data.get("wiec_femb_tests")
+    if not isinstance(tests, dict):
+        raise ValueError(f"wiec_femb_tests is {tests!r}. It must map test names to true/false, "
+                         f"for the tests {list(TEST_NAMES)}.")
+    unknown = [name for name in tests if name not in TEST_NAMES]
+    if unknown:
+        raise ValueError(f"wiec_femb_tests has unknown tests {unknown}. Known tests: {list(TEST_NAMES)}.")
+    selected = {name: bool(tests.get(name, False)) for name in TEST_NAMES}
+    if not any(selected.values()):
+        raise ValueError("wiec_femb_tests switches every test off. Switch at least one on.")
+
+    limits = session.json_data.get("wiec_femb_limits", {})
+    for test, sections in REQUIRED_LIMITS.items():
+        missing = [section for section in sections if section not in limits]
+        if selected[test] and missing:
+            raise ValueError(f"wiec_femb_tests switches {test} on, but wiec_femb_limits has no {missing}.")
+    return selected
+
+
+def femb_settings(session, femb_ids):
+    """The settings wiec_femb_chk.py needs. The WIB cannot read config.json, so they go to it on stdin."""
+    config_data = session.json_data
+    return {
+        "tests": get_femb_tests(session),
+        "femb_ids": {position: serial for position, serial in enumerate(femb_ids) if serial},
+        "dc2dc_V": config_data["wiec_femb_dc2dc_V"],
+        "safety_A": config_data["wiec_femb_safety_A"],
+        "monitor_samples": config_data["wiec_femb_monitor_samples"],
+        "monitor_lsb_mV": config_data["wiec_femb_monitor_lsb_mV"],
+        "data_samples": config_data["wiec_femb_data_samples"],
+        "settle_s": config_data["wiec_femb_settle_s"],
+        "toy_tpc": config_data["wiec_femb_toy_tpc"],
+        "i2c_tries": config_data["wiec_femb_i2c_tries"],
     }
-    icon, color = icons.get(status_type, ('•', Fore.WHITE))
-    print(color + f"{icon} {message}" + Style.RESET_ALL)
 
 
-def save_config(tester_name, tester_email, femb_ids, init_config):
-    """Save configuration to CSV file with all fields matching femb_info_implement.csv"""
-    if isinstance(femb_ids, list):
-        femb_ids = {f"SLOT{idx}": femb_id for idx, femb_id in enumerate(femb_ids[:4])}
-    elif not isinstance(femb_ids, dict):
-        femb_ids = {}
-
-    csv_data = {
-        # User input
-        'tester': tester_name,
-        'SLOT0': femb_ids.get('SLOT0', ''),
-        'SLOT1': femb_ids.get('SLOT1', ''),
-        'SLOT2': femb_ids.get('SLOT2', ''),
-        'SLOT3': femb_ids.get('SLOT3', ''),
-        'comment': 'Checkout test',
-        # From init_setup.csv with defaults
-        'test_site': init_config.get('Test_Site', 'BNL'),
-        'toy_TPC': init_config.get('toy_TPC', 'y'),
-        'top_path': init_config.get('QC_data_root_folder', '/home/dune/Documents/data'),
-        'Tech_site_email': tester_email or init_config.get('Tech_site_email', ''),
-        'Tech_receiver': init_config.get('Tech_receiver', 'lke@bnl.gov'),
-        'Test_Site': init_config.get('Test_Site', 'BNL'),
-        'Tech_Coordinator': init_config.get('Tech_Coordinator', ''),
-        'QC_data_root_folder': init_config.get('QC_data_root_folder', '/home/dune/Documents/data'),
-        'Rigol_PS_for_WIB': init_config.get('Rigol_PS_for_WIB', 'True'),
-        'Rigol_PS_ID': init_config.get('Rigol_PS_ID', ''),
-        'CTS_LN2_AM': init_config.get('CTS_LN2_AM', '1800'),
-        'CTS_LN2_PM': init_config.get('CTS_LN2_PM', '1200'),
-        'PS_Control_Mode': init_config.get('PS_Control_Mode', 'USB'),
-        'CTS_LN2_Fill_Wait': init_config.get('CTS_LN2_Fill_Wait', '1800'),
-        'CTS_Warmup_Wait': init_config.get('CTS_Warmup_Wait', '3600'),
-        'Network_Upload_Path': init_config.get('Network_Upload_Path', '/data/femb/FEMB_CHK'),
-    }
-
-    # Ensure directory exists
-    os.makedirs(os.path.dirname(CSV_FILE), exist_ok=True)
-
-    with open(CSV_FILE, mode="w", newline="", encoding='utf-8-sig') as file:
-        writer = csv.writer(file)
-        for key, value in csv_data.items():
-            writer.writerow([key, value])
-        print(csv_data)
-
-    return csv_data
-
-
-def run_checkout_test(wib_ip, inform):
+def copy_script_to_wib(session, wib_number):
     """
-    Run the checkout test for all installed FEMBs.
-    Returns paths to data and report directories.
+    Copies wiec_femb_chk.py from this repo into the checkout software folder on the WIB,
+    so the WIB always runs the current version. Returns True if the copy worked.
     """
-    print_header("Running Checkout Test")
+    config_data = session.json_data
+    wib_ip = wib_setup.expected_wib_ip(session, wib_number)
+    connect_timeout = config_data.get("wib_ssh_connect_timeout_s")
+    destination = f"root@{wib_ip}:{config_data.get('wib_software_dir')}/"
+    command = ["scp", "-o", "BatchMode=yes", "-o", f"ConnectTimeout={connect_timeout}",
+               script_path(session), destination]
 
-    # Step 2: Wait for fiber converter
-    print_step(2, 4, "Waiting for Fiber Converter")
-    print(Fore.YELLOW + "Waiting 30 seconds for fiber converter..." + Style.RESET_ALL)
-    for i in range(30, 0, -1):
-        print(f"\r  Countdown: {Fore.GREEN}{i:2d}s{Style.RESET_ALL}", end="", flush=True)
-        time.sleep(1)
-    print(f"\r  {Fore.GREEN}✓ Fiber converter ready!{' '*20}{Style.RESET_ALL}")
-
-    # Step 3: Initialize WIB
-    print_step(3, 4, "Initializing WIB")
-    qc_path = inform['QC_data_root_folder']
-    QC_Process(wib_ip, path=qc_path, QC_TST_EN=77, input_info=inform)  # Ping WIB
-    QC_Process(wib_ip, path=qc_path, QC_TST_EN=0, input_info=inform)   # Init WIB
-    QC_Process(wib_ip, path=qc_path, QC_TST_EN=1, input_info=inform)   # Init FEMB I2C
-
-    # Step 4: Run checkout test
-    print_step(4, 4, "Running Assembly Checkout Test")
-    data_path, report_path = QC_Process(wib_ip, path=qc_path, QC_TST_EN=2, input_info=inform)  # Checkout
-
-    return data_path, report_path
+    try:
+        result = subprocess.run(command, capture_output=True, text=True,
+                                timeout=config_data["wib_command_timeout_s"])
+    except subprocess.TimeoutExpired:
+        session.log(f"Copying {config_data['wiec_femb_script']} to WIB {wib_number} timed out.")
+        return False
+    if result.returncode != 0:
+        session.log(f"Copying {config_data['wiec_femb_script']} to WIB {wib_number} failed: {result.stderr.strip()}")
+        return False
+    return True
 
 
-def generate_result_summary(inform, data_path, report_path):
+def parse_result(output):
     """
-    Generate test result summary for all slots.
-    Returns (all_passed, summary_text, slot_results)
+    Finds the WIEC_RESULT_JSON line printed by wiec_femb_chk.py and turns it back into Python.
+    JSON keys are always text, so the FEMB positions ("0", "1", ...) are turned back into ints.
+    Returns the result dict, or None if the script never printed a complete result.
     """
-    print_header("Test Results Summary")
+    for line in reversed(output.splitlines()):
+        line = line.strip()
+        if not line.startswith(RESULT_MARKER):
+            continue
+        try:
+            result = json.loads(line[len(RESULT_MARKER):])
+        except ValueError:          # a cut-off line is not valid JSON
+            return None
+        for section in TEST_NAMES + ("dropped_reasons",):
+            result[section] = {int(position): values for position, values in result[section].items()}
+        return result
+    return None
 
-    paths = []
-    if data_path:
-        paths.append(data_path)
-    if report_path:
-        paths.append(report_path)
 
-    # Analyze results
-    result = analyze_test_results(paths, inform)
-    all_passed, failed_slots = display_qc_results(result, "Checkout Test", verbose=True)
+def run_assembly_checkout(session, wib_number, femb_ids):
+    """
+    Runs wiec_femb_chk.py on the WIB for every FEMB position that has a serial number.
+    Returns (result, output): result is the parsed measurements, or None if the script did not finish.
+    """
+    config_data = session.json_data
+    wib_ip = wib_setup.expected_wib_ip(session, wib_number)
+    positions = [position for position, serial in enumerate(femb_ids) if serial]
 
-    # Build summary text for email
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    summary_lines = [
-        "=" * 60,
-        "CTS FEMB CHECKOUT TEST RESULTS",
-        "=" * 60,
-        f"Date/Time: {timestamp}",
-        f"Tester: {inform.get('tester', 'Unknown')}",
-        f"Test Site: {inform.get('test_site', 'BNL')}",
-        "",
-        "-" * 60,
-        "SLOT RESULTS:",
-        "-" * 60,
-    ]
+    # rm -rf CHK first: BNL's analysis writes its plots there, and old plots must not be mistaken for new ones.
+    # `timeout` ends the script on the WIB itself at the deadline (it switches the FEMBs off on the
+    # way out); the PC waits a little longer, so the WIB side always stops first.
+    checkout_timeout = config_data["wiec_femb_checkout_timeout_s"]
+    command = (f"rm -rf CHK; timeout {checkout_timeout} python3 {config_data['wiec_femb_script']} "
+               + " ".join(str(position) for position in positions))
+    settings = femb_settings(session, femb_ids)
+    session.log(f"WIB {wib_number}: FEMB checkout on positions {positions}, tests "
+                f"{[name for name, on in settings['tests'].items() if on]}")
+    wib_ok, wib_output = wib_ssh(session, wib_ip, command, checkout_timeout + config_data["wib_command_timeout_s"],
+                                 stdin_text=json.dumps(settings))
 
-    slot_results = {}
-    for slot_num in ['0', '1', '2', '3']:
-        slot_key = f'SLOT{slot_num}'
-        display_slot = int(slot_num) + 1
-        femb_id = inform.get(slot_key, '')
+    # Keep the full output: it is the first place to look when a checkout fails.
+    output_file = os.path.join(session.results_path, f"femb_checkout_wib{wib_number}.txt")
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(wib_output)
 
-        if not femb_id or femb_id in ['', ' ', 'N/A', 'EMPTY', 'NONE']:
-            summary_lines.append(f"  Slot {display_slot}: Empty (skipped)")
-            slot_results[slot_num] = ('empty', '')
+    result = parse_result(wib_output)
+    if result is None:
+        session.log(f"WIB {wib_number}: the FEMB checkout did not finish. Its output is in {output_file}")
+    elif result.get("report_dir"):
+        fetch_report(session, wib_number, result["report_dir"])
+    return result, wib_output
+
+
+def fetch_report(session, wib_number, report_dir):
+    """
+    Copies BNL's report folder (plots from the ADC data tests) back into this run's results folder,
+    as results/<stamp>/femb_checkout_wib<N>_report/. Returns the local path, or None.
+    """
+    config_data = session.json_data
+    wib_ip = wib_setup.expected_wib_ip(session, wib_number)
+    destination = os.path.join(session.results_path, f"femb_checkout_wib{wib_number}_report")
+    command = ["scp", "-r", "-o", "BatchMode=yes", "-o", f"ConnectTimeout={config_data['wib_ssh_connect_timeout_s']}",
+               f"root@{wib_ip}:{config_data['wib_software_dir']}/{report_dir}", destination]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=config_data["wib_command_timeout_s"])
+    except subprocess.TimeoutExpired:
+        session.log(f"WIB {wib_number}: copying the FEMB checkout plots timed out")
+        return None
+    if result.returncode != 0:
+        session.log(f"WIB {wib_number}: copying the FEMB checkout plots failed: {result.stderr.strip()}")
+        return None
+    return destination
+
+
+def _in_range(value, low, high):
+    """True if value is a number between low and high (inclusive)."""
+    return isinstance(value, (int, float)) and low <= value <= high
+
+
+def grade(result, limits, femb_ids):
+    """
+    Compares the measurements from wiec_femb_chk.py with wiec_femb_limits.
+    Returns a list of checks, one dict per measured value, e.g.
+        {"femb": "FEMB_0", "position": 0, "measurement": "LArASIC voltage",
+         "value": 2.95, "unit": "V", "min": 2.8, "max": 3.2, "passed": True}
+    """
+    checks = []
+
+    def add(position, measurement, value, unit, limit=None, passed=None):
+        low, high = limit if limit else (None, None)
+        if passed is None:
+            passed = _in_range(value, low, high) if limit else True   # no limit set: recorded only
+        checks.append({"femb": femb_ids[position], "position": position, "measurement": measurement,
+                       "value": value, "unit": unit, "min": low, "max": high, "passed": bool(passed)})
+
+    tests = result["tests"]
+    for position in result["positions"]:
+        # Power: initial power is measured for every FEMB, including one the safety check switches off.
+        for test, label in POWER_TESTS.items():
+            if tests[test] and position in result[test]:
+                for rail, reading in result[test][position].items():
+                    add(position, f"{label} {rail} voltage", reading["V"], "V", limits["power_V"].get(rail))
+                    add(position, f"{label} {rail} current", reading["A"], "A", limits["power_A"].get(rail))
+
+        # The safety cut always runs on the WIB; a FEMB it switched off is not tested further.
+        if position in result["dropped"]:
+            reasons = ", ".join(result["dropped_reasons"].get(position, []))
+            add(position, "connection / safety check", f"switched off ({reasons})", "", passed=False)
             continue
 
-        if slot_num in result.slot_status:
-            passed, _ = result.slot_status[slot_num]
-            status = "PASS" if passed else "FAIL"
-            summary_lines.append(f"  Slot {display_slot} ({femb_id}): {status}")
-            slot_results[slot_num] = ('pass' if passed else 'fail', femb_id)
-        else:
-            summary_lines.append(f"  Slot {display_slot} ({femb_id}): No test data")
-            slot_results[slot_num] = ('no_data', femb_id)
+        if tests["registers"]:
+            for chip, correct in result["registers"][position].items():
+                add(position, f"{chip} registers", "correct" if correct else "wrong", "", passed=correct)
 
-    summary_lines.extend([
-        "",
-        "-" * 60,
-        f"OVERALL RESULT: {'PASS' if all_passed else 'FAIL'}",
-        "-" * 60,
-    ])
+        for test, label in RAIL_TESTS.items():
+            if tests[test]:
+                rails = result[test][position]
+                for name, limit in limits["rail_monitor_mV"].items():
+                    add(position, f"{label} {name} rail", rails.get(name), "mV", limit)   # missing -> fails
+                for name, value in rails.items():
+                    if name not in limits["rail_monitor_mV"]:
+                        add(position, f"{label} {name} rail", value, "mV")                # recorded only
 
-    if not all_passed:
-        summary_lines.append("\nFailed FEMBs requiring attention:")
-        for slot_num, femb_id in failed_slots:
-            display_slot = int(slot_num) + 1
-            summary_lines.append(f"  - Slot {display_slot}: {femb_id}")
+        if tests["monitor_path"]:
+            monitor = result["monitor_path"][position]
+            for name, limit in limits["monitor_path_mV"].items():
+                values = monitor.get(name)
+                if not values:
+                    add(position, f"{name} monitor", None, "mV", limit)                  # missing -> fails
+                    continue
+                for chip, value in enumerate(values):
+                    add(position, f"ASIC {chip} {name}", value, "mV", limit)
 
-    summary_text = "\n".join(summary_lines)
-    return all_passed, summary_text, slot_results
+        # ADC data tests: BNL's own verdict, plus any limits set in wiec_femb_limits[<test>].
+        for test, label in DATA_TESTS.items():
+            if tests[test]:
+                outcome = result[test][position]
+                add(position, f"{label} (BNL verdict)", "pass" if outcome["bnl_pass"] else "fail", "",
+                    passed=outcome["bnl_pass"])
+                test_limits = limits.get(test, {})
+                for name, value in outcome["values"].items():
+                    add(position, f"{label} {name}", value, "ADC", test_limits.get(name))
 
-
-# Function 01 CSV Read
-def read_csv_to_dict(filename, env, p=False):
-    data = {}
-    with open(filename, mode='r', newline='', encoding='utf-8-sig') as file:
-        reader = csv.reader(file)
-        # headers = next(reader)
-        for row in reader:
-            if len(row) >= 2:
-                key = row[0]
-                if row[1] == '':
-                    row[1] = ' '
-                value = row[1]
-                data[key] = value
-            if p:
-                print("\033[96m" + key + "\t\t:\t\t" + data[key] + "\033[0m")
-    if env == 'LN':
-        data['env'] = 'y'
-        if p:
-            print("\033[96m" + 'environment' + "\t:\t\t" + data['env'] + '(Cold)' + "\033[0m")
-    else:
-        data['env'] = 'n'
-        if p:
-            print("\033[96m" + 'environment' + "\t:\t\t" + data['env'] + '(Warm)' + "\033[0m")
-    return data
+    return checks
 
 
-def start_femb_checkout(wib_ip):
-    """Main checkout workflow"""
-    print_header("CTS FEMB Checkout Test")
-    print(Fore.GREEN + "This script performs a quick checkout test for FEMB boards." + Style.RESET_ALL)
-    print(Fore.GREEN + "Supports 4 slots. Empty slots will be skipped.\n" + Style.RESET_ALL)
+def femb_set_for_slot(femb_sets, batch, wib_number):
+    """
+    Which FEMB set the WIB in wib_number uses, and which slot that set has to be moved from.
+    The k-th slot of a batch uses set k % len(femb_sets). With enough sets every WIB has its
+    own and move_from is None; with fewer, a set is reused and move_from is the slot that
+    used it last. Returns (set_number, femb_ids, move_from).
+    """
+    index = batch.index(wib_number)
+    set_number = index % len(femb_sets)
+    move_from = batch[index - len(femb_sets)] if index >= len(femb_sets) else None
+    return set_number, femb_sets[set_number], move_from
 
-    confirm = input(Fore.YELLOW + "\nProceed with checkout test? (y/n): " + Style.RESET_ALL).lower()
-    if confirm != 'y':
-        print_status('info', "Test cancelled by user.")
-        sys.exit(0)
 
+def run(session, wib_number, femb_ids):
+    """
+    FEMB pass-through checkout of the WIB in wib_number, using the FEMBs in femb_ids.
+    Returns (passed, reason), like wib_setup.check_slot.
+    """
+    limits = session.json_data.get("wiec_femb_limits")
+    record = {"femb_ids": list(femb_ids), "passed": False, "reason": "", "checks": []}
+    session.datastore.setdefault("femb_checkout", {})[wib_number] = record   # stored before anything can fail
 
-    while True:
-        print(Fore.YELLOW + "\n⚠️  SAFETY CHECK:" + Style.RESET_ALL)
-        print("Please confirm the CTS chamber is empty.")
-        print("Type " + Fore.GREEN + "'I confirm the cover is closed'" + Style.RESET_ALL + " to proceed")
-        com = input(Fore.YELLOW + '>> ' + Style.RESET_ALL)
-        if com.lower() == 'i confirm the cover is closed':
-            print(
-                Fore.GREEN + '✓ Ready for Test.' + Style.RESET_ALL)
-            break
-    # Read init_setup.csv for configuration
-    init_config = read_init_setup()
+    if not copy_script_to_wib(session, wib_number):
+        record["reason"] = f"could not copy {session.json_data['wiec_femb_script']} to the WIB"
+        return False, record["reason"]
 
-    # Save configuration with all fields matching femb_info_implement.csv
-    info = None
-    with open(RESULTS_FILE, "r") as jsonfile:
-        info = json.load(jsonfile)  
+    try:
+        if not prepare_wib(session, wib_number):
+            record["reason"] = "WIB clock sync or wib_startup.py failed"
+            return False, record["reason"]
+        result, _ = run_assembly_checkout(session, wib_number, femb_ids)
+    finally:
+        fembs_off(session, wib_number)       # the script switches them off too; this makes sure
 
-    tester_name = info.get("tester_name", "Unknown")
-    tester_email = info.get("tester_email", "Unknown")
-    femb_ids = info.get("femb_ids", {})
-    save_config(tester_name, tester_email, femb_ids, init_config)
-    inform = read_csv_to_dict(CSV_FILE, 'RT')
+    if result is None:
+        record["reason"] = f"the checkout script did not finish (see femb_checkout_wib{wib_number}.txt)"
+        return False, record["reason"]
 
-    
-    # Step 4: Run checkout test
-    print_step(4, 5, "Running Checkout Test")
-    data_path, report_path = run_checkout_test(wib_ip, inform)
+    checks = grade(result, limits, femb_ids)
+    record["checks"] = checks
+    failed = [check for check in checks if not check["passed"]]
+    record["passed"] = not failed
 
-        # Step 5: Generate results 
-    print_step(5, 6, "Generating Results ")
-    all_passed, summary_text, slot_results = generate_result_summary(inform, data_path, report_path)    
-    print("---------------------------------------------------------")
-    print("Summary Test")
-    print("-------------")
-    print(summary_text)
-    print("---------------------------------------------------------")
-    print("---------------------------------------------------------")
-    print_header("Checkout Test Complete")
-    if all_passed:
-        print(Fore.GREEN + "  ✓✓✓ ALL TESTS PASSED ✓✓✓" + Style.RESET_ALL)
-    else:
-        print(Fore.RED + "  ✗✗✗ SOME TESTS FAILED ✗✗✗" + Style.RESET_ALL)
-        print(Fore.YELLOW + "\n  Please check the failed FEMBs and take appropriate action." + Style.RESET_ALL)
-        print_status('success', "Power supply turned OFF and connection closed.")
-    
-    return True if all_passed else False
-    
-def main(wibs=None):
-    if wibs is None:
-        import wiec_wib_setup
-        wibs = wiec_wib_setup.wib_ips
+    if failed:
+        for check in failed:
+            allowed = f" (allowed {check['min']} to {check['max']})" if check["min"] is not None else ""
+            session.log(f"WIB {wib_number} FEMB{check['position']} ({check['femb']}) "
+                        f"{check['measurement']} = {check['value']} {check['unit']}{allowed}")
+        record["reason"] = f"{len(failed)} of {len(checks)} FEMB checks failed"
+        return False, record["reason"]
 
-    if not wibs:
-        print_status('error', "No powered-on WIB IPs were provided for FEMB checkout.")
-        return False
-
-    test_results = {}
-    for wib, wib_ip in wibs.items():
-        print(f"------------------ WIB {wib} -----------------------------")
-        test_results[wib] = start_femb_checkout(wib_ip)
-
-    any_fail = False
-    for wib, result in test_results.items():
-        if result is False:
-            print(f"!!!!! WIB {wib}'s FEMB CHECKOUT DIDN'T PASS ")
-            any_fail = True
-
-    return not any_fail
-
+    record["reason"] = f"all {len(checks)} FEMB checks passed"
+    session.log(f"WIB {wib_number}: {record['reason']}")
+    return True, record["reason"]

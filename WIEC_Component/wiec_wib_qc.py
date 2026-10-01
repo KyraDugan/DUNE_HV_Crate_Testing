@@ -154,7 +154,7 @@ def make_batches(session):
     return [slots[start:start + boards] for start in range(0, len(slots), boards)]
 
 
-def run_batch(session, ser, batch):
+def run_batch(session, ser, batch, femb_sets):
     """
     Runs the passthrough testing on the selected batch of WIBs, including the FEMB Checkout
     Prompts the user to properly set up the hardware for next WIB slot
@@ -189,17 +189,24 @@ def run_batch(session, ser, batch):
 
 
         for wib in batch:
+
+            #WIB checkout: I2C address and ping
             passed, reason = wib_setup.check_slot(session, wib, sensor_outputs)
             if not passed:
                 batch_results.append([wib, passed, reason])
                 continue
 
-            #FEMB to be implemented
-            
-            #passed, reason = femb_checkout.run(session, wib)
-           #if not passed:
-               # batch_results.append([wib, passed, reason])
-              #  continue
+
+            #FEMB checkout, using FEMB set assigned to slot
+            set_number, femb_ids, move_from = femb_checkout.femb_set_for_slot(femb_sets, batch, wib)
+            if move_from is not None:
+                input(f"Move FEMB set {set_number} (FEMBs and cables) from WIB slot {move_from} "
+                      f"to WIB slot {wib}, then press Enter.")
+            session.log(f"WIB {wib}: using FEMB set {set_number} with FEMB IDs {femb_ids} for checkout.")
+            passed, reason = femb_checkout.run(session, wib, femb_ids)
+            if not passed:
+               batch_results.append([wib, passed, reason])
+               continue
 
             session.log(f"WIB {wib} passed.")
             batch_results.append([wib, True, "WIB passed"])
@@ -218,6 +225,9 @@ def run(session):
     batches = make_batches(session)
     session.log(f"Testing in batches: {batches}")
 
+    femb_sets = femb_checkout.get_femb_sets(session)
+    femb_checkout.get_femb_tests(session)
+
     if not ptc_power.power_up(session):
         return False
 
@@ -230,7 +240,7 @@ def run(session):
         if ser is None:
             return False
         for b in batches:
-            WIB_results.append(run_batch(session, ser, b))
+            WIB_results.extend(run_batch(session, ser, b, femb_sets))
     finally:
         if ser is not None:
             WIEC_SERIAL.close_serial(ser)

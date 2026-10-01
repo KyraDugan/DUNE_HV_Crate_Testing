@@ -3,6 +3,21 @@ Utilizies for use within the WIEC Components Setup
 """
 
 import time
+import shutil
+import sys
+from colorama import Back, Fore, Style
+FALLBACK_WIDTH = 70
+
+#Colors assigned to each section title type
+HEADER_TEXT = Fore.BLACK                      # header text is always black
+HEADER_BACKGROUNDS = {                        # one background colour per kind of header
+    "title":     Back.LIGHTWHITE_EX,          # program title at start-up
+    "preflight": Back.LIGHTMAGENTA_EX,        # PREFLIGHT report
+    "menu":      Back.LIGHTCYAN_EX,           # TEST ITEMS menu
+    "item":      Back.LIGHTYELLOW_EX,         # "Running <item>"
+    "section":   Back.LIGHTBLUE_EX,           # dashed prompt sections (WIB slots, test info)
+}
+
 
 def countdown_sleep(session, message, wait_time):
     """
@@ -22,8 +37,49 @@ def countdown_sleep(session, message, wait_time):
     session.log(f"{message}: wait complete")
 
 
+#def print_prompt_section(title):
+    #"""
+    #Creates section title
+    #"""
+   # print("\n" + "-" * 15 + f" {title} " + "-" * 15)
+
+
+def terminal_width():
+    """
+    Current width of the terminal window in characters.  
+    Read every time so a header printed is resized automatically
+    """
+    return shutil.get_terminal_size((FALLBACK_WIDTH, 24)).columns
+
+
+def rule(char="="):
+    """
+    A line of `char` exactly as wide as the terminal window.
+    """
+    return char * terminal_width()
+
+def color(text, code):
+    """
+    Text in the given color, but only when printing to the terminal, not a file.
+    """
+    if not sys.stdout.isatty():
+        return text
+    return f"{code}{text}{Style.RESET_ALL}"
+
+
+
+def print_banner(title, kind):
+    """
+    Full-width banner: a line of =, the title centred in black on the background colour
+    for this kind of header (HEADER_BACKGROUNDS), a line of =.
+    """
+    bar = title.center(terminal_width())
+    print(f"\n{color(bar, HEADER_TEXT + HEADER_BACKGROUNDS[kind])}\n")
+
+
 def print_prompt_section(title):
     """
-    Creates section title
+    Section title centred in a full-width line of dashes, black on the "section" background.
     """
-    print("\n" + "-" * 15 + f" {title} " + "-" * 15)
+    bar = f" {title} ".center(terminal_width(), "-")
+    print("\n" + color(bar, HEADER_TEXT + HEADER_BACKGROUNDS["section"]))

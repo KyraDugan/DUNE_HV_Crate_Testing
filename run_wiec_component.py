@@ -22,6 +22,7 @@ import os
 import sys
 import traceback
 
+from WIEC_Component import WIEC_utils
 from WIEC_Component import fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_wib_qc
 from WIEC_Component import preflight
 from WIEC_Component.session import TestSession, shutdown_only
@@ -45,7 +46,7 @@ def item_by_key(key):
 
 def print_items(results=None):
     results = results or {}
-    print(f"\n{BANNER}\n TEST ITEMS\n{BANNER}")
+    WIEC_utils.print_banner("TEST ITEMS", "menu")
     for number, item in enumerate(ALL_ITEMS, start=1):
         if item.KEY in results:
             status = "PASS" if results[item.KEY] else "FAIL"
@@ -54,11 +55,11 @@ def print_items(results=None):
         extra = "" if item in CRATE_ITEMS else "  (not part of the crate test)"
         print(f"  {number}) {item.NAME:<16} [{status:^4}] ~{item.EST_MINUTES:>2} min  "
               f"{item.DESCRIPTION}{extra}")
-    print(BANNER)
+    print(WIEC_utils.rule())
 
 
 def run_item(session, item):
-    print(f"\n{BANNER}\n Running {item.NAME}\n{BANNER}")
+    WIEC_utils.print_banner(f"Running {item.NAME}", "item")
     try:
         passed = bool(item.run(session))
     except KeyboardInterrupt:
@@ -204,7 +205,7 @@ def main():
 
     first_run = preflight.is_first_run()
 
-    print(f"\n{BANNER}\n WIEC COMPONENT -- DUNE HV CRATE TEST ITEMS\n{BANNER}")
+    WIEC_utils.print_banner("WIEC COMPONENT -- DUNE HV CRATE TEST ITEMS", "title")
     checks = preflight.check_environment(args.config, ping_instruments=not args.no_ping)
     environment_ok = preflight.print_report(checks)
 

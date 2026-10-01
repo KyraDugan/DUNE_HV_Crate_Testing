@@ -23,6 +23,8 @@ import shutil
 import subprocess
 import sys
 
+from . import WIEC_utils
+
 STATE_FILE = ".wiec_component_state.json"
 
 REQUIRED_PACKAGES = ["pyvisa", "openpyxl", "matplotlib", "numpy", "scipy"]
@@ -140,15 +142,14 @@ def check_environment(config_file, ping_instruments=True):
 
 
 def print_report(checks):
-    print("\n" + "=" * 70)
-    print("PREFLIGHT")
-    print("=" * 70)
+    WIEC_utils.print_banner("PREFLIGHT", "preflight")
+    print(WIEC_utils.rule())
     for ok, title, detail in checks:
         print(f"  [{'OK  ' if ok else 'FAIL'}] {title:<20} {detail}")
     failed = [title for ok, title, _ in checks if not ok]
     if failed:
         print(f"\n  {len(failed)} check(s) failed: {', '.join(failed)}")
-    print("=" * 70)
+    print(WIEC_utils.rule())
     return not failed
 
 
@@ -169,10 +170,11 @@ def estimate_minutes(json_data, items):
 
 
 def print_suggestions(config_file, items, json_data=None):
-    print("""
-======================================================================
+    line = WIEC_utils.rule()
+    print(f"""
+{line}
  FIRST RUN -- READ THIS ONCE
-======================================================================
+{line}
 
  What this is
    The DUNE HV crate test, split into items you can run one at a time.
@@ -212,7 +214,7 @@ def print_suggestions(config_file, items, json_data=None):
      in Hz.  Check that window before trusting a fan RD failure.
    * The HV thresholds are in megaohms, and hv_tau_min/max is compared
      against the fit parameter b while the spreadsheet stores 1/b.
-======================================================================
+{line}
 """)
 
     if json_data:
