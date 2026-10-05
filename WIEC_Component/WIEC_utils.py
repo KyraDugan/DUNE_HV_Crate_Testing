@@ -6,7 +6,9 @@ Most of these utilities are for the terminal GUI
 import time
 import shutil
 import sys
-from colorama import Back, Fore, Style
+import colorsys
+import random
+from colorama import Style
 
 
 #--------------RGB COLORS FOR TERMINAL GUI----------------------------------------------------------------------
@@ -40,14 +42,12 @@ def background_rgb(hex_color):
 
 
 # Each colour has one job, so it tells the operator something.
-BANNER_BACKGROUND_HEX = "#0a5cff"
+BANNER_BACKGROUND_HEX = "#2249c9"
 BANNER_TEXT_HEX = "#fffff2"
 HEADER_HEX = "#15c9ed"
 PASS_HEX = "#0dd649"
 FAIL_HEX = "#db441a"
 ACTION_HEX = "#b930e3"
-BAR_START_HEX = "#83f5e5"
-BAR_END_HEX = "#e761bd"
 BAR_EMPTY_HEX = "#e6e6e6"   # the not-yet-filled part of a progress bar (light grey track)
 
 
@@ -61,6 +61,7 @@ LIGHT_RULE = "─"
 
 
 #--------------TERMINAL GUI----------------------------------------------------------------------
+
 FALLBACK_WIDTH = 70
 
 def terminal_width():
@@ -121,7 +122,7 @@ def ask(text, prompt="> "):
     with surrounding spaces removed. Use it for every question or "press Enter" in the test.
     """
     print_action(text)
-    return input(color(f"{prompt}", ACTION)).strip()
+    return input(prompt).strip()     # plain prompt: colour codes in input() confuse backspace
 
 
 def verdict(passed):
@@ -131,16 +132,78 @@ def verdict(passed):
     return color("PASS", PASS_COLOR) if passed else color("FAIL", FAIL_COLOR)
 
 
-#--------------PROGRESS BAR----------------------------------------------------------------------
+#--------------PROGRESS BAR WITH RANDOM PRETTY GRADIENT--------------------------------------------
+
 BAR_MIN_WIDTH = 10     # a progress bar never gets narrower than this, even in a small window
 
-def blend(start_hex, end_hex, fraction):
+# Random progress-bar gradients. Both ends share one lightness and saturation (the "same row
+# of the colour picker"); only the hue differs, by a moderate random amount.
+BAR_LIGHTNESS = 0.58          # 0-1: mid lightness reads well on a white terminal
+BAR_SATURATION = 0.72         # 0-1: clearly coloured, not greyish next to the grey track
+BAR_HUE_GAP = (60, 150)       # degrees between the two ends: clearly different, but not opposites
+BAR_AVOID_HUES = []           # hue ranges a gradient may not pass through, e.g. [(66, 95)]; empty = any hue
+
+def _hsl_to_hex(hue, saturation=BAR_SATURATION, lightness=BAR_LIGHTNESS):
     """
-    The colour `fraction` of the way from start_hex to end_hex (0 = start, 1 = end), as "#rrggbb".
+    A colour given by hue (degrees, any number: it wraps at 360), saturation and lightness (0-1),
+    as "#rrggbb".
     """
-    start, end = _hex_to_rgb(start_hex), _hex_to_rgb(end_hex)
-    mixed = [round(s + (e - s) * fraction) for s, e in zip(start, end)]
-    return "#{:02x}{:02x}{:02x}".format(*mixed)
+    red, green, blue = colorsys.hls_to_rgb((hue % 360) / 360, lightness, saturation)
+    return "#{:02x}{:02x}{:02x}".format(round(red * 255), round(green * 255), round(blue * 255))
+
+
+def _hue_step(start_hue, end_hue):
+    """
+    The shortest way round the colour wheel from start_hue to end_hue, in degrees:
+    positive = clockwise, negative = anticlockwise. E.g. 350 -> 20 is +30, not -330.
+    """
+    return ((end_hue - start_hue + 180) % 360) - 180
+
+
+def blend_hue(start_hue, end_hue, fraction):
+    """
+    The colour `fraction` of the way from start_hue to end_hue (0 = start, 1 = end), going the
+    short way round the colour wheel at fixed lightness and saturation, as "#rrggbb".
+    Unlike mixing red/green/blue, this never passes through grey or brown.
+    """
+    return _hsl_to_hex(start_hue + _hue_step(start_hue, end_hue) * fraction)
+
+
+def _gradient_allowed(start_hue, end_hue):
+    """
+    True if the gradient from start_hue to end_hue stays out of every BAR_AVOID_HUES range,
+    checked at both ends and three points in between.
+    """
+    step = _hue_step(start_hue, end_hue)
+    for fraction in (0, 0.25, 0.5, 0.75, 1):
+        hue = (start_hue + step * fraction) % 360
+        if any(low <= hue <= high for low, high in BAR_AVOID_HUES):
+            return False
+    return True
+
+
+def random_bar_hues():
+    """
+    A random (start hue, end hue) pair for a progress bar: BAR_HUE_GAP degrees apart, either
+    way round, and not passing through BAR_AVOID_HUES. Draws again until a pair fits.
+    """
+    while True:
+        start = random.uniform(0, 360)
+        end = (start + random.choice([-1, 1]) * random.uniform(*BAR_HUE_GAP)) % 360
+        if _gradient_allowed(start, end):
+            return start, end
+
+
+_bar_hues = {}   # message -> hues of the bar being drawn now, so its colours stay fixed while it runs
+
+
+def _hues_for(message):
+    """
+    The colours of the bar with this message: chosen at its first frame, then reused.
+    """
+    if message not in _bar_hues:
+        _bar_hues[message] = random_bar_hues()
+    return _bar_hues[message]
 
 
 def bar_width(message, suffix):
@@ -151,17 +214,18 @@ def bar_width(message, suffix):
     return max(BAR_MIN_WIDTH, terminal_width() - len(message) - len(suffix) - 3)
 
 
-def solid_bar(filled, width):
+def solid_bar(filled, width, hues):
     """
-    A progress bar `width` cells wide, as solid colour blocks: `filled` cells coloured by their
-    position along the bar (BAR_START_HEX at the left, blending to BAR_END_HEX at the right),
-    then the rest in the grey BAR_EMPTY_HEX track. Each cell is a space with a coloured
-    background. Not a terminal (e.g. a log file): plain #####----- instead.
+    A progress bar `width` cells wide, as solid colour blocks: `filled` cells shading from the
+    start hue to the end hue in `hues` (from random_bar_hues), then the rest in the grey
+    BAR_EMPTY_HEX track. Each cell is a space with a coloured background.
+    Not a terminal (e.g. a log file): plain #####----- instead.
     """
     if not sys.stdout.isatty():
         return "#" * filled + "-" * (width - filled)
+    start_hue, end_hue = hues
     steps = max(width - 1, 1)
-    cells = [background_rgb(blend(BAR_START_HEX, BAR_END_HEX, i / steps)) + " " for i in range(filled)]
+    cells = [background_rgb(blend_hue(start_hue, end_hue, i / steps)) + " " for i in range(filled)]
     track = background_rgb(BAR_EMPTY_HEX) + " " * (width - filled)
     return "".join(cells) + track + Style.RESET_ALL
 
@@ -175,16 +239,18 @@ def draw_bar(message, elapsed, total):
     suffix = f"{remaining:3d}s left"
     width = bar_width(message, suffix)
     filled = min(width, int(width * elapsed / max(total, 1)))
-    print(f"\r{message} {solid_bar(filled, width)} {suffix}", end="", flush=True)
+    print(f"\r{message} {solid_bar(filled, width, _hues_for(message))} {suffix}", end="", flush=True)
 
 
 def finish_bar(message):
     """
     Draws the bar full and ends the line, so the next output starts on a new line.
+    Then forgets this bar's colours, so the next bar gets new ones.
     """
     suffix = f"{0:3d}s left"
     width = bar_width(message, suffix)
-    print(f"\r{message} {solid_bar(width, width)} {suffix}")
+    print(f"\r{message} {solid_bar(width, width, _hues_for(message))} {suffix}")
+    _bar_hues.pop(message, None)
 
 
 def countdown(message, seconds):
