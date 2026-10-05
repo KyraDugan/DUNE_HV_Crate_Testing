@@ -154,6 +154,32 @@ def make_batches(session):
     return [slots[start:start + boards] for start in range(0, len(slots), boards)]
 
 
+def prompt_after_failure(session, wib, reason):
+    """
+    Asks the operator what to do after the WIB in slot wib failed FEMB checkout.
+    Can continue, retry, or abort.
+    """
+
+    options = {"c": "continue", "r": "retry", "a": "abort"}
+    print()
+    session.log(f"WIB {wib} failed FEMB checkout: {reason}")
+    session.log("The FEMBs are switched off, the WIB is still powered.")
+    while True:
+        answer = input("Type 'c' to continue to the next WIB, 'r' to retry this WIB, or 'a' to abort the test: ").strip().lower()
+        if answer[:1] in options:
+            return options[answer[:1]]
+        print('Please type "c" to continue, "r" to retry, or "a" to abort.\n')
+
+class OperatorAbort(Exception):
+    """
+    Raised when the operator chooses "abort". Carries the results the batch had
+    gathered, so run() can keep them.
+    """
+    def __init__(self, results):
+        super().__init__("Test aborted by the operator")
+        self.results = results
+
+
 def run_batch(session, ser, batch, femb_sets):
     """
     Runs the passthrough testing on the selected batch of WIBs, including the FEMB Checkout
@@ -198,18 +224,36 @@ def run_batch(session, ser, batch, femb_sets):
 
 
             #FEMB checkout, using FEMB set assigned to slot
+
             set_number, femb_ids, move_from = femb_checkout.femb_set_for_slot(femb_sets, batch, wib)
             if move_from is not None:
                 input(f"Move FEMB set {set_number} (FEMBs and cables) from WIB slot {move_from} "
                       f"to WIB slot {wib}, then press Enter.")
             session.log(f"WIB {wib}: using FEMB set {set_number} with FEMB IDs {femb_ids} for checkout.")
-            passed, reason = femb_checkout.run(session, wib, femb_ids)
+
+            attempt = 0
+            choice = None
+            while True:
+                attempt += 1
+                # wib_startup.py may only run once per WIB power-up: its I2C phase adjustment adds up
+                passed, reason = femb_checkout.run(session, wib, femb_ids, start_wib=(attempt == 1))
+                femb_checkout.print_femb_results(session, wib)
+                if passed:
+                    break
+                choice = prompt_after_failure(session, wib, reason)
+                session.log(f"WIB {wib} FEMB checkout failed ({reason}); operator chose {choice}.")
+                if choice != "retry":
+                    break
+
             if not passed:
-               batch_results.append([wib, passed, reason])
-               continue
+                batch_results.append([wib, False, reason])
+                if choice == "abort":
+                    raise OperatorAbort(batch_results)
+                continue
 
             session.log(f"WIB {wib} passed.")
             batch_results.append([wib, True, "WIB passed"])
+
 
     finally:
         WIEC_SERIAL.power_wib(ser, {slot: "off" for slot in batch})
@@ -241,6 +285,10 @@ def run(session):
             return False
         for b in batches:
             WIB_results.extend(run_batch(session, ser, b, femb_sets))
+    except OperatorAbort as abort:
+        WIB_results.extend(abort.results)
+        session.log("Test aborted by the operator. Remaining WIBs will not be tested.")
+        return False
     finally:
         if ser is not None:
             WIEC_SERIAL.close_serial(ser)

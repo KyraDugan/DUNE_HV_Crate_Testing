@@ -22,7 +22,8 @@ config.json keys used:
 "wib_ssh_connect_timeout_s"                     Time to wait for ssh connection before timeout
 "wiec_femb_safety_A"                            presence_min_A: below this DC-DC current a FEMB counts as not
                                                 connected; BIAS/LArASIC/ColdDATA: BNL's safety current cut
-"wiec_femb_i2c_tries"                           I2C configuration retries before a FEMB is dropped (BNL: 100)
+"wiec_femb_i2c_tries"                           I2C configuration retries before a FEMB is dropped
+"wiec_femb_summary_max_failures"                Maximum number of failed checks to show in the summary
 -------------------------------------------------------------------------------------------------------
 """
 
@@ -30,13 +31,57 @@ import os
 import sys
 import time
 import csv
+import tempfile
+import time
+
 from datetime import datetime, timezone
 from colorama import init, Fore, Style
 import json
 import subprocess
 
 
-from . import wib_setup
+from . import wib_setup, WIEC_utils
+
+def _ssh_command(session, wib_ip, command):
+    """The ssh command line that runs `command` in the checkout software folder on the WIB."""
+    config_data = session.json_data
+    return ["ssh", "-o", "BatchMode=yes",
+            "-o", f"ConnectTimeout={config_data['wib_ssh_connect_timeout_s']}",
+            f"root@{wib_ip}", f"cd {config_data['wib_software_dir']}; {command}"]
+
+
+def wib_ssh_with_progress(session, wib_ip, command, timeout, stdin_text, message, expected_s):
+    """
+    wib_ssh for long WIB commands: the same (ok, output) result, with a progress bar while it runs.
+    The output goes to a temporary file rather than a pipe: a pipe holds only ~64 KB, and a full
+    pipe would leave ssh and this program waiting for each other forever.
+    """
+    with tempfile.TemporaryFile(mode="w+") as output:
+        process = subprocess.Popen(_ssh_command(session, wib_ip, command), stdin=subprocess.PIPE,
+                                   stdout=output, stderr=subprocess.STDOUT, text=True)
+        try:
+            if stdin_text:
+                process.stdin.write(stdin_text)
+            process.stdin.close()
+
+            start = time.time()
+            while process.poll() is None:            # None = still running
+                elapsed = time.time() - start
+                if elapsed > timeout:
+                    process.kill()
+                    process.wait()
+                    print()
+                    output.seek(0)
+                    return False, output.read() + f"\n[timed out after {timeout} s]"
+                WIEC_utils.draw_bar(message, elapsed, expected_s)
+                time.sleep(1)
+            WIEC_utils.finish_bar(message)
+        finally:
+            if process.poll() is None:               # Ctrl-C or an error: do not leave ssh running
+                process.kill()
+
+        output.seek(0)
+        return process.returncode == 0, output.read()
 
 
 def wib_ssh(session, wib_ip, command, timeout, stdin_text=None):
@@ -254,6 +299,7 @@ def run_assembly_checkout(session, wib_number, femb_ids):
     Runs wiec_femb_chk.py on the WIB for every FEMB position that has a serial number.
     Returns (result, output): result is the parsed measurements, or None if the script did not finish.
     """
+
     config_data = session.json_data
     wib_ip = wib_setup.expected_wib_ip(session, wib_number)
     positions = [position for position, serial in enumerate(femb_ids) if serial]
@@ -267,8 +313,10 @@ def run_assembly_checkout(session, wib_number, femb_ids):
     settings = femb_settings(session, femb_ids)
     session.log(f"WIB {wib_number}: FEMB checkout on positions {positions}, tests "
                 f"{[name for name, on in settings['tests'].items() if on]}")
-    wib_ok, wib_output = wib_ssh(session, wib_ip, command, checkout_timeout + config_data["wib_command_timeout_s"],
-                                 stdin_text=json.dumps(settings))
+    wib_ok, wib_output = wib_ssh_with_progress(
+        session, wib_ip, command, checkout_timeout + config_data["wib_command_timeout_s"],
+        json.dumps(settings), f"WIB {wib_number} FEMB checkout", config_data["wiec_femb_checkout_expected_s"])
+
 
     # Keep the full output: it is the first place to look when a checkout fails.
     output_file = os.path.join(session.results_path, f"femb_checkout_wib{wib_number}.txt")
@@ -389,7 +437,53 @@ def femb_set_for_slot(femb_sets, batch, wib_number):
     return set_number, femb_sets[set_number], move_from
 
 
-def run(session, wib_number, femb_ids):
+def describe_check(check):
+    """
+    One readable line for a check: what was measured, the value, and the allowed range if it has one.
+    """
+    text = f"{check['measurement']} = {check['value']} {check['unit']}".rstrip()
+    if check["min"] is not None:
+        text += f"  (allowed {check['min']} to {check['max']})"
+    return text
+
+
+def print_femb_results(session, wib_number):
+    """
+    Shows the operator the result of the last FEMB checkout of the WIB in wib_number:
+    one line per FEMB (PASS/FAIL, how many checks passed) and, for a failed FEMB, why.
+    If the checkout did not finish, shows the reason and the last lines of the WIB's output.
+    """
+    record = session.datastore.get("femb_checkout", {}).get(wib_number)
+    if record is None:
+        return
+    max_lines = session.json_data["wiec_femb_summary_max_failures"]
+    WIEC_utils.print_prompt_section(f"WIB {wib_number} FEMB checkout results")
+
+    checks = record["checks"]
+    if not checks:
+        print(WIEC_utils.color(f"  The checkout did not complete: {record['reason']}", Fore.RED))
+        output_file = os.path.join(session.results_path, f"femb_checkout_wib{wib_number}.txt")
+        if os.path.isfile(output_file):
+            with open(output_file, encoding="utf-8") as f:
+                last_lines = f.read().strip().splitlines()[-max_lines:]
+            print(f"  Last lines of the WIB output ({output_file}):")
+            for line in last_lines:
+                print(f"      {line}")
+        return
+
+    for position in sorted({check["position"] for check in checks}):
+        femb_checks = [check for check in checks if check["position"] == position]
+        failed = [check for check in femb_checks if not check["passed"]]
+        verdict = WIEC_utils.color("PASS", Fore.GREEN) if not failed else WIEC_utils.color("FAIL", Fore.RED)
+        print(f"  FEMB position {position} ({femb_checks[0]['femb']}): {verdict}   "
+              f"{len(femb_checks) - len(failed)} of {len(femb_checks)} checks passed")
+        for check in failed[:max_lines]:
+            print(f"      {describe_check(check)}")
+        if len(failed) > max_lines:
+            print(f"      ... and {len(failed) - max_lines} more failed checks (all are in the results JSON)")
+
+
+def run(session, wib_number, femb_ids, start_wib=True):
     """
     FEMB pass-through checkout of the WIB in wib_number, using the FEMBs in femb_ids.
     Returns (passed, reason), like wib_setup.check_slot.
@@ -403,7 +497,7 @@ def run(session, wib_number, femb_ids):
         return False, record["reason"]
 
     try:
-        if not prepare_wib(session, wib_number):
+        if start_wib and not prepare_wib(session, wib_number):
             record["reason"] = "WIB clock sync or wib_startup.py failed"
             return False, record["reason"]
         result, _ = run_assembly_checkout(session, wib_number, femb_ids)
@@ -420,10 +514,6 @@ def run(session, wib_number, femb_ids):
     record["passed"] = not failed
 
     if failed:
-        for check in failed:
-            allowed = f" (allowed {check['min']} to {check['max']})" if check["min"] is not None else ""
-            session.log(f"WIB {wib_number} FEMB{check['position']} ({check['femb']}) "
-                        f"{check['measurement']} = {check['value']} {check['unit']}{allowed}")
         record["reason"] = f"{len(failed)} of {len(checks)} FEMB checks failed"
         return False, record["reason"]
 

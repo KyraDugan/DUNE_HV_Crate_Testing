@@ -9,7 +9,7 @@ from colorama import Back, Fore, Style
 FALLBACK_WIDTH = 70
 
 #Colors assigned to each section title type
-HEADER_TEXT = Fore.BLACK                      # header text is always black
+HEADER_TEXT = Fore.WHITE                      # header text is always white
 HEADER_BACKGROUNDS = {                        # one background colour per kind of header
     "title":     Back.LIGHTWHITE_EX,          # program title at start-up
     "preflight": Back.LIGHTMAGENTA_EX,        # PREFLIGHT report
@@ -19,22 +19,47 @@ HEADER_BACKGROUNDS = {                        # one background colour per kind o
 }
 
 
+
+BAR_WIDTH = 30     # characters in a progress bar
+
+
+def draw_bar(message, elapsed, total):
+    """
+    One frame of a progress bar, redrawn on the current line: message [#####-----]  Ns left
+    Past `total` the bar stays full at 0 s left until the caller finishes it.
+    """
+    total = max(total, 1)
+    filled = min(BAR_WIDTH, int(BAR_WIDTH * elapsed / total))
+    remaining = max(0, int(total - elapsed))
+    print(f"\r{message} [{'#' * filled}{'-' * (BAR_WIDTH - filled)}] {remaining:3d}s left", end="", flush=True)
+
+
+def finish_bar(message):
+    """
+    Draws the bar full and ends the line, so the next output starts on a new line.
+    """
+    print(f"\r{message} [{'#' * BAR_WIDTH}] {0:3d}s left")
+
+
+def countdown(message, seconds):
+    """
+    Waits `seconds` with a progress bar. Needs no session, so any file can use it.
+    """
+    seconds = int(seconds)
+    for elapsed in range(seconds):
+        draw_bar(message, elapsed, seconds)
+        time.sleep(1)
+    finish_bar(message)
+
+
 def countdown_sleep(session, message, wait_time):
     """
-    Creates a countdown to display in the log with an associated message and wait time.
+    countdown(), with the start and end written to the session log.
     """
-    wait_time = int(wait_time)
-    session.log(f"{message}: waiting {wait_time} seconds\n")
-
-    width = 30
-    for remaining in range(wait_time, 0, -1):
-        filled = int(width*(wait_time-remaining)/wait_time)
-        bar = "#" * filled + "-" * (width - filled)
-        print(f"\r{message} [{bar}] {remaining:3d}s left", end="", flush=True)
-
-        time.sleep(1)
-    print(f"\r{message} [{'#' * width}] {0:3d}s left")
+    session.log(f"{message}: waiting {int(wait_time)} seconds\n")
+    countdown(message, wait_time)
     session.log(f"{message}: wait complete")
+
 
 
 #def print_prompt_section(title):
@@ -65,7 +90,6 @@ def color(text, code):
     if not sys.stdout.isatty():
         return text
     return f"{code}{text}{Style.RESET_ALL}"
-
 
 
 def print_banner(title, kind):

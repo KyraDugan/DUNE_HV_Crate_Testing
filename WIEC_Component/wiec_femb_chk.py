@@ -1,9 +1,10 @@
 """
 WIEC FEMB pass-through checkout (WIB side)
 
-Version of BNL's femb_assembly_chk.py for the WIEC crate test. Every warm
+Version of femb_assembly_chk.py for the WIEC crate test. Every warm
 test of the original can run, and each one is switched on or off in
-config.json ("wiec_femb_tests"). They run in BNL's order:
+config.json ("wiec_femb_tests"). They run in the order originally 
+given in the CTS script:
 
     power                 2.1  Initial power: V, I, P of each rail
     registers             2.2  COLDATA and ColdADC default registers
@@ -17,7 +18,6 @@ config.json ("wiec_femb_tests"). They run in BNL's order:
     diff_rails            4.3  FEMB LDO voltages, DIFF configuration
     monitor_path          5    FE temperature, bandgap, ColdADC references per ASIC
 
-BNL Part 6 (external pulse) is commented out in BNL's own script and is not offered.
 
 Always run, whatever the selection: FEMB power on, the connection checks,
 the safety current cut (it protects the FEMBs), and FEMB power off at the end.
@@ -60,6 +60,7 @@ Usage (on the WIB, inside BNL_CE_WIB_SW_QC; normally femb_checkout.py does this)
 
 The last line printed on success is:
     WIEC_RESULT_JSON {...}
+
 """
 
 import sys
@@ -174,7 +175,7 @@ def configure_femb(chk, position, pulse, max_tries):
             if good_in_row >= 5:                 # BNL: 5 clean configurations in a row
                 break
         else:
-            print(f"FEMB position {position}: no I2C answer after {max_tries} tries")
+            print(f"FEMB position {position}: I2C configuration failed after {max_tries} tries")
             return False
 
     if pulse and not chk.adac_cali_quo[position]:
@@ -189,6 +190,7 @@ def power_on(chk, positions, settings):
     there, then the default configuration. Returns {position: [reasons]} for every FEMB
     that was switched off because it is not connected or does not answer on I2C.
     """
+
     dc2dc_v = settings["dc2dc_V"]
     print("Power off FEMBs to start from a known state")
     chk.femb_powering([])
@@ -203,14 +205,17 @@ def power_on(chk, positions, settings):
     if not connected:
         return dropped
 
+    chk.wib_femb_link_en(connected)     # the legacy cable test enabled the data links before configuring
     chk.femb_cd_rst()
     for chip in range(8):
         chk.adcs_paras[chip][8] = 1    # ColdADC auto calibration on
     for position in connected:
         if not configure_femb(chk, position, False, settings["i2c_tries"]):
             chk.femb_powering_single(position, "off")
-            dropped[position] = [f"no I2C answer after {settings['i2c_tries']} tries (check the data cable)"]
+            dropped[position] = [f"I2C configuration failed after {settings['i2c_tries']} tries "
+                                 "(read-back errors: data cable, connector or flange path)"]
     return dropped
+
 
 
 def configure_fembs(chk, positions, i2c_tries, snc, sts, swdac, dac, pulse, st0=1, st1=1, diff=False):

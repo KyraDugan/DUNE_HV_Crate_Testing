@@ -321,11 +321,14 @@ def run_ecat_soft_timeout_then_i2cdetect(
     send_line(ser, command)
 
     start_time = time.time()
+    message = f"Running {command}"
     while time.time() - start_time < soft_timeout:
         if ser.in_waiting:
             raw = ser.read(ser.in_waiting)
             _ = sanitize_terminal_text(raw.decode(errors="ignore"))
+        WIEC_utils.draw_bar(message, time.time() - start_time, soft_timeout)
         time.sleep(0.1)
+    WIEC_utils.finish_bar(message)
 
     ser.write(b"\x1a")
     ser.flush()
@@ -336,9 +339,8 @@ def run_ecat_soft_timeout_then_i2cdetect(
         stopped_output = sanitize_terminal_text(raw.decode(errors="ignore"))
         if stopped_output.strip():
             serial_log(stopped_output)
-
-    serial_log(f"Waiting {settle_time} seconds before I2C scan...")
-    time.sleep(settle_time)
+            
+    WIEC_utils.countdown("Waiting before I2C scan", settle_time)
 
     detect_output = run_petalinux_command(ser, "i2cdetect -y -r 2", timeout=15)
     serial_log(detect_output)

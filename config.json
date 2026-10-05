@@ -111,7 +111,7 @@
     },
     "wiec_femb_dc2dc_V": {"LArASIC": 3.0, "ColdDATA": 3.0, "ColdADC": 3.5},
     "wiec_femb_safety_A": {"presence_min_A": 0.05, "BIAS_abs_max": 0.15, "LArASIC_min": 0.3, "ColdDATA_max": 0.3},
-    "wiec_femb_i2c_tries": 10,
+    "wiec_femb_i2c_tries": 100,
     "wiec_femb_monitor_samples": 10,
     "wiec_femb_monitor_lsb_mV": 0.152587890625,
     "wiec_femb_data_samples": 5,
@@ -122,6 +122,7 @@
     "wib_command_timeout_s": 30,
     "wib_startup_timeout_s": 40,
     "wiec_femb_checkout_timeout_s": 300,
+    "wiec_femb_checkout_expected_s": 130,
     "wiec_femb_limits": {
         "power_V": {"BIAS": [4.5, 5.5], 
                     "LArASIC": [2.8, 3.2], 
@@ -154,6 +155,7 @@
                             "ADC_VREFN": [420, 520]
                             }
     },
+    "wiec_femb_summary_max_failures": 10,
     "wib_software_dir": "BNL_CE_WIB_SW_QC",
     "wib_ssh_connect_timeout_s": 10,
     "caenR8033DM": "169.254.12.34",
