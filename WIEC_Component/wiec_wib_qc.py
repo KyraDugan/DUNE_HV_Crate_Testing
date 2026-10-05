@@ -59,16 +59,14 @@ def prompt_wiec_test_info(session):
         print("Which WIBs will you test?")
         print(f"  a) test all {possible_slots} WIB slots")
         print("  s) select which WIBs to be tested")
-        choice = input().strip().lower()
+        choice = WIEC_utils.ask("Enter WIB choice:").lower()
 
         if choice in ("a", "all"):
 
             planned = possible_slots
             print(f"\nPlanned WIB test list: {planned}")
             while True:
-                retry = input(
-                    'Type "a" or "all" to confirm all WIBs, or type "b" to go back: '
-                ).strip().lower()
+                retry = WIEC_utils.ask('Type "a" or "all" to confirm all WIBs, or type "b" to go back: ').lower()
 
                 if retry in ("a", "all"):
                     session.WIBs_testing = planned
@@ -84,8 +82,8 @@ def prompt_wiec_test_info(session):
 
         if choice in ("s", "select"):
             while True:
-                raw = input(f"Enter WIBs to be tested separated by spaces (range {min(possible_slots)}-{max(possible_slots)}): "
-                ).strip()
+                raw = WIEC_utils.ask(f"Enter WIBs to be tested separated by spaces (range {min(possible_slots)}-{max(possible_slots)}): "
+                )
 
                 try:
                     planned = [int(x) for x in raw.split()]
@@ -103,9 +101,7 @@ def prompt_wiec_test_info(session):
                 planned = sorted(set(planned))
 
                 while True:
-                    retry = input(
-                        "\nRe-enter the WIB list to confirm, or type \"b\" to go back: "
-                    ).strip()
+                    retry = WIEC_utils.ask("Re-enter the WIB list to confirm, or type \"b\" to go back: ")
 
                     try:
                         repeated = [int(x) for x in retry.split()]
@@ -165,7 +161,7 @@ def prompt_after_failure(session, wib, reason):
     session.log(f"WIB {wib} failed FEMB checkout: {reason}")
     session.log("The FEMBs are switched off, the WIB is still powered.")
     while True:
-        answer = input("Type 'c' to continue to the next WIB, 'r' to retry this WIB, or 'a' to abort the test: ").strip().lower()
+        answer = WIEC_utils.ask("Type 'c' to continue to the next WIB, 'r' to retry this WIB, or 'a' to abort the test: ").lower()
         if answer[:1] in options:
             return options[answer[:1]]
         print('Please type "c" to continue, "r" to retry, or "a" to abort.\n')
@@ -193,16 +189,15 @@ def run_batch(session, ser, batch, femb_sets):
 
         WIEC_utils.print_prompt_section(f"Testing WIB {batch[0]}")
         session.log(f"Preparing test for WIB {batch[0]}.")
-        print(f"\nMove hardware to WIB {batch[0]} and press Enter.")
+        WIEC_utils.ask(f"Move WIB to slot {batch[0]}, then press Enter.") 
     else:
 
         WIEC_utils.print_prompt_section(f"Testing WIBs {batch}")
         session.log(f"Preparing test for WIBs {batch}")
-        print(f"Move WIBs to slots {batch} and press Enter.")
+        WIEC_utils.ask(f"Move WIBs to slots {batch}, then press Enter.") 
 
     #PLACEHOLDER FOR BETTER INSTRUCTIONS!!!!!
 
-    input()
 
     power_map = {slot: "on" for slot in batch}
     batch_results = []
@@ -227,7 +222,7 @@ def run_batch(session, ser, batch, femb_sets):
 
             set_number, femb_ids, move_from = femb_checkout.femb_set_for_slot(femb_sets, batch, wib)
             if move_from is not None:
-                input(f"Move FEMB set {set_number} (FEMBs and cables) from WIB slot {move_from} "
+                WIEC_utils.ask(f"Move FEMB set {set_number} (FEMBs and cables) from WIB slot {move_from} "
                       f"to WIB slot {wib}, then press Enter.")
             session.log(f"WIB {wib}: using FEMB set {set_number} with FEMB IDs {femb_ids} for checkout.")
 

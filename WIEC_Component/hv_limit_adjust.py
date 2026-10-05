@@ -30,6 +30,8 @@ import sys
 import time
 from dataclasses import dataclass
 
+from WIEC_Component import WIEC_utils
+
 # The 34970A on GPIB, the same instrument iseg_HV_electrical_test.py uses.
 # NOT the LAN DAQ970A in config.json -- that is a different box.
 GPIB_BOARD = 0
@@ -182,7 +184,7 @@ def prompt_channel(default=None, label=""):
     suffix = f" [{default - SLOT_OFFSET}]" if default else ""
     what = f"{label} " if label else ""
     while True:
-        answer = input(
+        answer = WIEC_utils.ask(
             f"    {what}DAQ channel ({MIN_CHANNEL}-{MAX_CHANNEL}){suffix}, "
             "q to stop: "
         ).strip().lower()

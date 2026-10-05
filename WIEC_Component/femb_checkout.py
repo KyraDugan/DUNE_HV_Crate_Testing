@@ -474,7 +474,7 @@ def print_femb_results(session, wib_number):
     for position in sorted({check["position"] for check in checks}):
         femb_checks = [check for check in checks if check["position"] == position]
         failed = [check for check in femb_checks if not check["passed"]]
-        verdict = WIEC_utils.color("PASS", Fore.GREEN) if not failed else WIEC_utils.color("FAIL", Fore.RED)
+        verdict = WIEC_utils.verdict(not failed)
         print(f"  FEMB position {position} ({femb_checks[0]['femb']}): {verdict}   "
               f"{len(femb_checks) - len(failed)} of {len(femb_checks)} checks passed")
         for check in failed[:max_lines]:

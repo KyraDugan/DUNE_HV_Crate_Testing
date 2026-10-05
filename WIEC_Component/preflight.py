@@ -143,13 +143,13 @@ def check_environment(config_file, ping_instruments=True):
 
 def print_report(checks):
     WIEC_utils.print_banner("PREFLIGHT", "preflight")
-    print(WIEC_utils.rule())
+    print()
     for ok, title, detail in checks:
         print(f"  [{'OK  ' if ok else 'FAIL'}] {title:<20} {detail}")
     failed = [title for ok, title, _ in checks if not ok]
     if failed:
         print(f"\n  {len(failed)} check(s) failed: {', '.join(failed)}")
-    print(WIEC_utils.rule())
+    print()
     return not failed
 
 

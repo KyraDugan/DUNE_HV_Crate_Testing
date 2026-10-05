@@ -55,7 +55,6 @@ def print_items(results=None):
         extra = "" if item in CRATE_ITEMS else "  (not part of the crate test)"
         print(f"  {number}) {item.NAME:<16} [{status:^4}] ~{item.EST_MINUTES:>2} min  "
               f"{item.DESCRIPTION}{extra}")
-    print(WIEC_utils.rule())
 
 
 def run_item(session, item):
@@ -80,7 +79,7 @@ def run_item(session, item):
 def build_session(args, state):
     """Creates the session on first use, so --list and friends stay cheap."""
     if state.get("session") is None:
-        test_name = args.name or input("Input the test name:\n").strip()
+        test_name = args.name or WIEC_utils.ask("Input the test name:")
         session = TestSession(args.config, test_name)
         session.log(f"Results directory: {session.results_path}")
         session.log(f"Spreadsheet row:   {session.row}")
@@ -111,12 +110,12 @@ def interactive(args, state, json_data):
         if session:
             print(f" test   : {session.test_name}")
             print(f" results: {session.results_path}  (row {session.row})")
-        print("  a) run all crate items      p) preflight        h) suggestions")
+        print("\n  a) run all crate items      p) preflight        h) suggestions")
         print("  s) power everything down    f) finish and write the verdict")
-        print("  q) quit")
+        print("  q) quit\n")
 
         try:
-            choice = input("\nSelect item number(s), or a/p/h/s/f/q: ").strip().lower()
+            choice = WIEC_utils.ask("Select item number(s), or a/p/h/s/f/q: ").lower()
         except EOFError:
             print("\nInput closed -- finishing up")
             choice = "q"
@@ -218,7 +217,7 @@ def main():
     if not environment_ok:
         print("\nPreflight found problems. Fix them, or continue anyway if you know")
         print("the failing check does not matter for the items you are running.")
-        if input("Continue? [y/N]: ").strip().lower() not in ("y", "yes"):
+        if WIEC_utils.ask("Continue? [y/N]: ").strip().lower() not in ("y", "yes"):
             return 1
 
     state = {"session": None}
