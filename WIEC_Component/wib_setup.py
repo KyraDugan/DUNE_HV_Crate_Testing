@@ -27,7 +27,6 @@ import re
 import time 
 
 import wiec_serial as WIEC_SERIAL
-import wiec_output_log
 
 from . import WIEC_utils
 

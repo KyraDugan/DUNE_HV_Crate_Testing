@@ -21,7 +21,7 @@ import time
 #### ----------------------------------------------------------------------------
 import wiec_serial as WIEC_SERIAL
 import wiec_crate_gui
-import wiec_output_log
+import WIEC_Component.output_log as output_log
 
 
 VALID_POWER_STATES = {"on", "off"}
@@ -170,15 +170,15 @@ def validate_wib_ip_outputs(wibs):
 def wib_power():
     # globals so they wont initialize upon import 
     global ser, wibs, wib_ips
-    wiec_output_log.countdown_sleep(100, "Waiting for Zynq boot before serial login")
-    with wiec_output_log.terminal_suppressed():
+    output_log.countdown_sleep(100, "Waiting for Zynq boot before serial login")
+    with output_log.terminal_suppressed():
         ser = WIEC_SERIAL.login()
     # userinput = input("is serial out empty?:")
     # while userinput != "yes":
     #     ser = WIEC_SERIAL.login()
     #     userinput = input("is serial out empty?:")
 
-    wiec_output_log.countdown_sleep(100, "Waiting for Zynq to settle after serial login")
+    output_log.countdown_sleep(100, "Waiting for Zynq to settle after serial login")
     
     if not wiec_crate_gui.wibs:
         wiec_crate_gui.prompt_wib_power_states()
@@ -196,15 +196,15 @@ def wib_power():
         print("No WIBs requested ON; power command completed.")
         return True
 
-    with wiec_output_log.terminal_suppressed():
+    with output_log.terminal_suppressed():
         WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
-    wiec_output_log.countdown_sleep(45, "Waiting before WIB sensor readout")
+    output_log.countdown_sleep(45, "Waiting before WIB sensor readout")
     sensor_outputs = WIEC_SERIAL.sensors_addr(ser, powered_on_wibs)
     print(sensor_outputs)
-    with wiec_output_log.terminal_suppressed():
+    with output_log.terminal_suppressed():
         i2c_passed = validate_wib_i2c_outputs(powered_on_wibs, sensor_outputs)
     wib_ips = validate_wib_ip_outputs(powered_on_wibs)
-    with wiec_output_log.terminal_suppressed():
+    with output_log.terminal_suppressed():
         ip_passed = check_wib_ip(wib_ips)
     return i2c_passed and ip_passed
     #return True

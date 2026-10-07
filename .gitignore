@@ -22,17 +22,10 @@ HV PMOD QC Output Text Files/
 HV PMOD QC Ramp Warnings/
 ISEG_E-Tests_RampRate/
 wiec\ output\ logs/
+WIEC_Component_Results/
 
 #WIEC component cache files
-WIEC_Component/__pycache__/analysis.cpython-310.pyc
-WIEC_Component/__pycache__/fan_pwm_sweep.cpython-310.pyc
-WIEC_Component/__pycache__/fan_test.cpython-310.pyc
-WIEC_Component/__pycache__/heater_test.cpython-310.pyc
-WIEC_Component/__pycache__/hv_test.cpython-310.pyc
-WIEC_Component/__pycache__/preflight.cpython-310.pyc
-WIEC_Component/__pycache__/ptc_power.cpython-310.pyc
-WIEC_Component/__pycache__/session.cpython-310.pyc
-WIEC_Component/__pycache__/spreadsheet.cpython-310.pyc
+WIEC_Component/__pycache__/
 
 #FEMB results
 FEMB_chk/FEMB_QC/

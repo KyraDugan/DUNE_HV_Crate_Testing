@@ -9,6 +9,7 @@ import sys
 import colorsys
 import random
 from colorama import Style
+from . import output_log
 
 
 #--------------RGB COLORS FOR TERMINAL GUI----------------------------------------------------------------------
@@ -42,13 +43,14 @@ def background_rgb(hex_color):
 
 
 # Each colour has one job, so it tells the operator something.
-BANNER_BACKGROUND_HEX = "#2249c9"
-BANNER_TEXT_HEX = "#fffff2"
-HEADER_HEX = "#15c9ed"
-PASS_HEX = "#0dd649"
-FAIL_HEX = "#db441a"
-ACTION_HEX = "#b930e3"
-BAR_EMPTY_HEX = "#e6e6e6"   # the not-yet-filled part of a progress bar (light grey track)
+IN_PALLATE = "#D0A11A"
+BANNER_BACKGROUND_HEX = "#43397F"
+BANNER_TEXT_HEX = "#FCFCF0"
+HEADER_HEX = "#93629A"
+PASS_HEX = "#69995D"
+FAIL_HEX = "#6F1A07"
+ACTION_HEX = "#1A7997" 
+BAR_EMPTY_HEX = "#C2BDA2"   # the not-yet-filled part of a progress bar
 
 
 HEADER = text_rgb(HEADER_HEX) + Style.BRIGHT
@@ -94,8 +96,13 @@ def print_banner(title, kind=None):
     on a full-width navy bar, with a blank line above and below.
     `kind` is no longer used; it is kept so the existing calls still work.
     """
+    empty_bar = terminal_width() * " "
     bar = title.center(terminal_width())
-    print(f"\n{color(bar, BANNER_STYLE)}\n")
+    print()
+    print(color(empty_bar, BANNER_STYLE))
+    print(color(bar, BANNER_STYLE))
+    print(color(empty_bar, BANNER_STYLE))
+    print()
 
 
 def print_prompt_section(title):
@@ -122,7 +129,9 @@ def ask(text, prompt="> "):
     with surrounding spaces removed. Use it for every question or "press Enter" in the test.
     """
     print_action(text)
-    return input(prompt).strip()     # plain prompt: colour codes in input() confuse backspace
+    response = input(prompt).strip()
+    output_log.record_answer(response)
+    return response     # plain prompt: colour codes in input() confuse backspace
 
 
 def verdict(passed):
@@ -130,6 +139,25 @@ def verdict(passed):
     "PASS" in green or "FAIL" in red, for result lines.
     """
     return color("PASS", PASS_COLOR) if passed else color("FAIL", FAIL_COLOR)
+
+
+def confirm_input_ask(text, reenter_text = "", retry_text = "", prompt="> "):
+    """
+    Asks the user to reenter their input to confirm.
+    """
+
+    while True:
+        print_action(text)
+        first_input = input(prompt).strip()
+        output_log.record_answer(first_input)
+        print_action(reenter_text or f"Please reenter to confirm:")
+        second_input = input(prompt).strip()
+        output_log.record_answer(second_input)
+        if first_input == second_input:
+            return first_input
+        else:
+            print(color(retry_text or "Inputs do not match. Please try again.", FAIL_COLOR))
+        
 
 
 #--------------PROGRESS BAR WITH RANDOM PRETTY GRADIENT--------------------------------------------

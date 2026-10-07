@@ -5,8 +5,7 @@ import time
 import glob
 import re
 
-import wiec_output_log
-from WIEC_Component import WIEC_utils
+from WIEC_Component import WIEC_utils, output_log
 
 
 try:
@@ -33,16 +32,16 @@ ANSI_ESCAPE_RE = re.compile(
 
 
 def serial_log(message=""):
-    if wiec_output_log.is_active():
-        wiec_output_log.log(f"[serial] {message}")
+    if output_log.is_active():
+        output_log.log(f"[serial] {message}")
     else:
         print(message)
 
 
 def serial_error(message=""):
     print(message)
-    if wiec_output_log.is_active():
-        wiec_output_log.log(f"[serial] {message}")
+    if output_log.is_active():
+        output_log.log(f"[serial] {message}")
 
 
 def sanitize_terminal_text(text):

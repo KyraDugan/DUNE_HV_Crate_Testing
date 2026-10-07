@@ -4,6 +4,8 @@
     "output_file": "DUNE_HV_Crate_Production_Test.xlsx",
     "relative": "True",
     "sheet_name": "Test Results",
+    "WIEC_results_folder": "/home/dune-daq/DUNE-HV-Crate-Testing/WIEC_Component_Results",
+    "wiec_session_log_name": "session_log.txt",
     "rounding_factor": 5,
     "PL506_IP_ADDR": "169.254.12.2",
     "PL506_settle_seconds": 5.0,
@@ -106,7 +108,7 @@
                     ],
     "wiec_femb_tests": {
         "power": true, "registers": true, "noise": false, "noise_peaking_times": false,
-        "se_power": false, "se_rails": true, "se_pulse": false,
+        "se_power": false, "se_rails": true, "se_pulse": true,
         "diff_pulse": false, "diff_power": false, "diff_rails": false, "monitor_path": true
     },
     "wiec_femb_dc2dc_V": {"LArASIC": 3.0, "ColdDATA": 3.0, "ColdADC": 3.5},

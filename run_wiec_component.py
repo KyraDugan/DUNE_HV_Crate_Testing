@@ -21,10 +21,10 @@ import json
 import os
 import sys
 import traceback
+import re
 
-from WIEC_Component import WIEC_utils
+from WIEC_Component import preflight, WIEC_utils, record_results, output_log
 from WIEC_Component import fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_wib_qc
-from WIEC_Component import preflight
 from WIEC_Component.session import TestSession, shutdown_only
 
 
@@ -76,14 +76,28 @@ def run_item(session, item):
     return passed
 
 
+
+
 def build_session(args, state):
     """Creates the session on first use, so --list and friends stay cheap."""
     if state.get("session") is None:
-        test_name = args.name or WIEC_utils.ask("Input the test name:")
-        session = TestSession(args.config, test_name)
-        session.log(f"Results directory: {session.results_path}")
+
+        WIEC_serial = args.wiec_serial or WIEC_utils.confirm_input_ask("Enter WIEC serial:", "Reenter WIEC serial to confirm:")
+        WIEC_serial_safe = record_results.file_name_safe(WIEC_serial)
+
+        session = TestSession(args.config, WIEC_serial_safe)
+        session.wiec_serial = WIEC_serial_safe
+        session.datastore["wiec_serial"] = WIEC_serial_safe
+
+        record_results.run_path(session)
+        output_log.start(session)
+        session.log(f"Results directory: {session.wiec_run_dir}")
+        session.log(f"Legacy results directory: {session.results_path}")
         session.log(f"Spreadsheet row:   {session.row}")
         state["session"] = session
+
+
+
     return state["session"]
 
 
@@ -99,6 +113,7 @@ def finish(session, beep=True):
             session.beep_sequence()
     finally:
         session.close_instruments()
+        output_log.stop(session)
     return passed
 
 
@@ -176,7 +191,7 @@ def interactive(args, state, json_data):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default="config.json", help="config file")
-    parser.add_argument("--name", help="test name (asked for if not given)")
+    parser.add_argument("--wiec_serial", help="wiec serial (asked for if not given)")
     parser.add_argument("--items", help="comma separated item keys to run")
     parser.add_argument("--all", action="store_true", help="run every crate item")
     parser.add_argument("--list", action="store_true", help="list the items and exit")
