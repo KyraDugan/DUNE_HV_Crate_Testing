@@ -5,7 +5,7 @@ Manages the results folder and the results files.
 config.json keys used:
 
 "WIEC_results_folder"                                Folder for the new style of WIEC results
-
+"wiec_results_csv_name"                              Folder for the measurement csv
 -------------------------------------------------------------------------------------------------------
 
 
@@ -26,10 +26,16 @@ import os
 import re
 import json
 import numpy as np
+import pandas as pd
+
 from datetime import datetime
 
 
 from . import WIEC_utils, output_log
+
+
+
+
 
 def file_name_safe(string):
     """
@@ -58,7 +64,8 @@ def run_path(session):
     """
 
     #Makes timestamp from the legacy code more readible, but keeps the same time
-    stamp = os.path.basename(session.results_path)             
+    stamp = os.path.basename(session.results_path)    
+    session.datastore["legacy_stamp"] = stamp         
     started = datetime.strptime(stamp, "%Y%m%d%H%M%S")
     readable_stamp = started.strftime("%Y-%m-%d_%H-%M-%S")
     session.datastore["session_stamp"] = readable_stamp
@@ -75,3 +82,71 @@ def run_path(session):
     session.wiec_run_dir = run_path
 
     return run_path
+
+
+CSV_COLUMNS = ["run_id", "start_time", "username", "wiec_serial", "test", "result", "wib_slot", "femb_position",
+               "femb_serial", "channel", "measurement", "setpoint", "value", "unit", "min", "max",
+               "note"]
+
+
+def measure(session, test, measurement, value, passed=None, unit="", low=None, high=None,
+            wib_slot=None, femb_position=None, femb_serial=None, channel=None, 
+            setpoint = None, note=""):
+    """
+    Creates a row with the measurement value(s) from the designated test.
+    The measurement function itself should decide if the test has been passed/failed if needed.
+    """
+
+    if passed is None:
+        pass_output = ""
+    elif passed:
+        pass_output = "PASS"
+    else:
+        pass_output = "FAIL"
+
+    row = {
+        "run_id": session.datastore.get("run_id", ""),
+        "start_time": session.datastore.get("session_stamp", ""),
+        "username": session.datastore.get("username", ""),
+        "wiec_serial": session.datastore.get("wiec_serial", ""),
+        "test": test,
+        "result": pass_output,
+        "wib_slot": wib_slot,
+        "femb_position": femb_position,
+        "femb_serial": femb_serial,
+        "channel": channel,
+        "measurement": measurement,
+        "setpoint": setpoint,
+        "value": value,
+        "unit": unit,
+        "min": low,
+        "max": high,
+        "note": note
+        }
+
+    session.datastore.setdefault("measurements", []).append(row)
+    return passed
+
+
+def write_measurements(session):
+    """
+    Turns measurement rows into csv
+    """
+
+    rows = session.datastore.get("measurements", [])
+
+    df = pd.DataFrame(rows, columns=CSV_COLUMNS)
+    path = os.path.join(session.wiec_run_dir, session.json_data["wiec_results_csv_name"])
+    df.to_csv(path, index=False)
+
+    session.datastore["measurements_csv_path"] = path
+    session.log(f"Measurements csv: {len(df)} rows written to {path}")
+
+    return path
+
+    
+
+
+
+
+    

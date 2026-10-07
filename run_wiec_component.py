@@ -96,6 +96,10 @@ def build_session(args, state):
         session.log(f"Spreadsheet row:   {session.row}")
         state["session"] = session
 
+        username = WIEC_utils.confirm_input_ask("Enter your name:")
+        session.datastore["username"] = username
+        session.username = username
+
 
 
     return state["session"]
@@ -112,6 +116,10 @@ def finish(session, beep=True):
         if beep:
             session.beep_sequence()
     finally:
+        try:
+            record_results.write_measurements(session)
+        except Exception as error:
+            session.log(f"Could not write measurements: {error}")
         session.close_instruments()
         output_log.stop(session)
     return passed

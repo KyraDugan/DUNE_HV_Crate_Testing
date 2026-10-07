@@ -81,17 +81,23 @@ def record_hv_data(session, name, short_time=False):
         f"{datetime.fromtimestamp(cycle_start_time)}..."
     )
 
-    while time.time() - cycle_start_time < (minutes_wait * 60):
-        if time.time() > prev_measurement + json_data["hv_seconds_interval"]:
-            prev_measurement = prev_measurement + json_data["hv_seconds_interval"]
-            datum = [datetime.now()]
-            for i in range(16):
-                datum.append(session.caen.get_voltage(i))
-                datum.append(session.caen.get_current(i))
-            data.append(datum)
-        else:
-            # Stops this from being a busy-wait between samples
-            time.sleep(0.2)
+    message = f"Recording {name}"
+
+    try:
+        while time.time() - cycle_start_time < (minutes_wait * 60):
+            WIEC_utils.draw_bar(message, time.time() - cycle_start_time, minutes_wait * 60)
+            if time.time() > prev_measurement + json_data["hv_seconds_interval"]:
+                prev_measurement = prev_measurement + json_data["hv_seconds_interval"]
+                datum = [datetime.now()]
+                for i in range(16):
+                    datum.append(session.caen.get_voltage(i))
+                    datum.append(session.caen.get_current(i))
+                data.append(datum)
+            else:
+                # Stops this from being a busy-wait between samples
+                time.sleep(0.2)
+    finally:
+        WIEC_utils.finish_bar(message)
 
     with open(os.path.join(session.results_path, name), "w") as fp:
         csv.writer(fp, delimiter=",").writerows(data)

@@ -6,8 +6,8 @@ Most of these utilities are for the terminal GUI
 import time
 import shutil
 import sys
-import colorsys
 import random
+import threading
 from colorama import Style
 from . import output_log
 
@@ -43,7 +43,7 @@ def background_rgb(hex_color):
 
 
 # Each colour has one job, so it tells the operator something.
-IN_PALLATE = "#D0A11A"
+IN_PALETTE = "#D0A11A"
 BANNER_BACKGROUND_HEX = "#43397F"
 BANNER_TEXT_HEX = "#FCFCF0"
 HEADER_HEX = "#93629A"
@@ -164,74 +164,42 @@ def confirm_input_ask(text, reenter_text = "", retry_text = "", prompt="> "):
 
 BAR_MIN_WIDTH = 10     # a progress bar never gets narrower than this, even in a small window
 
-# Random progress-bar gradients. Both ends share one lightness and saturation (the "same row
-# of the colour picker"); only the hue differs, by a moderate random amount.
-BAR_LIGHTNESS = 0.58          # 0-1: mid lightness reads well on a white terminal
-BAR_SATURATION = 0.72         # 0-1: clearly coloured, not greyish next to the grey track
-BAR_HUE_GAP = (60, 150)       # degrees between the two ends: clearly different, but not opposites
-BAR_AVOID_HUES = []           # hue ranges a gradient may not pass through, e.g. [(66, 95)]; empty = any hue
+# Random progress-bar gradients made from the palette above. Each bar picks two different colours
+# from BAR_COLORS and blends from the first to the second, so every bar matches the scheme.
+# FAIL_HEX is left out on purpose: a rust bar would look like a failure.
 
-def _hsl_to_hex(hue, saturation=BAR_SATURATION, lightness=BAR_LIGHTNESS):
+BAR_COLORS = [IN_PALETTE, BANNER_BACKGROUND_HEX, HEADER_HEX, PASS_HEX, ACTION_HEX]
+
+
+def blend_hex(start_hex, end_hex, fraction):
     """
-    A colour given by hue (degrees, any number: it wraps at 360), saturation and lightness (0-1),
-    as "#rrggbb".
+    The colour `fraction` of the way from start_hex to end_hex (0 = start, 1 = end), as "#rrggbb",
+    by mixing their red, green and blue values.
     """
-    red, green, blue = colorsys.hls_to_rgb((hue % 360) / 360, lightness, saturation)
-    return "#{:02x}{:02x}{:02x}".format(round(red * 255), round(green * 255), round(blue * 255))
+    start = _hex_to_rgb(start_hex)
+    end = _hex_to_rgb(end_hex)
+    return "#{:02x}{:02x}{:02x}".format(*(round(s + (e - s) * fraction) for s, e in zip(start, end)))
 
 
-def _hue_step(start_hue, end_hue):
+def random_bar_colors():
     """
-    The shortest way round the colour wheel from start_hue to end_hue, in degrees:
-    positive = clockwise, negative = anticlockwise. E.g. 350 -> 20 is +30, not -330.
+    A random (start colour, end colour) pair for a progress bar: two different colours from
+    BAR_COLORS, in random order, so every pair can appear in both directions.
     """
-    return ((end_hue - start_hue + 180) % 360) - 180
+    start, end = random.sample(BAR_COLORS, 2)
+    return start, end
 
 
-def blend_hue(start_hue, end_hue, fraction):
-    """
-    The colour `fraction` of the way from start_hue to end_hue (0 = start, 1 = end), going the
-    short way round the colour wheel at fixed lightness and saturation, as "#rrggbb".
-    Unlike mixing red/green/blue, this never passes through grey or brown.
-    """
-    return _hsl_to_hex(start_hue + _hue_step(start_hue, end_hue) * fraction)
+_bar_colors = {}   # message -> colours of the bar being drawn now, so they stay fixed while it runs
 
 
-def _gradient_allowed(start_hue, end_hue):
-    """
-    True if the gradient from start_hue to end_hue stays out of every BAR_AVOID_HUES range,
-    checked at both ends and three points in between.
-    """
-    step = _hue_step(start_hue, end_hue)
-    for fraction in (0, 0.25, 0.5, 0.75, 1):
-        hue = (start_hue + step * fraction) % 360
-        if any(low <= hue <= high for low, high in BAR_AVOID_HUES):
-            return False
-    return True
-
-
-def random_bar_hues():
-    """
-    A random (start hue, end hue) pair for a progress bar: BAR_HUE_GAP degrees apart, either
-    way round, and not passing through BAR_AVOID_HUES. Draws again until a pair fits.
-    """
-    while True:
-        start = random.uniform(0, 360)
-        end = (start + random.choice([-1, 1]) * random.uniform(*BAR_HUE_GAP)) % 360
-        if _gradient_allowed(start, end):
-            return start, end
-
-
-_bar_hues = {}   # message -> hues of the bar being drawn now, so its colours stay fixed while it runs
-
-
-def _hues_for(message):
+def _colors_for(message):
     """
     The colours of the bar with this message: chosen at its first frame, then reused.
     """
-    if message not in _bar_hues:
-        _bar_hues[message] = random_bar_hues()
-    return _bar_hues[message]
+    if message not in _bar_colors:
+        _bar_colors[message] = random_bar_colors()
+    return _bar_colors[message]
 
 
 def bar_width(message, suffix):
@@ -242,18 +210,18 @@ def bar_width(message, suffix):
     return max(BAR_MIN_WIDTH, terminal_width() - len(message) - len(suffix) - 3)
 
 
-def solid_bar(filled, width, hues):
+def solid_bar(filled, width, colors):
     """
     A progress bar `width` cells wide, as solid colour blocks: `filled` cells shading from the
-    start hue to the end hue in `hues` (from random_bar_hues), then the rest in the grey
+    start colour to the end colour in `colors` (from random_bar_colors), then the rest in the
     BAR_EMPTY_HEX track. Each cell is a space with a coloured background.
     Not a terminal (e.g. a log file): plain #####----- instead.
     """
     if not sys.stdout.isatty():
         return "#" * filled + "-" * (width - filled)
-    start_hue, end_hue = hues
+    start_color, end_color = colors
     steps = max(width - 1, 1)
-    cells = [background_rgb(blend_hue(start_hue, end_hue, i / steps)) + " " for i in range(filled)]
+    cells = [background_rgb(blend_hex(start_color, end_color, i / steps)) + " " for i in range(filled)]
     track = background_rgb(BAR_EMPTY_HEX) + " " * (width - filled)
     return "".join(cells) + track + Style.RESET_ALL
 
@@ -267,7 +235,7 @@ def draw_bar(message, elapsed, total):
     suffix = f"{remaining:3d}s left"
     width = bar_width(message, suffix)
     filled = min(width, int(width * elapsed / max(total, 1)))
-    print(f"\r{message} {solid_bar(filled, width, _hues_for(message))} {suffix}", end="", flush=True)
+    print(f"\r{message} {solid_bar(filled, width, _colors_for(message))} {suffix}", end="", flush=True)
 
 
 def finish_bar(message):
@@ -277,8 +245,44 @@ def finish_bar(message):
     """
     suffix = f"{0:3d}s left"
     width = bar_width(message, suffix)
-    print(f"\r{message} {solid_bar(width, width, _hues_for(message))} {suffix}")
-    _bar_hues.pop(message, None)
+    print(f"\r{message} {solid_bar(width, width, _colors_for(message))} {suffix}")
+    _bar_colors.pop(message, None)
+
+def run_with_bar(message, expected_s, function, *args, **kwargs):
+    """
+    Runs function(*args, **kwargs) while a progress bar fills over expected_s seconds. For work
+    that blocks (an instrument query, a long command), so it can't draw a bar itself.
+    Returns whatever function returns. If function raises an error, the same error is raised
+    here, after the bar's line is finished.
+    """
+    outcome = {}    # the background thread puts the result (or the error) here
+
+    def worker():
+        try:
+            outcome["result"] = function(*args, **kwargs)
+        except BaseException as error:
+            outcome["error"] = error
+
+    thread = threading.Thread(target=worker, daemon=True)
+    start = time.time()
+    thread.start()
+
+    try:
+        while thread.is_alive():
+            draw_bar(message, time.time() - start, expected_s)
+            thread.join(timeout=0.25)
+    except KeyboardInterrupt:
+        # Never leave an instrument call running while the shutdown starts using the same
+        # instruments: let the current call finish first, then pass the Ctrl-C on.
+        finish_bar(message)
+        print(f"Stopping after the current step ({message}) finishes...")
+        thread.join()
+        raise
+    finish_bar(message)
+
+    if "error" in outcome:
+        raise outcome["error"]
+    return outcome.get("result")
 
 
 def countdown(message, seconds):

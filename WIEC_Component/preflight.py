@@ -27,7 +27,7 @@ from . import WIEC_utils
 
 STATE_FILE = ".wiec_component_state.json"
 
-REQUIRED_PACKAGES = ["pyvisa", "openpyxl", "matplotlib", "numpy", "scipy"]
+REQUIRED_PACKAGES = ["pyvisa", "openpyxl", "matplotlib", "numpy", "scipy", "pandas"]
 
 
 def _ip_from_config(json_data, key):
