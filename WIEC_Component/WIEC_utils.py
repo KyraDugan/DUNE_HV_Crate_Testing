@@ -134,14 +134,7 @@ def ask(text, prompt="> "):
     return response     # plain prompt: colour codes in input() confuse backspace
 
 
-def verdict(passed):
-    """
-    "PASS" in green or "FAIL" in red, for result lines.
-    """
-    return color("PASS", PASS_COLOR) if passed else color("FAIL", FAIL_COLOR)
-
-
-def confirm_input_ask(text, reenter_text = "", retry_text = "", prompt="> "):
+def confirm_input_ask(text, reenter_text = "", retry_text = "", no_input_text = "", prompt="> "):
     """
     Asks the user to reenter their input to confirm.
     """
@@ -149,6 +142,10 @@ def confirm_input_ask(text, reenter_text = "", retry_text = "", prompt="> "):
     while True:
         print_action(text)
         first_input = input(prompt).strip()
+        while not first_input:
+            print(color(no_input_text or f"You must input a value.", FAIL_COLOR))
+            print_action(text)
+            first_input = input(prompt).strip()
         output_log.record_answer(first_input)
         print_action(reenter_text or f"Please reenter to confirm:")
         second_input = input(prompt).strip()
@@ -159,6 +156,28 @@ def confirm_input_ask(text, reenter_text = "", retry_text = "", prompt="> "):
             print(color(retry_text or "Inputs do not match. Please try again.", FAIL_COLOR))
         
 
+#--------------PASS/FAIL COLOR TEXT FORMATTING--------------------------------------------
+
+
+def verdict(passed):
+    """
+    "PASS" in green or "FAIL" in red, for result lines.
+    """
+    return color("PASS", PASS_COLOR) if passed else color("FAIL", FAIL_COLOR)
+
+
+def fail_text(text):
+    """
+    A failure message in the FAIL color
+    """
+    return color(text, FAIL_COLOR)
+
+
+def pass_text(text):
+    """
+    A success message in the PASS color
+    """
+    return color(text, PASS_COLOR)
 
 #--------------PROGRESS BAR WITH RANDOM PRETTY GRADIENT--------------------------------------------
 
@@ -198,6 +217,7 @@ def _colors_for(message):
     The colours of the bar with this message: chosen at its first frame, then reused.
     """
     if message not in _bar_colors:
+        print("\n")
         _bar_colors[message] = random_bar_colors()
     return _bar_colors[message]
 
@@ -245,7 +265,7 @@ def finish_bar(message):
     """
     suffix = f"{0:3d}s left"
     width = bar_width(message, suffix)
-    print(f"\r{message} {solid_bar(width, width, _colors_for(message))} {suffix}")
+    print(f"\r{message} {solid_bar(width, width, _colors_for(message))} {suffix}\n")
     _bar_colors.pop(message, None)
 
 def run_with_bar(message, expected_s, function, *args, **kwargs):
@@ -274,7 +294,8 @@ def run_with_bar(message, expected_s, function, *args, **kwargs):
     except KeyboardInterrupt:
         # Never leave an instrument call running while the shutdown starts using the same
         # instruments: let the current call finish first, then pass the Ctrl-C on.
-        finish_bar(message)
+        print()
+        _bar_colors.pop(message, None)
         print(f"Stopping after the current step ({message}) finishes...")
         thread.join()
         raise

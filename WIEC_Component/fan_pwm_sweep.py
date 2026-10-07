@@ -31,8 +31,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from . import cli
-from . import fan_test
+from . import cli, fan_test, WIEC_utils, record_results
 
 NAME = "Fan PWM Sweep"
 KEY = "fan_pwm_sweep"
@@ -237,7 +236,7 @@ def run(session):
 
     for fan_number, details in profile_details.items():
         session.log(f"Fan {fan_number} profile:"
-                    f"{'PASS' if details['pass'] else 'FAIL'} "
+                    f"{WIEC_utils.verdict(details['pass'])} "
                     f"{details.get('reason', '')} "
                     f"correlation={details.get('correlation', 'n/a')} "
                     f"RMSE={details.get('rmse', 'n/a')}")
@@ -247,6 +246,33 @@ def run(session):
     session.datastore["fan_pwm_read_voltage"] = read_voltage
     session.datastore["fan_pwm_read_current"] = read_current
     session.datastore["fan_pwm_signals"] = fan_signals
+
+    # The sweep points: recorded, not graded. setpoint only where it has the value's units
+    # (the read-back voltage); the other rows name the programmed voltage in the note.
+    for step, programmed in enumerate(prog_voltage):
+        note = f"at {programmed} V programmed"
+        record_results.measure(session, KEY, "fan supply voltage", read_voltage[step],
+                               unit="V", setpoint=programmed)
+        record_results.measure(session, KEY, "fan supply current", read_current[step],
+                               unit="A", note=note)
+        for fan in range(1, num_fans + 1):
+            record_results.measure(session, KEY, "fan RD signal", fan_signals[fan][step],
+                                   unit="Hz", channel=fan, note=note)
+
+    # The graded part: each fan's curve against the group profile
+    min_correlation = float(json_data["fan_pwm_min_correlation"])
+    max_rmse = float(json_data["fan_pwm_max_rmse"])
+    for fan, details in profile_details.items():
+        if "reason" in details:
+            record_results.measure(session, KEY, "profile check", "not evaluated", passed=False,
+                                   channel=fan, note=details["reason"])
+            continue
+        record_results.measure(session, KEY, "profile correlation", details["correlation"],
+                               passed=details["correlation"] >= min_correlation,
+                               channel=fan, low=min_correlation)
+        record_results.measure(session, KEY, "profile RMSE", details["rmse"],
+                               passed=details["rmse"] <= max_rmse,
+                               channel=fan, high=max_rmse)
 
     for fan in range(1, num_fans + 1):
         _save_plot(

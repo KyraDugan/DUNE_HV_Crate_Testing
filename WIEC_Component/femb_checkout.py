@@ -20,6 +20,7 @@ config.json keys used:
                                                         rail_monitor_mV
                                                         monitor_path_mV
 "wib_ssh_connect_timeout_s"                     Time to wait for ssh connection before timeout
+"wib_startup_expected_s"                        Expected seconds for wib_startup.py (progress bar)
 "wiec_femb_safety_A"                            presence_min_A: below this DC-DC current a FEMB counts as not
                                                 connected; BIAS/LArASIC/ColdDATA: BNL's safety current cut
 "wiec_femb_i2c_tries"                           I2C configuration retries before a FEMB is dropped
@@ -40,7 +41,7 @@ import json
 import subprocess
 
 
-from . import wib_setup, WIEC_utils
+from . import wib_setup, WIEC_utils, record_results
 
 def _ssh_command(session, wib_ip, command):
     """The ssh command line that runs `command` in the checkout software folder on the WIB."""
@@ -151,7 +152,7 @@ def fembs_off(session, wib_number):
         session.log(f"WIB {wib_number} FEMBs powered off successfully.")
         return True
     
-    session.log(f"WIB {wib_number} FEMB power off failed. FEMBs may still be powered.")
+    session.log(WIEC_utils.fail_text(f"WIB {wib_number} FEMB power off failed. FEMBs may still be powered."))
     print(Fore.RED + "Check the FEMBs are off before moving any cables" + Style.RESET_ALL)
     print(wib_output)
     return False
@@ -171,18 +172,21 @@ def prepare_wib(session, wib_number):
     formatted_now = now.strftime('%a %b %d %H:%M:%S UTC %Y')
     wib_ok, wib_output = wib_ssh(session, wib_ip, f"date -s '{formatted_now}'", config_data["wib_command_timeout_s"])
     if not wib_ok:
-        session.log(f"WIB {wib_number} clock sync failed. Check the SSH connection to {wib_ip}.")
+        session.log(WIEC_utils.fail_text(f"WIB {wib_number} clock sync failed. Check the SSH connection to {wib_ip}."))
         print(wib_output)
         return False
     session.log(f"WIB {wib_number} clock set to {wib_output.strip()}")
 
     # Step 2: initialize WIB timing and I2C. Prints "Done" when finished
-    wib_ok, wib_output = wib_ssh(session, wib_ip, "python3 wib_startup.py", config_data["wib_startup_timeout_s"])
+    wib_ok, wib_output = WIEC_utils.run_with_bar(f"WIB {wib_number}: running wib_startup.py",
+                                                 config_data["wib_startup_expected_s"],
+                                                 wib_ssh, session, wib_ip, "python3 wib_startup.py",
+                                                 config_data["wib_startup_timeout_s"])
     if wib_ok and "Done" in wib_output:
         session.log(f"WIB {wib_number} startup complete.")
         return True
 
-    session.log(f"WIB {wib_number} startup failed.")
+    session.log(WIEC_utils.fail_text(f"WIB {wib_number} startup failed."))
     print(wib_output)
     return False
 
@@ -269,7 +273,7 @@ def copy_script_to_wib(session, wib_number):
         session.log(f"Copying {config_data['wiec_femb_script']} to WIB {wib_number} timed out.")
         return False
     if result.returncode != 0:
-        session.log(f"Copying {config_data['wiec_femb_script']} to WIB {wib_number} failed: {result.stderr.strip()}")
+        session.log(WIEC_utils.fail_text(f"Copying {config_data['wiec_femb_script']} to WIB {wib_number} failed: {result.stderr.strip()}"))
         return False
     return True
 
@@ -347,7 +351,7 @@ def fetch_report(session, wib_number, report_dir):
         session.log(f"WIB {wib_number}: copying the FEMB checkout plots timed out")
         return None
     if result.returncode != 0:
-        session.log(f"WIB {wib_number}: copying the FEMB checkout plots failed: {result.stderr.strip()}")
+        session.log(WIEC_utils.fail_text(f"WIB {wib_number}: copying the FEMB checkout plots failed: {result.stderr.strip()}"))
         return None
     return destination
 
@@ -447,6 +451,27 @@ def describe_check(check):
     return text
 
 
+def record_measurements(session, wib_number, attempts=1):
+    """
+    Copies the last FEMB checkout of the WIB in wib_number into the measurements CSV, one row per
+    check. Call it once per WIB after any retries, so a retried checkout is not recorded twice.
+    A checkout that did not finish becomes one failed row with the reason.
+    """
+    record = session.datastore.get("femb_checkout", {}).get(wib_number)
+    if record is None:
+        return
+    note = f"attempt {attempts}" if attempts > 1 else ""
+    if not record["checks"]:
+        record_results.measure(session, "femb_checkout", "checkout completed", "no",
+                               passed=False, wib_slot=wib_number, note=record["reason"])
+        return
+    for check in record["checks"]:
+        record_results.measure(session, "femb_checkout", check["measurement"], check["value"],
+                               passed=check["passed"], unit=check["unit"],
+                               low=check["min"], high=check["max"], wib_slot=wib_number,
+                               femb_position=check["position"], femb_serial=check["femb"], note=note)
+
+
 def print_femb_results(session, wib_number):
     """
     Shows the operator the result of the last FEMB checkout of the WIB in wib_number:
@@ -514,9 +539,9 @@ def run(session, wib_number, femb_ids, start_wib=True):
     record["passed"] = not failed
 
     if failed:
-        record["reason"] = f"{len(failed)} of {len(checks)} FEMB checks failed"
+        record["reason"] = WIEC_utils.fail_text(f"{len(failed)} of {len(checks)} FEMB checks failed")
         return False, record["reason"]
 
-    record["reason"] = f"all {len(checks)} FEMB checks passed"
+    record["reason"] = WIEC_utils.pass_text(f"all {len(checks)} FEMB checks passed")
     session.log(f"WIB {wib_number}: {record['reason']}")
     return True, record["reason"]

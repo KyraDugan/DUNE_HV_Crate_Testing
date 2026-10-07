@@ -21,7 +21,6 @@ import json
 import os
 import sys
 import traceback
-import re
 
 from WIEC_Component import preflight, WIEC_utils, record_results, output_log
 from WIEC_Component import fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_wib_qc
@@ -49,7 +48,7 @@ def print_items(results=None):
     WIEC_utils.print_banner("TEST ITEMS", "menu")
     for number, item in enumerate(ALL_ITEMS, start=1):
         if item.KEY in results:
-            status = "PASS" if results[item.KEY] else "FAIL"
+            status = WIEC_utils.verdict(results[item.KEY])
         else:
             status = "-"
         extra = "" if item in CRATE_ITEMS else "  (not part of the crate test)"
@@ -72,7 +71,7 @@ def run_item(session, item):
         passed = False
 
     session.record(item.KEY, passed)
-    print(f"\n{item.NAME}: {'PASS' if passed else 'FAIL'}")
+    print(f"\n{item.NAME}: {WIEC_utils.verdict(passed)}")
     return passed
 
 
@@ -155,7 +154,7 @@ def interactive(args, state, json_data):
                 continue
             passed = finish(session)
             state["session"] = None
-            print(f"\nSession complete: {'PASS' if passed else 'FAIL'}")
+            print(f"\nSession complete: {WIEC_utils.verdict(passed)}")
             continue
 
         if choice == "p":
@@ -174,7 +173,7 @@ def interactive(args, state, json_data):
             session = build_session(args, state)
             for item in CRATE_ITEMS:
                 if not run_item(session, item):
-                    print(f"\n{item.NAME} failed -- continuing with the next item.")
+                    print(WIEC_utils.fail_text(f"\n{item.NAME} failed -- continuing with the next item."))
             continue
 
         selected = []

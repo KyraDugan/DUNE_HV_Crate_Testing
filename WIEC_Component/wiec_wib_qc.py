@@ -158,7 +158,7 @@ def prompt_after_failure(session, wib, reason):
 
     options = {"c": "continue", "r": "retry", "a": "abort"}
     print()
-    session.log(f"WIB {wib} failed FEMB checkout: {reason}")
+    session.log(WIEC_utils.fail_text(f"WIB {wib} failed FEMB checkout: {reason}"))
     session.log("The FEMBs are switched off, the WIB is still powered.")
     while True:
         answer = WIEC_utils.ask("Type 'c' to continue to the next WIB, 'r' to retry this WIB, or 'a' to abort the test: ").lower()
@@ -236,9 +236,12 @@ def run_batch(session, ser, batch, femb_sets):
                 if passed:
                     break
                 choice = prompt_after_failure(session, wib, reason)
-                session.log(f"WIB {wib} FEMB checkout failed ({reason}); operator chose {choice}.")
+                session.log(WIEC_utils.fail_text(f"WIB {wib} FEMB checkout failed ({reason}); operator chose {choice}."))
                 if choice != "retry":
                     break
+
+            # Only the final attempt goes into the measurements CSV
+            femb_checkout.record_measurements(session, wib, attempts=attempt)
 
             if not passed:
                 batch_results.append([wib, False, reason])
@@ -246,7 +249,7 @@ def run_batch(session, ser, batch, femb_sets):
                     raise OperatorAbort(batch_results)
                 continue
 
-            session.log(f"WIB {wib} passed.")
+            session.log(WIEC_utils.pass_text(f"WIB {wib} passed."))
             batch_results.append([wib, True, "WIB passed"])
 
 

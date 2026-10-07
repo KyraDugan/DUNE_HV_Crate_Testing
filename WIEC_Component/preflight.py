@@ -145,10 +145,10 @@ def print_report(checks):
     WIEC_utils.print_banner("PREFLIGHT", "preflight")
     print()
     for ok, title, detail in checks:
-        print(f"  [{'OK  ' if ok else 'FAIL'}] {title:<20} {detail}")
+        print(f"  [{WIEC_utils.verdict(ok)}] {title:<20} {detail}")
     failed = [title for ok, title, _ in checks if not ok]
     if failed:
-        print(f"\n  {len(failed)} check(s) failed: {', '.join(failed)}")
+        print(WIEC_utils.fail_text(f"\n  {len(failed)} check(s) failed: {', '.join(failed)}"))
     print()
     return not failed
 

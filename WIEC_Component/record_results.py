@@ -24,14 +24,9 @@ Plan:   Will write to old results scheme for now, but will eventually switch to 
 
 import os
 import re
-import json
-import numpy as np
 import pandas as pd
 
 from datetime import datetime
-
-
-from . import WIEC_utils, output_log
 
 
 
@@ -39,7 +34,7 @@ from . import WIEC_utils, output_log
 
 def file_name_safe(string):
     """
-    Returns a string that is safe to use as a file name by replacing any non-alphanumeric characters with underscores.
+    Returns a string that is safe to use as a file name by replacing any non-desired characters with underscores.
     """
     return re.sub(r'[^A-Za-z0-9._-]', '_', string).strip("-")
 
@@ -84,13 +79,13 @@ def run_path(session):
     return run_path
 
 
-CSV_COLUMNS = ["run_id", "start_time", "username", "wiec_serial", "test", "result", "wib_slot", "femb_position",
-               "femb_serial", "channel", "measurement", "setpoint", "value", "unit", "min", "max",
-               "note"]
+CSV_COLUMNS = ["test", "measurement", "channel", "wib_slot", "femb_position", #Info for specific measurement
+               "result", "value", "unit", "min", "max", "setpoint", "note",   #Info for result pass/fail
+               "wiec_serial", "run_id", "start_time", "username"]             #Info for run as a whole
 
 
 def measure(session, test, measurement, value, passed=None, unit="", low=None, high=None,
-            wib_slot=None, femb_position=None, femb_serial=None, channel=None, 
+            wib_slot=None, femb_position=None, channel=None, 
             setpoint = None, note=""):
     """
     Creates a row with the measurement value(s) from the designated test.
@@ -113,7 +108,6 @@ def measure(session, test, measurement, value, passed=None, unit="", low=None, h
         "result": pass_output,
         "wib_slot": wib_slot,
         "femb_position": femb_position,
-        "femb_serial": femb_serial,
         "channel": channel,
         "measurement": measurement,
         "setpoint": setpoint,

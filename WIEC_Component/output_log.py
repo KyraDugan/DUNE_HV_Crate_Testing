@@ -15,12 +15,9 @@ config.json keys used:
 import contextlib
 import re
 import sys
-import time
 import os
 
-from datetime import datetime
-from pathlib import Path
-from typing import Optional, TextIO
+from typing import TextIO
 
 COLOUR_CODE = re.compile(r"\x1b\[[0-9;]*m")   # terminal colour codes, e.g. \x1b[38;2;34;73;201m
 

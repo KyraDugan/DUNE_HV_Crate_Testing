@@ -48,6 +48,7 @@ from datetime import datetime
 from . import analysis
 from . import cli
 from . import WIEC_utils
+from . import record_results
 
 NAME = "HV Test"
 KEY = "hv_test"
@@ -258,6 +259,15 @@ def _evaluate(session, chs_to_test, hv_results):
 
         session.log(f"Channel {i} HV results are {hv_results[i]}")
 
+        # The CAEN readings each resistance comes from: recorded, not graded
+        for key in ["pos_open", "pos_term", "neg_open", "neg_term"]:
+            termination = key.split("_")[1]
+            programmed = json_data[f"caenR8033DM_{termination}_voltage"]
+            record_results.measure(session, KEY, f"{key} voltage", hv_results[i].get(f"{key}_V"),
+                                   unit="V", channel=i, setpoint=programmed)
+            record_results.measure(session, KEY, f"{key} current", hv_results[i].get(f"{key}_I"),
+                                   unit="uA", channel=i)
+
         for num, j in enumerate(["pos_open_R", "neg_open_R"]):
             value = float(hv_results[i][j])
             passed = (
@@ -270,6 +280,10 @@ def _evaluate(session, chs_to_test, hv_results):
                 f"{round(value, session.rounding_factor)}Mohm", passed,
             )
             session.datastore["Tests"][f"hv_test_ch{i}_{j}"] = "Pass" if passed else "Fail"
+            record_results.measure(session, KEY, f"{j[:-2]} resistance", value, passed=passed,
+                                   unit="Mohm", channel=i,
+                                   low=json_data["hv_resistance_open_min"],
+                                   high=json_data["hv_resistance_open_max"])
             result = result and passed
 
         for num, j in enumerate(["pos_term_R", "neg_term_R"]):
@@ -284,6 +298,10 @@ def _evaluate(session, chs_to_test, hv_results):
                 f"{round(value * 1e3, session.rounding_factor)}kohm", passed,
             )
             session.datastore["Tests"][f"hv_test_ch{i}_{j}"] = "Pass" if passed else "Fail"
+            record_results.measure(session, KEY, f"{j[:-2]} resistance", value, passed=passed,
+                                   unit="Mohm", channel=i,
+                                   low=json_data["hv_resistance_term_min"],
+                                   high=json_data["hv_resistance_term_max"])
             result = result and passed
 
         # The fit reports b; the spreadsheet carries the time constant 1/b
@@ -300,6 +318,11 @@ def _evaluate(session, chs_to_test, hv_results):
                 session.datastore["Tests"][
                     f"hv_{suffix}_fit_test_ch{i}_{fit_key}"
                 ] = "Pass" if passed else "Fail"
+                # b is what is graded (against hv_tau_min/max); the spreadsheet shows tau = 1/b
+                record_results.measure(session, KEY, f"{j} {suffix} fit b", b, passed=passed,
+                                       unit="1/s", channel=i,
+                                       low=json_data["hv_tau_min"], high=json_data["hv_tau_max"],
+                                       note=f"tau = {round(tau, session.rounding_factor)} s")
                 result = result and passed
 
         session.datastore[f"hv_ch{i}"] = dict(hv_results[i])

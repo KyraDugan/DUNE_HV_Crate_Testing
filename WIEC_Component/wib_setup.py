@@ -10,6 +10,7 @@ config.json keys used:
 "wib_ip_last_octet_base"                        Expected base for WIB IP last octet
 "wib_ping_timeout_seconds"                      Seconds to wait for ping before timeout
 "wib_ping_count"                                Ping number
+"wib_ping_expected_s"                           Expected seconds for the ping (progress bar)
 "wib_expected_i2c_prefix"                       Expected prefix for i2c                    
 "wib_sensor_read_wait_seconds"                  Time to wait for wib sensor readout
 "wib_zynq_settle_time"                          Time to wait for zynq connection to settle
@@ -29,6 +30,7 @@ import time
 import wiec_serial as WIEC_SERIAL
 
 from . import WIEC_utils
+from . import record_results
 
 
 VALID_POWER_STATES = {"on", "off"}
@@ -103,7 +105,11 @@ def ping_wib(session, ip_address):
     command = ["ping", "-c", str(count), str(ip_address)]
 
     try:
-        result = subprocess.run(
+        # A timeout raised inside run_with_bar comes back out here, so the except below still catches it
+        result = WIEC_utils.run_with_bar(
+            f"Pinging {ip_address}",
+            config_data["wib_ping_expected_s"],
+            subprocess.run,
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -176,13 +182,19 @@ def check_slot(session, wib_number, sensor_outputs):
         """
 
         i2c_ok = validate_wib_i2c_outputs(session, wib_number, sensor_outputs)
+        record_results.measure(session, "wib_checkout", "I2C address",
+                               "found" if i2c_ok else "missing", passed=i2c_ok, wib_slot=wib_number,
+                               note=f"expected 0x{expected_wib_i2c_address(session, wib_number)}")
         if not i2c_ok:
-            session.log(f"WIB {wib_number} I2C address validation failed")
+            session.log(WIEC_utils.fail_text(f"WIB {wib_number} I2C address validation failed"))
             return (False, "I2C address validation failed")
 
         ip_ok = validate_wib_ip(session, wib_number)
+        record_results.measure(session, "wib_checkout", "ping",
+                               "reply" if ip_ok else "no reply", passed=ip_ok, wib_slot=wib_number,
+                               note=expected_wib_ip(session, wib_number))
         if not ip_ok:
-            session.log(f"WIB {wib_number} IP ping validation failed")
+            session.log(WIEC_utils.fail_text(f"WIB {wib_number} IP ping validation failed"))
             return (False, "IP ping validation failed")
 
         return(True, "Passed I2C and ping checks")

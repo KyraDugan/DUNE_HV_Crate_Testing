@@ -20,6 +20,7 @@ config.json keys used:
 "PL506_current_max"                             PL506 maximum current for safe turn-on, A
 "PL506_current_limit"                           PL506 current limit, A
 "PL506_settle_seconds"                          PL506 delay after enabling channel, s
+"keysight970a_fan_expected_s"                   Expected seconds for one DAQ fan scan (progress bar)
 -------------------------------------------------------------------------------------------------------
 """
 
@@ -30,6 +31,7 @@ import wiec_serial as WIEC_SERIAL
 
 from . import cli
 from . import WIEC_utils
+from . import record_results
 
 
 NAME = "PTC Power"
@@ -58,11 +60,13 @@ def ensure_fans_on(session):
     try:
         session.keysight.keysight.timeout = 20000 #ms, increases time for scan.
         session.keysight.initialize_fan()
-        fan_read_signal = session.keysight.measure_fan()
+        fan_read_signal = WIEC_utils.run_with_bar("Reading fan frequencies",
+                                                  json_data["keysight970a_fan_expected_s"],
+                                                  session.keysight.measure_fan)
 
     # Issue arises where the keysight does not clear partial previous run. This attempts to fix.
     except pyvisa.errors.VisaIOError as exc:
-        session.log(f"DAQ970A fan read failed ({exc}); reconnecting and retrying one time.")
+        session.log(WIEC_utils.fail_text(f"DAQ970A fan read failed ({exc}); reconnecting and retrying one time."))
         try:
             session._keysight.keysight.clear()
             session._keysight.keysight.close()
@@ -72,9 +76,16 @@ def ensure_fans_on(session):
         time.sleep(2)
         session.keysight.keysight.timeout = 20000 #ms, needs to be done again for new fan scan
         session.keysight.initialize_fan()
-        fan_read_signal = session.keysight.measure_fan()
+        fan_read_signal = WIEC_utils.run_with_bar("Reading fan frequencies (retry)",
+                                                  json_data["keysight970a_fan_expected_s"],
+                                                  session.keysight.measure_fan)
 
     num_fans = int(json_data["keysight970a_fan_num"])
+    # Every fan is recorded before any early return, so a failed interlock is in the CSV too
+    for fan in range(1, num_fans + 1):
+        record_results.measure(session, KEY, "fan interlock frequency", fan_read_signal[fan],
+                               passed=fan_read_signal[fan] >= json_data["fan_osc_freq"],
+                               unit="Hz", channel=fan, low=json_data["fan_osc_freq"])
     for fan in range(1, num_fans + 1):
         if fan_read_signal[fan] < json_data["fan_osc_freq"]:
             session.log(
@@ -120,12 +131,12 @@ def power_up(session):
     for tries in range(3):
         readback = turn_on_pl506(session)
         if readback.get("measured_current_a", 0.0) == 0.0 or readback.get("terminal_voltage_v", 0.0) == 0.0:
-            session.log(f"Attempt {tries + 1}/3 to turn on PL506 channel {json_data['PL506_channel']} FAILED. Reattempting.")
+            session.log(WIEC_utils.fail_text(f"Attempt {tries + 1}/3 to turn on PL506 channel {json_data['PL506_channel']} FAILED. Reattempting."))
         else:
-            session.log(f"Attempt {tries + 1}/3 to turn on PL506 channel {json_data['PL506_channel']} SUCCESS!")
+            session.log(WIEC_utils.pass_text(f"Attempt {tries + 1}/3 to turn on PL506 channel {json_data['PL506_channel']} SUCCESS!"))
             break
     else:
-        session.log(f"Third and final attempt to turn on PL506 channel {json_data['PL506_channel']} FAILED. Terminating testing.")
+        session.log(WIEC_utils.fail_text(f"Third and final attempt to turn on PL506 channel {json_data['PL506_channel']} FAILED. Terminating testing."))
         power_down(session)
         return False
 
@@ -136,6 +147,15 @@ def power_up(session):
     #session.log(f"PL506 channel {json_data['PL506_channel']} turned on with readback: {readback}")
 
     session.datastore["pl506_readback"] = readback
+    record_results.measure(session, KEY, "PL506 terminal voltage", readback.get("terminal_voltage_v"),
+                           unit="V", channel=json_data["PL506_channel"],
+                           setpoint=readback.get("voltage_setpoint_v"),
+                           note=f"status {readback.get('status')}")
+    record_results.measure(session, KEY, "PL506 sense voltage", readback.get("sense_voltage_v"),
+                           unit="V", channel=json_data["PL506_channel"])
+    record_results.measure(session, KEY, "PL506 current", readback.get("measured_current_a"),
+                           unit="A", channel=json_data["PL506_channel"],
+                           note=f"current limit {readback.get('current_limit_a')} A")
     return True
 
 

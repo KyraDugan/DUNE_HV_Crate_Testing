@@ -16,6 +16,7 @@ config.json keys used:
 "keysight970a_fan_num"                          Number of fans to test
 "fan_read_min"                                  Minimum acceptable fan RD signal (Hz)
 "fan_read_max"                                  Maximum acceptable fan RD signal (Hz)
+"keysight970a_fan_expected_s"                   Expected seconds for one DAQ fan scan (progress bar)
 -------------------------------------------------------------------------------------------------------
 """
 
@@ -62,7 +63,9 @@ def measure(session):
             }
         return readings
 
-    readings = WIEC_utils.run_with_bar("Reading fans", 15, take_readings)
+    # Two DAQ fan scans (the first set is discarded)
+    readings = WIEC_utils.run_with_bar("Reading fans", 2 * json_data["keysight970a_fan_expected_s"],
+                                       take_readings)
         
 
     session.rigol0.power("OFF", "fan")
