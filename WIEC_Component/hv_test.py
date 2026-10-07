@@ -64,8 +64,8 @@ def _max_attempts(session):
     return int(session.json_data.get("hv_max_connection_retries", DEFAULT_MAX_ATTEMPTS))
 
 
-def record_hv_data(session, name, short_time=False):
-    """Logs V and I of all 16 CAEN channels to CSV for the configured duration."""
+def record_hv_data(session, name, raw_dir, short_time=False):
+    """Logs V and I of all 16 CAEN channels to raw_dir/name (CSV) for the configured duration."""
     json_data = session.json_data
     data = []
 
@@ -100,7 +100,7 @@ def record_hv_data(session, name, short_time=False):
     finally:
         WIEC_utils.finish_bar(message)
 
-    with open(os.path.join(session.results_path, name), "w") as fp:
+    with open(os.path.join(raw_dir, name), "w") as fp:
         csv.writer(fp, delimiter=",").writerows(data)
 
 
@@ -165,12 +165,15 @@ def _phase(session, hv_results, chs_to_test, chs_string, spec):
 
     suffix = "on" if spec["on"] else "off"
     csv_name = f"{session.test_name}_ch{chs_string}_{key}_{suffix}.csv"
-    record_hv_data(session, csv_name, short_time=spec["short_time"])
+    # Raw data and plots go into this run's folder: raw/hv_test/ and plots/hv_test/
+    raw_dir = record_results.test_folder(session, "raw", KEY)
+    plot_dir = record_results.test_folder(session, "plots", KEY)
+    record_hv_data(session, csv_name, raw_dir, short_time=spec["short_time"])
 
     for i in chs_to_test:
         ch = json_data[f"pcb_ch_{i}_{polarity}"]
         fit = analysis.hv_curve_fit(
-            session.results_path, csv_name, ch,
+            raw_dir, csv_name, ch,
             on=spec["on"], term=spec["termination"] == "term",
             initial_b=float(json_data["hv_fit_initial_b"])
         )
@@ -185,9 +188,10 @@ def _phase(session, hv_results, chs_to_test, chs_string, spec):
 
         direction = f"0 to {sign}{voltage}V" if spec["on"] else f"{sign}{voltage} to 0V"
         analysis.make_plot(
-            session.results_path, csv_name,
+            raw_dir, csv_name,
             f"Ch {i} from {direction}, {spec['label']}", ch,
             fit[0][1], [voltage - 5, voltage + 5] if spec["on"] else None,
+            plot_dir=plot_dir,
         )
 
 

@@ -323,7 +323,7 @@ def run_assembly_checkout(session, wib_number, femb_ids):
 
 
     # Keep the full output: it is the first place to look when a checkout fails.
-    output_file = os.path.join(session.results_path, f"femb_checkout_wib{wib_number}.txt")
+    output_file = femb_output_file(session, wib_number)
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(wib_output)
 
@@ -335,14 +335,24 @@ def run_assembly_checkout(session, wib_number, femb_ids):
     return result, wib_output
 
 
+def femb_output_file(session, wib_number):
+    """
+    Where the WIB's full checkout output for the WIB in wib_number is kept:
+    <run folder>/raw/femb_checkout/femb_checkout_wib<N>.txt. Used both to write and to read it.
+    """
+    return os.path.join(record_results.test_folder(session, "raw", "femb_checkout"),
+                        f"femb_checkout_wib{wib_number}.txt")
+
+
 def fetch_report(session, wib_number, report_dir):
     """
-    Copies BNL's report folder (plots from the ADC data tests) back into this run's results folder,
-    as results/<stamp>/femb_checkout_wib<N>_report/. Returns the local path, or None.
+    Copies BNL's report folder (plots from the ADC data tests) back into this run's folder,
+    as <run folder>/plots/femb_checkout/wib<N>/. Returns the local path, or None.
     """
     config_data = session.json_data
     wib_ip = wib_setup.expected_wib_ip(session, wib_number)
-    destination = os.path.join(session.results_path, f"femb_checkout_wib{wib_number}_report")
+    destination = os.path.join(record_results.test_folder(session, "plots", "femb_checkout"),
+                               f"wib{wib_number}")
     command = ["scp", "-r", "-o", "BatchMode=yes", "-o", f"ConnectTimeout={config_data['wib_ssh_connect_timeout_s']}",
                f"root@{wib_ip}:{config_data['wib_software_dir']}/{report_dir}", destination]
     try:
@@ -487,7 +497,7 @@ def print_femb_results(session, wib_number):
     checks = record["checks"]
     if not checks:
         print(WIEC_utils.color(f"  The checkout did not complete: {record['reason']}", Fore.RED))
-        output_file = os.path.join(session.results_path, f"femb_checkout_wib{wib_number}.txt")
+        output_file = femb_output_file(session, wib_number)
         if os.path.isfile(output_file):
             with open(output_file, encoding="utf-8") as f:
                 last_lines = f.read().strip().splitlines()[-max_lines:]

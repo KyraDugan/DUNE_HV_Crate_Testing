@@ -53,7 +53,7 @@ def get_results_folder(session):
 
 
 
-def run_path(session):
+def run_path(session):  
     """
     Creates the file for the run path and returns the path name for the results folder for this run.
     """
@@ -138,9 +138,15 @@ def write_measurements(session):
 
     return path
 
-    
 
-
-
-
-    
+def test_folder(session, kind, test):
+    """
+    Creates or finds folder for the type of test being created.
+    """
+    config_data = session.json_data
+    folder_name = config_data[f"wiec_{kind}_folder"]
+    run_dir = getattr(session, "wiec_run_dir", None) or session.results_path
+    path = os.path.join(run_dir, folder_name, test)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path 

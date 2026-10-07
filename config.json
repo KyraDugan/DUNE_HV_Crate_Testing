@@ -7,6 +7,8 @@
     "WIEC_results_folder": "/home/dune-daq/DUNE-HV-Crate-Testing/WIEC_Component_Results",
     "wiec_session_log_name": "session_log.txt",
     "wiec_results_csv_name": "measurements.csv",
+    "wiec_plots_folder": "plots",
+    "wiec_raw_folder": "raw",
     "rounding_factor": 5,
     "PL506_IP_ADDR": "169.254.12.2",
     "PL506_settle_seconds": 5.0,

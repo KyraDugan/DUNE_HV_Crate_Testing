@@ -192,8 +192,9 @@ def run(session):
         session.log("Fix rigol832a_fan_voltage_max / _min in config.json")
         return False
 
-    fan_results_folder = os.path.join(session.results_path, "fan PWM results")
-    os.makedirs(fan_results_folder, exist_ok=True)
+    # Plots and the one-row CSV go into this run's folder: plots/fan_pwm_sweep/ and raw/fan_pwm_sweep/
+    fan_plots_folder = record_results.test_folder(session, "plots", KEY)
+    fan_raw_folder = record_results.test_folder(session, "raw", KEY)
 
     # The same points the spreadsheet headers were built from
     prog_voltage = sheet.get_fan_pwm_sweep_points()
@@ -276,20 +277,20 @@ def run(session):
 
     for fan in range(1, num_fans + 1):
         _save_plot(
-            fan_results_folder,
+            fan_plots_folder,
             f"fan_{fan}_voltage_vs_frequency.png",
             prog_voltage, fan_signals[fan],
             f"Programmed Input Voltage vs. Fan #{fan} PWM Frequency",
             "Programmed Fan Voltage [V]", "Oscillation Frequency [Hz]",
         )
     _save_plot(
-        fan_results_folder, "programmed_voltage_vs_read_voltage.png",
+        fan_plots_folder, "programmed_voltage_vs_read_voltage.png",
         prog_voltage, read_voltage,
         "Programmed Fan Voltage vs. Read Fan Voltage",
         "Programmed Fan Voltage [V]", "Read Fan Voltage [V]",
     )
     _save_plot(
-        fan_results_folder, "programmed_voltage_vs_read_current.png",
+        fan_plots_folder, "programmed_voltage_vs_read_current.png",
         prog_voltage, read_current,
         "Programmed Fan Voltage vs. Read Fan Current",
         "Programmed Fan Voltage [V]", "Read Fan Current [A]",
@@ -315,14 +316,15 @@ def run(session):
         ).style = "top"
     sheet.save()
 
-    csv_save_path = os.path.join(fan_results_folder, "fan_pwm_results.csv")
+    csv_save_path = os.path.join(fan_raw_folder, "fan_pwm_results.csv")
     with open(csv_save_path, mode="w", newline="") as csv_file:
         csv_writer = csv.writer(csv_file)
         csv_writer.writerow(csv_headers)
         csv_writer.writerow(fan_pwm_row)
 
     session.log("Fan PWM plots, one-row CSV data, and spreadsheet data saved")
-    session.log(f"Fan PWM results folder: {fan_results_folder}")
+    session.log(f"Fan PWM plots: {fan_plots_folder}")
+    session.log(f"Fan PWM one-row CSV: {csv_save_path}")
 
 
     return profile_pass
