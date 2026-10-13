@@ -303,11 +303,11 @@ class TestSession:
         self.results[key] = bool(passed)
         self.datastore.setdefault("Items", {})[key] = "Pass" if passed else "Fail"
 
-    def save_datastore(self):
+    def save_datastore(self, path=None):
         end_time = datetime.now()
         self.datastore["end_time"] = end_time
         self.datastore["test_time"] = end_time - self.start_time
-        with open(self.json_output_file, "w", encoding="utf-8") as f:
+        with open(path or self.json_output_file, "w", encoding="utf-8") as f:
             json.dump(self.datastore, f, ensure_ascii=False, indent=4, default=str)
 
     def finalize(self):

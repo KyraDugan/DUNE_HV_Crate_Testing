@@ -179,6 +179,24 @@ def pass_text(text):
     """
     return color(text, PASS_COLOR)
 
+
+def cell_rgb(hex_color, opacity):
+    """
+    Returns hex_color as the aRGB string openpyxl wants, faded towards white.
+    opacity 1 is the full colour, 0 is white. Spreadsheets ignore the alpha byte,
+    so the fading is done here by mixing the colour with white.
+    """
+    hex_color = hex_color.lstrip("#")
+    channels = [int(hex_color[i:i + 2], 16) for i in (0, 2, 4)]
+    mixed = [round(c * opacity + 255 * (1 - opacity)) for c in channels]
+    return "FF" + "".join(f"{c:02X}" for c in mixed)
+
+CELL_OPACITY = 0.3
+PASS_CELL = cell_rgb(PASS_HEX, CELL_OPACITY)
+FAIL_CELL = cell_rgb(FAIL_HEX, CELL_OPACITY)
+NOT_TESTED_CELL = cell_rgb(BAR_EMPTY_HEX, CELL_OPACITY)
+
+
 #--------------PROGRESS BAR WITH RANDOM PRETTY GRADIENT--------------------------------------------
 
 BAR_MIN_WIDTH = 10     # a progress bar never gets narrower than this, even in a small window

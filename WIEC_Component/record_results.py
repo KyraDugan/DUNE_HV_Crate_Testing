@@ -6,6 +6,9 @@ config.json keys used:
 
 "WIEC_results_folder"                                Folder for the new style of WIEC results
 "wiec_results_csv_name"                              Folder for the measurement csv
+"wiec_qc_sheet_name"                                 Name of the wiec qc spreadsheet output
+"wib_test_slots"
+"wib_femb_positions"
 -------------------------------------------------------------------------------------------------------
 
 
@@ -25,10 +28,17 @@ Plan:   Will write to old results scheme for now, but will eventually switch to 
 import os
 import re
 import pandas as pd
+import openpyxl
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
+
 
 from datetime import datetime
+from . import WIEC_utils
 
 
+# Cell background colour for each result in the QC sheet (pale green / pale red, Excel's own good/bad shades)
+QC_SHEET_FILLS = {"PASS": f"{WIEC_utils.PASS_CELL}", "FAIL": f"{WIEC_utils.FAIL_CELL}", "not tested": f"{WIEC_utils.NOT_TESTED_CELL}"}
 
 
 
@@ -79,13 +89,13 @@ def run_path(session):
     return run_path
 
 
-CSV_COLUMNS = ["test", "measurement", "channel", "wib_slot", "femb_position", #Info for specific measurement
+CSV_COLUMNS = ["test", "measurement", "channel", "wib_slot", "femb_position", "femb_serial", #Info for specific measurement
                "result", "value", "unit", "min", "max", "setpoint", "note",   #Info for result pass/fail
                "wiec_serial", "run_id", "start_time", "username"]             #Info for run as a whole
 
 
 def measure(session, test, measurement, value, passed=None, unit="", low=None, high=None,
-            wib_slot=None, femb_position=None, channel=None, 
+            wib_slot=None, femb_position=None, femb_serial=None, channel=None, 
             setpoint = None, note=""):
     """
     Creates a row with the measurement value(s) from the designated test.
@@ -108,6 +118,7 @@ def measure(session, test, measurement, value, passed=None, unit="", low=None, h
         "result": pass_output,
         "wib_slot": wib_slot,
         "femb_position": femb_position,
+        "femb_serial": femb_serial,
         "channel": channel,
         "measurement": measurement,
         "setpoint": setpoint,
@@ -150,3 +161,127 @@ def test_folder(session, kind, test):
     if not os.path.exists(path):
         os.makedirs(path)
     return path 
+
+
+            
+def failure_summary(session):
+    """
+    Returns a short summary of what failed, for the "why" column of the QC sheet.
+    One entry per place (test, WIB slot, FEMB position), listing each failed measurement once:
+        "heater_test: temperature rise; hv_test: pos_term resistance, neg_term resistance"
+    Returns "" if nothing failed.
+    """
+
+    measurements = session.datastore.get("measurements", [])
+    failed_tests = [r for r in measurements if r["result"] == "FAIL"]
+
+    reasons = {}
+
+    for row in failed_tests:
+        label = row["test"]
+        if row["wib_slot"] is not None:
+            label += f" WIB {row['wib_slot']}"
+        if row["femb_position"] is not None:
+            label += f" FEMB {row['femb_position']}"
+
+        names = reasons.setdefault(label, [])
+        if row["measurement"] not in names:
+            names.append(row["measurement"])
+
+    summary = []
+    for label, names in reasons.items():
+        summary.append(f"{label}: {', '.join(names)}")
+
+    return "\n".join(summary)
+
+
+#XLSX_COLUMNS = ["WIEC Serial", "Start Time", "User", "Overall Result", 
+#                "Fan Test", "Fan PWM Sweep", "Heater Test", "HV Test", "WIB FEMB Passthrough"]
+
+
+
+def qc_sheet_row(session, items):
+    """
+    Returns one row of the QC sheet as a dict from column name to value, in column order:
+    run information, PASS/FAIL/not tested for each item, then a short "Why" for any failures.
+    """
+
+    datastore = session.datastore
+    overall = datastore.get("overall")
+
+    row = {
+        "WIEC Serial": datastore.get("wiec_serial", ""),
+        "Overall Result": overall.upper() if overall else "not recorded",
+        "Start Time": datastore.get("session_stamp", ""),
+        "Link to Folder": datastore.get("run_id", ""),
+        "User": datastore.get("username", ""),
+    }
+
+    for item in items:
+        passed = session.results.get(item.KEY)
+        if passed is None:
+            row[item.NAME] = "not tested"
+        elif passed:
+            row[item.NAME] = "PASS"
+        else:
+            row[item.NAME] = "FAIL"
+
+    why = failure_summary(session)
+    if not why and "FAIL" in row.values():
+        why = "No failed checks recorded, see session_log.txt"
+    row["Why"] = why
+
+    return row
+
+
+def write_qc_sheet(session, items):
+    """
+    Adds this run's row to the QC sheet (one row per run, PASS/FAIL per item and a short why).
+    Creates the sheet with a header row the first time. A column that is not in the sheet yet
+    (e.g. a new item) is added at the end; older rows stay blank in it.
+    """
+
+    row = qc_sheet_row(session, items)
+    path = os.path.join(get_results_folder(session), session.json_data["wiec_qc_sheet_name"])
+
+    if os.path.exists(path):
+        workbook = openpyxl.load_workbook(path)
+        sheet = workbook.active
+    else:
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.title = "WIEC QC"
+        sheet.freeze_panes = "B2"
+
+    # Column name -> column number, from the header row
+    columns = {cell.value: cell.column for cell in sheet[1] if cell.value is not None}
+
+    for name in row:
+        if name not in columns:
+            column = max(columns.values(), default=0) + 1
+            header = sheet.cell(row=1, column=column, value=name)
+            header.font = Font(bold=True)
+            header.alignment = Alignment(wrap_text=True, vertical="top")
+            width = 80 if name == "Why" else max(12, len(name) + 2)
+            sheet.column_dimensions[get_column_letter(column)].width = width
+            columns[name] = column
+
+    row_number = sheet.max_row + 1
+    for name, value in row.items():
+        cell = sheet.cell(row=row_number, column=columns[name], value=value)
+        if name == "Run ID" and getattr(session, "wiec_run_dir", None):
+            cell.hyperlink = os.path.relpath(session.wiec_run_dir, os.path.dirname(path))
+            cell.style = "Hyperlink"
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+        if value in QC_SHEET_FILLS:
+            cell.fill = PatternFill(fill_type="solid", start_color=QC_SHEET_FILLS[value])
+
+    lines = row["Why"].count("\n") + 1
+    sheet.row_dimensions[row_number].height = 15 * lines
+
+    workbook.save(path)
+    session.datastore["qc_sheet_path"] = path
+    session.log(f"QC sheet: row {row_number} written to {path}")
+    return path
+
+

@@ -23,9 +23,11 @@ HV PMOD QC Ramp Warnings/
 ISEG_E-Tests_RampRate/
 wiec\ output\ logs/
 WIEC_Component_Results/
+HV Module Test/hv_module_test_results.xlsx
 
 #WIEC component cache files
 WIEC_Component/__pycache__/
 
 #FEMB results
 FEMB_chk/FEMB_QC/
+

@@ -14,6 +14,8 @@ same spreadsheet row and results folder.
 
 Run it from the repository root: caen_r8033dm.py loads its .so from the
 working directory.
+
+    "wiec_run_json_name": "run.json",
 """
 
 import argparse
@@ -105,22 +107,37 @@ def build_session(args, state):
 
 
 def finish(session, beep=True):
-    
+
     if session is None:
         return True
-
+    
+    config_data = session.json_data
     try:
         session.emergency_shutoff()
         passed = session.finalize()
         if beep:
             session.beep_sequence()
     finally:
+
         try:
             record_results.write_measurements(session)
         except Exception as error:
             session.log(f"Could not write measurements: {error}")
+
+        try:
+            record_results.write_qc_sheet(session, CRATE_ITEMS)
+        except Exception as error:
+            session.log(f"Could not write QC sheet: {error}")
+
+
+        try:
+            session.save_datastore(os.path.join(session.wiec_run_dir, config_data["wiec_run_json_name"]))
+        except Exception as error:
+            session.log(f"Could not write datastore: {error}")
+
         session.close_instruments()
         output_log.stop(session)
+
     return passed
 
 
