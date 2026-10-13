@@ -1,4 +1,6 @@
-"""Environment checks and first-run guidance for the WIEC_Component top script.
+"""preflight.py
+
+Environment checks and first-run guidance for the WIEC_Component top script.
 
 -------------------------------------------------------------------------------------------------------
 config.json keys used:
@@ -170,52 +172,39 @@ def estimate_minutes(json_data, items):
 
 
 def print_suggestions(config_file, items, json_data=None):
-    line = WIEC_utils.rule()
-    print(f"""
-{line}
- FIRST RUN -- READ THIS ONCE
-{line}
 
- What this is
-   The DUNE HV crate test, split into items you can run one at a time.
-   Each item is its own module under WIEC_Component/ and writes into the
-   same spreadsheet row and results folder for as long as this top script
-   stays open.
+    print("The Warm Interface Electronics Crate (WIEC) is where the cables from the \n"
+    "cold electronics in the DUNE experiment meet the warm electronics.\n")
+    
+    WIEC_utils.ask("Press enter to continue")
 
- Before you start
-   1. HV board seated, HV / fan / heater cabling connected
-   2. CAEN, both Rigols, the DAQ970A and the PL506 powered on
-   3. Every instrument answering ping (the preflight above tells you)
-   4. CAEN front panel in REMOTE, not LOCAL -- nothing checks this for you
-   5. Start from the repository root; the CAEN library is loaded from the
-      working directory
+    print("This crate must be thoroughly quality control (QC) tested before it can\n"
+    "be installed in the experiment, as it is expected to run for 30 years\n"
+    "without major interruption.\n")
 
- Suggested order
-   1  fan_test        confirms the fans before anything gets warm
-   2  fan_pwm_sweep   characterisation, safe to skip on a repeat run
-   3  heater_test     wants the fans proven first
-   4  hv_test         the long one, run it last and leave it alone
-   ptc_power is only for WIEC PTC work, not part of the crate test.
+    WIEC_utils.ask("Press enter to continue")
 
- While it runs
-   Ctrl-C aborts and powers everything down.  Watch the shutdown messages:
-   if any step reports a failure, check the hardware by hand before you
-   walk away.  Option 's' in the menu powers everything down at any time.
+    print("This QC test will run through each of the components on the WIEC that\n"
+    "must be checked, and will return to you the results of each of these QC\n"
+    "tests. If everything passes, the WIEC is ready for use!\n")
 
- Where the results go
-   results/DUNE_HV_Crate_Production_Test.xlsx   one row per session
-   results/<timestamp>/                          CSV, PNG and the JSON archive
-   Green test name = every item passed.  Red = something failed or the
-   session never finished.
+    WIEC_utils.ask("Press enter to continue")
 
- Worth knowing
-   * fan_read_min/max in config.json (1.1 - 2.5) look like thresholds from
-     the old voltage-readback fans, but the DAQ now measures PWM frequency
-     in Hz.  Check that window before trusting a fan RD failure.
-   * The HV thresholds are in megaohms, and hv_tau_min/max is compared
-     against the fit parameter b while the spreadsheet stores 1/b.
-{line}
-""")
+    print("If you need to abort the test for any reason, Ctrl-C will stop all\n"
+          "testing and power down everything immediately. Results will be saved.\n")
+
+    while WIEC_utils.ask("Type: \"Ctrl-C aborts\" to continue").lower() != "ctrl-c aborts":
+        print("Retype exact phrase.")
+
+    print("The settings for the test are contained within config.json, which should not\n"
+          "be altered unless confirmed by the technical coordinator.\n")
+    
+    while WIEC_utils.ask("Type: \"I will not alone alter config.json\" to continue").lower() != "i will not alone alter config.json":
+        print("Retype exact phrase")
+
+    print("If you have any further issues throughout the WIEC QC test,\n"
+          "please contact the technical coordinator.\n")
+
 
     if json_data:
         total = estimate_minutes(json_data, items)

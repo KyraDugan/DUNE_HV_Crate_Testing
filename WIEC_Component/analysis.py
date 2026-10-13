@@ -83,7 +83,7 @@ def format_plot(ax):
 
 def make_plot(results_path, filename, name, ch, fit=None, axes=None, plot_dir=None):
     """Plots one channel of a recorded HV CSV. The CSV is read from results_path; the PNG is
-    saved in plot_dir if given, otherwise next to the CSV in results_path."""
+    saved in plot_dir if given, otherwise next to the CSV in results_path. Returns the PNG's file name."""
     ch_time, ch_voltage, ch_current = get_ch_data(
         os.path.join(results_path, filename), ch
     )
@@ -113,6 +113,7 @@ def make_plot(results_path, filename, name, ch, fit=None, axes=None, plot_dir=No
         )
 
     fig.legend(loc="lower left", prop={"size": 20}, ncol=2)
-    stem = Path(filename).stem
-    fig.savefig(os.path.join(plot_dir or results_path, f"{stem}_ch{ch}.png"))
+    png_name = f"{Path(filename).stem}_ch{ch}.png"
+    fig.savefig(os.path.join(plot_dir or results_path, png_name))
     plt.close(fig)
+    return png_name

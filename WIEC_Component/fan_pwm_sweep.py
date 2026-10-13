@@ -50,6 +50,16 @@ def _save_plot(folder, filename, x, y, title, xlabel, ylabel):
     plt.close()
 
 
+def _fan_plot_name(fan):
+    """One fan's frequency plot; its profile rows point at it so the summary can show it on a fail."""
+    return f"fan_{fan}_voltage_vs_frequency.png"
+
+
+def _fan_plot_title(fan):
+    """The title on that plot, also its heading in the summary."""
+    return f"Programmed Input Voltage vs. Fan #{fan} PWM Frequency"
+
+
 def evaluate_fan_pwm_profiles(fan_signals, min_correlation = 0.90, max_rmse = 0.15):
 
     """
@@ -266,21 +276,24 @@ def run(session):
     for fan, details in profile_details.items():
         if "reason" in details:
             record_results.measure(session, KEY, "profile check", "not evaluated", passed=False,
-                                   channel=fan, note=details["reason"])
+                                   channel=fan, note=details["reason"],
+                                   plot=_fan_plot_name(fan), plot_title=_fan_plot_title(fan))
             continue
         record_results.measure(session, KEY, "profile correlation", details["correlation"],
                                passed=details["correlation"] >= min_correlation,
-                               channel=fan, low=min_correlation)
+                               channel=fan, low=min_correlation,
+                               plot=_fan_plot_name(fan), plot_title=_fan_plot_title(fan))
         record_results.measure(session, KEY, "profile RMSE", details["rmse"],
                                passed=details["rmse"] <= max_rmse,
-                               channel=fan, high=max_rmse)
+                               channel=fan, high=max_rmse,
+                               plot=_fan_plot_name(fan), plot_title=_fan_plot_title(fan))
 
     for fan in range(1, num_fans + 1):
         _save_plot(
             fan_plots_folder,
-            f"fan_{fan}_voltage_vs_frequency.png",
+            _fan_plot_name(fan),
             prog_voltage, fan_signals[fan],
-            f"Programmed Input Voltage vs. Fan #{fan} PWM Frequency",
+            _fan_plot_title(fan),
             "Programmed Fan Voltage [V]", "Oscillation Frequency [Hz]",
         )
     _save_plot(

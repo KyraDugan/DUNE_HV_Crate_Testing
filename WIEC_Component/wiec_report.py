@@ -14,6 +14,10 @@ mailed or dropped on a share and still render. It reads only what the run wrote:
     run.json            the whole session datastore, including every measurement row
     plots/<test>/       the PNGs each test saved (searched recursively)
 
+Everything is shown, nothing is folded away. A measurement row that names its plot (the
+"plot" field from record_results.measure) is shown next to that plot; the rest of a test's
+rows are in one table above its plots.
+
 -------------------------------------------------------------------------------------------------------
 config.json keys used:
 
@@ -52,9 +56,6 @@ ROW_COLUMNS = [("wib_slot", "WIB"), ("femb_position", "FEMB"), ("femb_serial", "
                ("value", "Value"), ("unit", "Unit"), ("min", "Min"), ("max", "Max"),
                ("setpoint", "Setpoint"), ("note", "Note")]
 
-# Tables with more rows than this start folded up
-FOLD_ROWS = 40
-
 
 def _pale(hex_color):
     """CSS colour for a pale cell fill, the same shade as the QC sheet's cells."""
@@ -72,7 +73,7 @@ CSS = """
 * { box-sizing: border-box; }
 body { margin: 0; padding: 2rem 1.5rem 4rem; background: var(--bg); color: var(--fg);
        font: 15px/1.55 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; }
-.wrap { max-width: 1100px; margin: 0 auto; }
+.wrap { max-width: 1500px; margin: 0 auto; }
 h1 { font-size: 1.55rem; margin: 0 0 .3rem; color: var(--title); }
 h2 { font-size: 1.15rem; margin: 2.4rem 0 .8rem; padding-bottom: .35rem;
      border-bottom: 1px solid var(--line); }
@@ -96,12 +97,18 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .PASS { color: var(--pass); background: var(--pass-fill); font-weight: 700; }
 .FAIL { color: var(--fail); background: var(--fail-fill); font-weight: 700; }
 .NA   { color: var(--muted); background: var(--na-fill); }
-details { margin: .8rem 0; }
-summary { cursor: pointer; color: var(--muted); }
 .plots { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1rem; }
 figure { margin: 0; }
 figure img { width: 100%; height: auto; border: 1px solid var(--line); }
 figcaption { color: var(--muted); font-size: .85rem; margin-top: .3rem; word-break: break-all; }
+.card { border: 1px solid var(--line); padding: .8rem 1rem 1rem; margin: 1rem 0; }
+.card.failed { border-left: 4px solid var(--fail); }
+.card h4 { font-size: .95rem; margin: 0 0 .7rem; }
+.card-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem;
+             align-items: start; }
+@media (max-width: 800px) { .card-body { grid-template-columns: 1fr; } }
+.card img { width: 100%; height: auto; border: 1px solid var(--line); }
+.file { color: var(--muted); font-size: .75rem; word-break: break-all; margin-top: .2rem; }
 .note { border-left: 3px solid var(--line); padding: .5rem .9rem; color: var(--muted);
         margin: 1rem 0; font-size: .9rem; }
 footer { margin-top: 3rem; color: var(--muted); font-size: .82rem; }
@@ -149,26 +156,25 @@ def _table(headers, rows, numeric=()):
     return "".join(out)
 
 
-def _fold(summary, content, rows):
-    """Puts content in a <details> fold when it has more than FOLD_ROWS rows."""
-    if rows <= FOLD_ROWS:
-        return content
-    return f"<details><summary>{_e(summary)}</summary>{content}</details>"
-
-
 def _number(value, places):
     if isinstance(value, float) and places is not None:
         return round(value, places)
     return value
 
 
-def _measurement_table(rows, places):
-    """Table of measurement rows. Columns that are empty in every row are left out."""
+def _measurement_table(rows, places, skip=()):
+    """Table of measurement rows. Columns that are empty in every row are left out, and so are
+    the keys in skip."""
     columns = [(key, title) for key, title in ROW_COLUMNS
-               if any(row.get(key) not in (None, "") for row in rows)]
+               if key not in skip and any(row.get(key) not in (None, "") for row in rows)]
     numeric = [i for i, (key, _) in enumerate(columns) if key in ("value", "min", "max", "setpoint")]
     table_rows = [[_number(row.get(key), places) for key, _ in columns] for row in rows]
     return _table([title for _, title in columns], table_rows, numeric=numeric)
+
+
+def _plot_title(name, rows):
+    """A plot's heading: the plot_title its rows recorded, else the file name."""
+    return next((row["plot_title"] for row in rows if row.get("plot_title")), None) or name
 
 
 def _verdict(passed):
@@ -183,23 +189,57 @@ def _verdict_span(text):
     return f'<span class="verdict {css}">{_e(text)}</span>'
 
 
-def _figures(directory, config, test):
+def _figure(path, caption):
+    return (f'<figure><img alt="{_e(caption)}" loading="lazy" '
+            f'src="data:image/png;base64,{_embed(path)}">'
+            f'<figcaption>{_e(caption)}</figcaption></figure>')
+
+
+def _card(path, name, rows, places):
+    """One plot with the measurement rows that came from it beside it."""
+    failed = any(row.get("result") == "FAIL" for row in rows)
+    graded = any(row.get("result") in ("PASS", "FAIL") for row in rows)
+    verdict = _verdict_span("FAIL" if failed else "PASS") if graded else ""
+    # The heading already names the channel, so the card's table leaves it out
+    table = _measurement_table(rows, places, skip=("channel",)) if rows else ""
+    return (f'<div class="card{" failed" if failed else ""}">'
+            f'<h4>{_e(_plot_title(name, rows))} {verdict}</h4><div class="card-body">'
+            f'<div><img alt="{_e(name)}" loading="lazy" src="data:image/png;base64,{_embed(path)}">'
+            f'<div class="file">{_e(name)}</div></div>'
+            f"<div>{table}</div></div></div>")
+
+
+def _test_section(directory, config, test, rows, places):
+    """A test's rows and plots. Rows that name a saved plot (their "plot" field) are shown in a
+    card beside that plot, cards in the order the rows were recorded; the other rows go in one
+    table above the cards. Plots no row names come after, as cards without a table, or as a plain
+    grid when no row names any plot (an older run, or an item that does not link them)."""
     pattern = os.path.join(directory, config["wiec_plots_folder"], test, "**", "*.png")
-    paths = sorted(glob.glob(pattern, recursive=True))
-    if not paths:
-        return ""
     plot_root = os.path.join(directory, config["wiec_plots_folder"], test)
-    figures = []
-    for path in paths:
-        caption = os.path.relpath(path, plot_root)
-        figures.append(f'<figure><img alt="{_e(caption)}" loading="lazy" '
-                       f'src="data:image/png;base64,{_embed(path)}">'
-                       f'<figcaption>{_e(caption)}</figcaption></figure>')
-    return f'<div class="plots">{"".join(figures)}</div>'
+    path_of = {os.path.relpath(path, plot_root): path
+               for path in sorted(glob.glob(pattern, recursive=True))}
+
+    rows_of = {}
+    table_rows = []
+    for row in rows:
+        if row.get("plot") in path_of:
+            rows_of.setdefault(row["plot"], []).append(row)
+        else:
+            table_rows.append(row)
+
+    parts = [_measurement_table(table_rows, places)] if table_rows else []
+    if rows_of:
+        for name in list(rows_of) + [name for name in path_of if name not in rows_of]:
+            parts.append(_card(path_of[name], name, rows_of.get(name, []), places))
+    elif path_of:
+        parts.append(f'<div class="plots">'
+                     f'{"".join(_figure(path, name) for name, path in path_of.items())}</div>')
+    return "".join(parts)
 
 
-def _femb_section(rows, places):
-    """FEMB checkout: one block per WIB slot, a line per FEMB, then its failed checks."""
+def _femb_section(directory, config, rows, places):
+    """FEMB checkout: one block per WIB slot, a line per FEMB, then its failed checks.
+    Every check is in the measurements CSV; only the failed ones are listed here."""
     parts = []
     slots = []
     for row in rows:
@@ -228,8 +268,9 @@ def _femb_section(rows, places):
         failed_rows = [row for row in slot_rows if row.get("result") == "FAIL"]
         if failed_rows:
             parts.append(_measurement_table(failed_rows, places))
-        parts.append(f"<details><summary>All {len(slot_rows)} checks for WIB {_e(slot)}</summary>"
-                     f"{_measurement_table(slot_rows, places)}</details>")
+
+    # The pulse plots, one folder per WIB slot
+    parts.append(_test_section(directory, config, "femb_checkout", [], places))
     return "".join(parts)
 
 
@@ -262,6 +303,10 @@ def build_html(directory, config, item_names=None):
     def title(key):
         return names.get(key) or SECTION_NAMES.get(key) or key
 
+    def has_plots(test):
+        return bool(glob.glob(os.path.join(directory, config["wiec_plots_folder"], test, "**", "*.png"),
+                              recursive=True))
+
     overall_text = str(overall).upper() if overall else "NOT RECORDED"
 
     parts = ['<div class="wrap">']
@@ -290,19 +335,6 @@ def build_html(directory, config, item_names=None):
         item_rows.append([title(item), verdict, len(item_graded), len(item_failed)])
     parts.append(_table(["Item", "Result", "Checks", "Failed"], item_rows, numeric=(2, 3)))
 
-    # -- why it failed
-    parts.append("<h2>Why it failed</h2>")
-    if failed:
-        failed_rows = [[title(row["test"])] + [_number(row.get(key), places) for key, _ in ROW_COLUMNS
-                                               if key not in ("result", "setpoint")]
-                       for row in failed]
-        headers = ["Test"] + [t for key, t in ROW_COLUMNS if key not in ("result", "setpoint")]
-        parts.append(_fold(f"{len(failed)} failed checks", _table(headers, failed_rows), len(failed)))
-    elif overall and str(overall).lower() == "fail":
-        parts.append('<div class="note">No failed checks were recorded. See the session log.</div>')
-    else:
-        parts.append('<div class="note">Every recorded check passed.</div>')
-
     # -- detail for every item, with the tests recorded inside it
     shown = []
     for item in items:
@@ -312,27 +344,23 @@ def build_html(directory, config, item_names=None):
         for test in tests_of(item):
             shown.append(test)
             rows = rows_for(test)
-            figures = _figures(directory, config, test)
-            if not rows and not figures:
+            if not rows and not has_plots(test):
                 continue
             has_content = True
             if test != item:
                 parts.append(f"<h3>{_e(title(test))}</h3>")
             if test == "femb_checkout":
-                parts.append(_femb_section(rows, places))
-            elif rows:
-                parts.append(_fold(f"All {len(rows)} measurements", _measurement_table(rows, places), len(rows)))
-            parts.append(figures)
+                parts.append(_femb_section(directory, config, rows, places))
+            else:
+                parts.append(_test_section(directory, config, test, rows, places))
         if not has_content:
             parts.append('<div class="note">No measurements recorded.</div>')
 
     # -- anything recorded under a test name that no item claims
     for test in tests:
         if test not in shown:
-            rows = rows_for(test)
             parts.append(f"<h2>{_e(title(test))}</h2>")
-            parts.append(_fold(f"All {len(rows)} measurements", _measurement_table(rows, places), len(rows)))
-            parts.append(_figures(directory, config, test))
+            parts.append(_test_section(directory, config, test, rows_for(test), places))
 
     # -- links to the files next to this summary (they work when the run folder is opened in place)
     links = []

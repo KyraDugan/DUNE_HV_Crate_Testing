@@ -1,4 +1,4 @@
-"""High voltage test.
+""" hv_test.py
 
 For every PCB channel under test, eight phases:
 
@@ -43,6 +43,7 @@ import os
 import sys
 import time
 import traceback
+import types
 from datetime import datetime
 
 from . import analysis
@@ -113,6 +114,49 @@ def _recover_connection(session):
     session.reset_pyvisa_connections()
     session.rigol1.power("ON", "hvpullup")
     session.rigol1.power("ON", "hvpullup2")
+
+
+def wait_for_ramp_with_bar(self, ch, going_up):
+    self.get_voltage(ch)
+    self.get_channel_status(ch)
+    self.channel_error()
+    self.json_data
+
+
+def wait_for_ramp_with_bar(self, ch, going_up):
+    """
+    Stands in for CAENR8033DM_WRAPPER.wait_for_ramp on this session's CAEN only (swapped in by
+    run(); the shared wrapper file is not changed). Shows the ramp as a progress bar instead of
+    a line every second. The bar follows the voltage: how far it has moved, over the ramp rate.
+    Same stop and safety checks as the original: done at channel status 1 (on) / 0 (off), and
+    channel_error on any status above 0x7, which exits on an overcurrent or trip.
+    """
+    rate = self.json_data["caenR8033DM_ramp_up" if going_up else "caenR8033DM_ramp_down"]
+    start = abs(self.get_voltage(ch))
+    target = abs(self.get_HV_value(ch)) if going_up else 0.0
+    total_s = abs(target - start) / rate
+    done_status = 1 if going_up else 0
+    message = f"Channel {ch} ramping up to {target:g} V" if going_up else f"Channel {ch} ramping down"
+
+    drawn = False
+    finished = False
+    try:
+        while True:
+            status = self.get_channel_status(ch)
+            if status == done_status:
+                finished = True
+                break
+            if status > 0x7:
+                self.channel_error(ch, status)
+            moved_s = abs(abs(self.get_voltage(ch)) - start) / rate
+            WIEC_utils.draw_bar(message, moved_s, total_s)
+            drawn = True
+            time.sleep(self.ramp_wait)
+    finally:
+        if drawn and finished:
+            WIEC_utils.finish_bar(message)
+        elif drawn:
+            print("\n\n")   # a trip or Ctrl-C: leave the bar where it stopped, so it doesn't look done
 
 
 def _ramp_on(session, chs, relay_hv, relay_term, wait_seconds):
@@ -187,9 +231,11 @@ def _phase(session, hv_results, chs_to_test, chs_string, spec):
             hv_results[i][f"{key}_I"] = session.caen.get_current(ch)
 
         direction = f"0 to {sign}{voltage}V" if spec["on"] else f"{sign}{voltage} to 0V"
-        analysis.make_plot(
+        title = f"Ch {i} from {direction}, {spec['label']}"
+        hv_results[i][f"{key}_{suffix}_plot_title"] = title
+        hv_results[i][f"{key}_{suffix}_plot"] = analysis.make_plot(
             raw_dir, csv_name,
-            f"Ch {i} from {direction}, {spec['label']}", ch,
+            title, ch,
             fit[0][1], [voltage - 5, voltage + 5] if spec["on"] else None,
             plot_dir=plot_dir,
         )
@@ -284,10 +330,13 @@ def _evaluate(session, chs_to_test, hv_results):
                 f"{round(value, session.rounding_factor)}Mohm", passed,
             )
             session.datastore["Tests"][f"hv_test_ch{i}_{j}"] = "Pass" if passed else "Fail"
+            # The resistance comes from the readings at the end of the ramp up, the "on" plot
             record_results.measure(session, KEY, f"{j[:-2]} resistance", value, passed=passed,
                                    unit="Mohm", channel=i,
                                    low=json_data["hv_resistance_open_min"],
-                                   high=json_data["hv_resistance_open_max"])
+                                   high=json_data["hv_resistance_open_max"],
+                                   plot=hv_results[i].get(f"{j[:-2]}_on_plot"),
+                                   plot_title=hv_results[i].get(f"{j[:-2]}_on_plot_title"))
             result = result and passed
 
         for num, j in enumerate(["pos_term_R", "neg_term_R"]):
@@ -305,7 +354,9 @@ def _evaluate(session, chs_to_test, hv_results):
             record_results.measure(session, KEY, f"{j[:-2]} resistance", value, passed=passed,
                                    unit="Mohm", channel=i,
                                    low=json_data["hv_resistance_term_min"],
-                                   high=json_data["hv_resistance_term_max"])
+                                   high=json_data["hv_resistance_term_max"],
+                                   plot=hv_results[i].get(f"{j[:-2]}_on_plot"),
+                                   plot_title=hv_results[i].get(f"{j[:-2]}_on_plot_title"))
             result = result and passed
 
         # The fit reports b; the spreadsheet carries the time constant 1/b
@@ -326,7 +377,9 @@ def _evaluate(session, chs_to_test, hv_results):
                 record_results.measure(session, KEY, f"{j} {suffix} fit b", b, passed=passed,
                                        unit="1/s", channel=i,
                                        low=json_data["hv_tau_min"], high=json_data["hv_tau_max"],
-                                       note=f"tau = {round(tau, session.rounding_factor)} s")
+                                       note=f"tau = {round(tau, session.rounding_factor)} s",
+                                       plot=hv_results[i].get(f"{j}_{suffix}_plot"),
+                                       plot_title=hv_results[i].get(f"{j}_{suffix}_plot_title"))
                 result = result and passed
 
         session.datastore[f"hv_ch{i}"] = dict(hv_results[i])
@@ -338,6 +391,10 @@ def _evaluate(session, chs_to_test, hv_results):
 def run(session):
     json_data = session.json_data
     hv_results = {}
+
+    # Ramps in this test show a progress bar (see wait_for_ramp_with_bar)
+    caen = session.caen
+    caen.wait_for_ramp = types.MethodType(wait_for_ramp_with_bar, caen)
 
     session.rigol1.power("ON", "hvpullup")
     session.rigol1.power("ON", "hvpullup2")

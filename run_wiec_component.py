@@ -1,7 +1,8 @@
-#!/usr/bin/env python3
-"""Top script for the WIEC_Component test items.
+""" run_wiec_component.py
 
-Runs the DUNE HV crate test items one at a time, all of them writing into the
+Top script for the WIEC_Component test items.
+
+Runs the DUNE WIEC test items one at a time, all of them writing into the
 same spreadsheet row and results folder.
 
     python3 run_wiec_component.py                       menu
@@ -15,7 +16,8 @@ same spreadsheet row and results folder.
 Run it from the repository root: caen_r8033dm.py loads its .so from the
 working directory.
 
-    "wiec_run_json_name": "run.json",
+/home/dune-daq/Desktop/wiec-test.desktop   runs this from a shell on the desktop.
+
 """
 
 import argparse
@@ -162,38 +164,20 @@ def interactive(args, state, json_data):
         results = session.results if session else {}
         print_items(results)
         if session:
-            print(f" test   : {session.test_name}")
-            print(f" results: {session.results_path}  (row {session.row})")
-        print("\n  a) run all crate items      p) preflight        h) suggestions")
-        print("  s) power everything down    f) finish and write the verdict")
-        print("  q) quit\n")
+            print(f" WIEC serial: {session.wiec_serial}")
+            print(f"     results: {os.path.relpath(session.wiec_run_dir)}\n")
+        print("\n  n) new user instructions         q) save and quit            f) run full test \n\n")
+        print(  "  Uncommon Actions:    p) redo preflight hardware check\n"\
+                "                       s) shutdown instruments without quitting testing session\n")
+
 
         try:
-            choice = WIEC_utils.ask("Select item number(s), or a/p/h/s/f/q: ").lower()
+            choice = WIEC_utils.ask("Select item number(s), or n/q/f/p/s: ").lower()
         except EOFError:
             print("\nInput closed -- finishing up")
             choice = "q"
 
-        if choice in ("q", "quit", "exit"):
-            if session:
-                print("Finishing the open session before quitting...")
-                finish(session)
-            return 0
-
-        if choice == "f":
-            if session is None:
-                print("Nothing has run yet.")
-                continue
-            passed = finish(session)
-            state["session"] = None
-            print(f"\nSession complete: {WIEC_utils.verdict(passed)}")
-            continue
-
-        if choice == "p":
-            preflight.print_report(preflight.check_environment(args.config))
-            continue
-
-        if choice == "h":
+        if choice == "n":
             preflight.print_suggestions(args.config, CRATE_ITEMS, json_data)
             continue
 
@@ -201,11 +185,23 @@ def interactive(args, state, json_data):
             shutdown_only(args.config)
             continue
 
-        if choice == "a":
+        if choice in ("q", "quit", "exit"):
+            if session:
+                print("Finishing the open session before quitting...")
+                passed = finish(session)
+                print(f"\nSession complete: {WIEC_utils.verdict(passed)}")
+            return 0
+
+        if choice == "p":
+            preflight.print_report(preflight.check_environment(args.config))
+            continue
+
+        if choice == "f":
             session = build_session(args, state)
             for item in CRATE_ITEMS:
                 if not run_item(session, item):
                     print(WIEC_utils.fail_text(f"\n{item.NAME} failed -- continuing with the next item."))
+            session.log("Full test done: press q to save and quit.")
             continue
 
         selected = []

@@ -1,27 +1,21 @@
-"""
+""" record_results.py
+
 Manages the results folder and the results files. 
 
 -------------------------------------------------------------------------------------------------------
 config.json keys used:
 
-"WIEC_results_folder"                                Folder for the new style of WIEC results
-"wiec_results_csv_name"                              Folder for the measurement csv
-"wiec_qc_sheet_name"                                 Name of the wiec qc spreadsheet output
-"wib_test_slots"
-"wib_femb_positions"
+"WIEC_results_folder"                               Folder for the WIEC results
+"wiec_results_csv_name"                             Name of measurement .csv
+"wiec_qc_sheet_name"                                Name of the wiec qc spreadsheet output
+"wiec_report_name"                                  File name for the .html report
+"wiec_plots_folder"                                 Folder name for the created plots
+"wiec_raw_folder"                                   Folder name for the raw recorded data
 -------------------------------------------------------------------------------------------------------
 
 
-Expected WIEC results folder currently:  "/home/dune-daq/DUNE-HV-Crate-Testing/WIEC_Component_Results"
-
+Expected WIEC results folder:  "/home/dune-daq/DUNE-HV-Crate-Testing/WIEC_Component_Results"
 Legacy WIEC results folder:  "/home/dune-daq/DUNE-HV-Crate-Testing/results"
-
-
-Plan:   Will write to old results scheme for now, but will eventually switch to only new scheme.
-        Needs:  csv for the component results
-                spreadsheet for easy reading by tester
-                output html for easy reading by tester
-                storage of graphs for easy reading by tester
 
 """
 
@@ -96,10 +90,13 @@ CSV_COLUMNS = ["test", "measurement", "channel", "wib_slot", "femb_position", "f
 
 def measure(session, test, measurement, value, passed=None, unit="", low=None, high=None,
             wib_slot=None, femb_position=None, femb_serial=None, channel=None, 
-            setpoint = None, note=""):
+            setpoint = None, note="", plot=None, plot_title=None):
     """
     Creates a row with the measurement value(s) from the designated test.
     The measurement function itself should decide if the test has been passed/failed if needed.
+    plot is the file name of the PNG in plots/<test>/ that shows this measurement, and plot_title
+    its heading in the summary; the summary puts each plot next to the rows that name it, shows a
+    failed row's plot and folds the rest. Both go in run.json, not the CSV.
     """
 
     if passed is None:
@@ -126,7 +123,9 @@ def measure(session, test, measurement, value, passed=None, unit="", low=None, h
         "unit": unit,
         "min": low,
         "max": high,
-        "note": note
+        "note": note,
+        "plot": plot,
+        "plot_title": plot_title
         }
 
     session.datastore.setdefault("measurements", []).append(row)
@@ -193,10 +192,6 @@ def failure_summary(session):
         summary.append(f"{label}: {', '.join(names)}")
 
     return "\n".join(summary)
-
-
-#XLSX_COLUMNS = ["WIEC Serial", "Start Time", "User", "Overall Result", 
-#                "Fan Test", "Fan PWM Sweep", "Heater Test", "HV Test", "WIB FEMB Passthrough"]
 
 
 

@@ -278,12 +278,12 @@ def draw_bar(message, elapsed, total):
 
 def finish_bar(message):
     """
-    Draws the bar full and ends the line, so the next output starts on a new line.
-    Then forgets this bar's colours, so the next bar gets new ones.
+    Draws the bar full and ends the line, then leaves two blank lines (the same space as above
+    the bar). Then forgets this bar's colours, so the next bar gets new ones.
     """
     suffix = f"{0:3d}s left"
     width = bar_width(message, suffix)
-    print(f"\r{message} {solid_bar(width, width, _colors_for(message))} {suffix}\n")
+    print(f"\r{message} {solid_bar(width, width, _colors_for(message))} {suffix}\n\n")
     _bar_colors.pop(message, None)
 
 def run_with_bar(message, expected_s, function, *args, **kwargs):

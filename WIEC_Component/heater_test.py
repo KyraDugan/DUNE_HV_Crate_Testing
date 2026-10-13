@@ -100,7 +100,7 @@ def run(session):
             < json_data["temp_increase_max"]
         )
         sheet.write(sheet.tc_res_first_col + 4 + i, temp_rise[i], passed, rounded=True)
-        session.datastore["Tests"][f"temperature_rise_test_{i}"] = (
+        session.datastore["Tests"][f"temperature_rise_test_{i+1}"] = (
             "Pass" if passed else "Fail"
         )
         # temp_rise is a list (0-3); the elements are numbered 1-4, like the resistances
