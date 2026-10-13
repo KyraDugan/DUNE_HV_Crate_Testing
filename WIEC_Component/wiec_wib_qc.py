@@ -36,7 +36,7 @@ from . import cli
 from . import WIEC_utils
 
 
-NAME = "WIEC WIB QC test"
+NAME = "WIB/FEMB"
 KEY = "wiec_wib_qc"
 DESCRIPTION = "Sequential WIB powering and FEMB checkout to test Flange Board"
 EST_MINUTES = 30

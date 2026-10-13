@@ -213,7 +213,7 @@ def qc_sheet_row(session, items):
         "WIEC Serial": datastore.get("wiec_serial", ""),
         "Overall Result": overall.upper() if overall else "not recorded",
         "Start Time": datastore.get("session_stamp", ""),
-        "Link to Folder": datastore.get("run_id", ""),
+        "Run Folder": datastore.get("run_id", ""),
         "User": datastore.get("username", ""),
     }
 
@@ -262,16 +262,24 @@ def write_qc_sheet(session, items):
             header = sheet.cell(row=1, column=column, value=name)
             header.font = Font(bold=True)
             header.alignment = Alignment(wrap_text=True, vertical="top")
-            width = 80 if name == "Why" else max(12, len(name) + 2)
+            width = 80 if name == "Why" else max(12, len(name) + 2, len(str(row[name])) + 2)
             sheet.column_dimensions[get_column_letter(column)].width = width
             columns[name] = column
+
+    # Links are relative to the sheet, so they keep working if the results folder is copied or moved
+    links = {}
+    if getattr(session, "wiec_run_dir", None):
+        run_folder = os.path.relpath(session.wiec_run_dir, os.path.dirname(path))
+        links["WIEC Serial"] = os.path.join(run_folder, session.json_data["wiec_report_name"])
+        links["Run Folder"] = run_folder
 
     row_number = sheet.max_row + 1
     for name, value in row.items():
         cell = sheet.cell(row=row_number, column=columns[name], value=value)
-        if name == "Run ID" and getattr(session, "wiec_run_dir", None):
-            cell.hyperlink = os.path.relpath(session.wiec_run_dir, os.path.dirname(path))
+        if name in links:
+            cell.hyperlink = links[name]
             cell.style = "Hyperlink"
+
         cell.alignment = Alignment(wrap_text=True, vertical="top")
         if value in QC_SHEET_FILLS:
             cell.fill = PatternFill(fill_type="solid", start_color=QC_SHEET_FILLS[value])

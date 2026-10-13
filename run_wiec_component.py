@@ -21,10 +21,11 @@ working directory.
 import argparse
 import json
 import os
+import subprocess
 import sys
 import traceback
 
-from WIEC_Component import preflight, WIEC_utils, record_results, output_log
+from WIEC_Component import preflight, WIEC_utils, record_results, output_log, wiec_report
 from WIEC_Component import fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_wib_qc
 from WIEC_Component.session import TestSession, shutdown_only
 
@@ -130,10 +131,24 @@ def finish(session, beep=True):
             session.log(f"Could not write QC sheet: {error}")
 
 
+        # Stored in run.json so a summary rebuilt later from the command line shows the item names
+        item_names = {item.KEY: item.NAME for item in CRATE_ITEMS}
+        session.datastore["item_names"] = item_names
+
         try:
             session.save_datastore(os.path.join(session.wiec_run_dir, config_data["wiec_run_json_name"]))
         except Exception as error:
             session.log(f"Could not write datastore: {error}")
+
+        try:
+            summary_path = wiec_report.write_report(session.wiec_run_dir, config_data, item_names)
+            session.log(f"Summary: {summary_path}")
+            # Only when there is a screen to show it on (not over SSH)
+            if config_data["wiec_open_summary"] and (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+                subprocess.Popen(["xdg-open", summary_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as error:
+            session.log(f"Could not write summary: {error}")
+
 
         session.close_instruments()
         output_log.stop(session)

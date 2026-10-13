@@ -11,6 +11,8 @@
     "wiec_raw_folder": "raw",
     "wiec_run_json_name": "run.json",
     "wiec_qc_sheet_name": "wiec_qc.xlsx",
+    "wiec_report_name": "summary.html",
+    "wiec_open_summary": true,
     "rounding_factor": 5,
     "PL506_IP_ADDR": "169.254.12.2",
     "PL506_settle_seconds": 5.0,
