@@ -19,10 +19,13 @@ Legacy WIEC results folder:  "/home/dune-daq/DUNE-HV-Crate-Testing/results"
 
 """
 
+import math
 import os
 import re
 import pandas as pd
 import openpyxl
+from openpyxl.cell.rich_text import CellRichText, TextBlock
+from openpyxl.cell.text import InlineFont
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
@@ -166,9 +169,10 @@ def test_folder(session, kind, test):
 def failure_summary(session):
     """
     Returns a short summary of what failed, for the "why" column of the QC sheet.
-    One entry per place (test, WIB slot, FEMB position), listing each failed measurement once:
-        "heater_test: temperature rise; hv_test: pos_term resistance, neg_term resistance"
-    Returns "" if nothing failed.
+    One entry per place (test, WIB slot, FEMB position), listing each failed measurement once,
+    with the place in bold and a blank line between entries:
+        "heater_test: temperature rise\n\nhv_test: pos_term resistance, neg_term resistance"
+    Returns rich text (openpyxl CellRichText), which is empty if nothing failed.
     """
 
     measurements = session.datastore.get("measurements", [])
@@ -187,11 +191,14 @@ def failure_summary(session):
         if row["measurement"] not in names:
             names.append(row["measurement"])
 
-    summary = []
+    summary = CellRichText()
     for label, names in reasons.items():
-        summary.append(f"{label}: {', '.join(names)}")
+        if summary:
+            summary.append("\n\n")          # blank line between tests
+        summary.append(TextBlock(InlineFont(b=True), label))   # bold test name
+        summary.append(f": {', '.join(names)}")                # plain reasons
 
-    return "\n".join(summary)
+    return summary
 
 
 
@@ -240,7 +247,8 @@ def write_qc_sheet(session, items):
     path = os.path.join(get_results_folder(session), session.json_data["wiec_qc_sheet_name"])
 
     if os.path.exists(path):
-        workbook = openpyxl.load_workbook(path)
+        # rich_text=True keeps the bold test names in older rows' Why cells
+        workbook = openpyxl.load_workbook(path, rich_text=True)
         sheet = workbook.active
     else:
         workbook = openpyxl.Workbook()
@@ -276,10 +284,12 @@ def write_qc_sheet(session, items):
             cell.style = "Hyperlink"
 
         cell.alignment = Alignment(wrap_text=True, vertical="top")
-        if value in QC_SHEET_FILLS:
+        if isinstance(value, str) and value in QC_SHEET_FILLS:
             cell.fill = PatternFill(fill_type="solid", start_color=QC_SHEET_FILLS[value])
 
-    lines = row["Why"].count("\n") + 1
+    # Count the lines the Why text wraps onto in its 80-wide column, so none are cut off
+    why_lines = str(row["Why"]).split("\n")
+    lines = sum(max(1, math.ceil(len(line) / 80)) for line in why_lines)
     sheet.row_dimensions[row_number].height = 15 * lines
 
     workbook.save(path)

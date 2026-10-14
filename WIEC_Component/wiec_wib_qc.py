@@ -39,7 +39,7 @@ from . import WIEC_utils
 NAME = "WIB/FEMB"
 KEY = "wiec_wib_qc"
 DESCRIPTION = "Sequential WIB powering and FEMB checkout to test Flange Board"
-EST_MINUTES = 30
+EST_MINUTES = 70
 
 
 

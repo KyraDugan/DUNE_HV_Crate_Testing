@@ -27,12 +27,14 @@ config.json keys used:
 "hv_stability_wait"                             Seconds to wait for the open circuit phases to stabilize
 "hv_termination_wait"                           Seconds to wait for the 10 kOhm termination phases to stabilize
 "hv_fit_initial_b"                              Initial b parameter for the exp fit, to help convergence
+"hv_plot_voltage_window"                        Plot only: +/- V around the set voltage for the voltage panel under a ramp-up fit
+"hv_plot_current_range"                         Plot only: [low, high] uA for the current panel under a ramp-down fit
 "hv_resistance_open_min"                        Minimum acceptable open circuit resistance
 "hv_resistance_open_max"                        Maximum acceptable open circuit resistance
 "hv_resistance_term_min"                        Minimum acceptable 10 kOhm termination resistance
 "hv_resistance_term_max"                        Maximum acceptable 10 kOhm termination resistance
-"hv_tau_min"                                    Minimum acceptable time constant (1/b) for the exp fit
-"hv_tau_max"                                    Maximum acceptable time constant (1/b) for the exp fit
+"hv_tau_min"                                    Minimum acceptable decay rate b (1/s) of the exp fit; tau = 1/b
+"hv_tau_max"                                    Maximum acceptable decay rate b (1/s) of the exp fit; tau = 1/b
 "simultaneous_test"                             Whether to test all channels at once or one at a time
 "channels_to_test"                              List of PCB channels to test
 -------------------------------------------------------------------------------------------------------
@@ -218,7 +220,7 @@ def _phase(session, hv_results, chs_to_test, chs_string, spec):
         ch = json_data[f"pcb_ch_{i}_{polarity}"]
         fit = analysis.hv_curve_fit(
             raw_dir, csv_name, ch,
-            on=spec["on"], term=spec["termination"] == "term",
+            on=spec["on"],
             initial_b=float(json_data["hv_fit_initial_b"])
         )
         hv_results[i][f"{key}_{suffix}_fit"] = fit
@@ -231,14 +233,28 @@ def _phase(session, hv_results, chs_to_test, chs_string, spec):
             hv_results[i][f"{key}_I"] = session.caen.get_current(ch)
 
         direction = f"0 to {sign}{voltage}V" if spec["on"] else f"{sign}{voltage} to 0V"
-        title = f"Ch {i} from {direction}, {spec['label']}"
+        title = f"Ch {i}{'+' if polarity == 'pos' else '-'} from {direction}, {spec['label']}"
         hv_results[i][f"{key}_{suffix}_plot_title"] = title
-        hv_results[i][f"{key}_{suffix}_plot"] = analysis.make_plot(
-            raw_dir, csv_name,
-            title, ch,
-            fit[0][1], [voltage - 5, voltage + 5] if spec["on"] else None,
-            plot_dir=plot_dir,
-        )
+        if spec["termination"] == "term":
+            # The 20 V step into the termination settles long before recording starts, so there
+            # is no decay to show: plot the steady hold (mean, noise, drift) instead of the fit
+            png = analysis.make_steady_plot(raw_dir, csv_name, title, ch, plot_dir=plot_dir)
+        else:
+            # Fixed bounds for the panel under the fit: the voltage around its set value after a
+            # ramp up, the current on a fixed scale after a ramp down
+            if spec["on"]:
+                window = json_data["hv_plot_voltage_window"]
+                other_ylim = (voltage - window, voltage + window)
+            else:
+                other_ylim = tuple(json_data["hv_plot_current_range"])
+            png = analysis.make_plot(
+                raw_dir, csv_name, title, ch,
+                fit=fit, on=spec["on"],
+                limits=(json_data["hv_tau_min"], json_data["hv_tau_max"]),
+                other_ylim=other_ylim,
+                plot_dir=plot_dir,
+            )
+        hv_results[i][f"{key}_{suffix}_plot"] = png
 
 
 def _phase_specs(relay_setting):

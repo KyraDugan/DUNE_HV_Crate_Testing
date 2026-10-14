@@ -31,3 +31,4 @@ WIEC_Component/__pycache__/
 #FEMB results
 FEMB_chk/FEMB_QC/
 
+__pycache__/
