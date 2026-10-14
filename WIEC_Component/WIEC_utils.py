@@ -3,6 +3,7 @@ Utilities for WIEC Component testing
 Most of these utilities are for the terminal GUI
 """
 
+import os
 import time
 import shutil
 import sys
@@ -155,6 +156,80 @@ def confirm_input_ask(text, reenter_text = "", retry_text = "", no_input_text = 
         else:
             print(color(retry_text or "Inputs do not match. Please try again.", FAIL_COLOR))
         
+
+#--------------HARDWARE INSTRUCTION POP-UPS----------------------------------------------
+#
+# Slides from WIEC_Component/Hardware_Instructions.odp, exported to <wiec_popup_dir>/<slide>.png
+# by GUI/export_wiec_slides.sh, shown full screen with a Confirm button.
+#
+# config.json keys used:
+# "wiec_popups_enabled"     Show the slides at all (false = terminal prompts only)
+# "wiec_popup_dir"          Folder of the exported slides, relative to the repository root
+# "wiec_popup_pages"        Step name -> slide number, or a list of slide numbers shown in order
+
+def make_instruction_popup(config_data, log=print):
+    """
+    Returns popup(title, slide) -> True if the slide was shown, or None when no window can be
+    opened (turned off, no desktop over ssh, tkinter/PIL missing). Called once at start-up so
+    the operator hears up front that the slides are not coming.
+
+    Reuses popups.available / popups.image_path and GUI.pop_window, which the iseg module test
+    also uses, unchanged. popups.make_popup is not used because its popup does not say whether
+    the slide appeared, and a slide that replaces a "press Enter" must not be assumed shown.
+    """
+    from . import popups
+
+    if not config_data.get("wiec_popups_enabled", False):
+        log("Hardware pop-ups are off (wiec_popups_enabled) -- instructions stay in the terminal.")
+        return None
+    ok, reason = popups.available()
+    if not ok:
+        log(f"Hardware pop-ups are off ({reason}) -- instructions stay in the terminal.")
+        return None
+
+    directory = config_data["wiec_popup_dir"]
+
+    def popup(title, slide):
+        path = popups.image_path(slide, directory)
+        if not os.path.isfile(path):
+            print(color(f"(pop-up slide not found: {path})", FAIL_COLOR))
+            return False
+        try:
+            from GUI import pop_window
+            pop_window.show_image_popup(title=title, image_path=path)
+            return True
+        except Exception as exc:
+            # KeyboardInterrupt is not caught: Ctrl-C on a slide still aborts and powers down
+            print(color(f"(pop-up failed: {type(exc).__name__}: {exc})", FAIL_COLOR))
+            return False
+
+    return popup
+
+
+def show_slides(popup, config_data, name, title, index=None):
+    """
+    Shows the slides config_data["wiec_popup_pages"][name], one after another; index picks
+    one entry from a list (e.g. the slide for one WIB slot). Returns True only if every
+    slide was shown, so the caller can fall back to a terminal prompt otherwise.
+    """
+    if popup is None:
+        return False
+    slides = config_data.get("wiec_popup_pages", {}).get(name)
+    if slides is None:
+        return False
+    if index is not None:
+        if not isinstance(slides, list) or not 0 <= index < len(slides):
+            return False
+        slides = slides[index]
+    if not isinstance(slides, list):
+        slides = [slides]
+
+    shown = True
+    for number, slide in enumerate(slides, start=1):
+        heading = f"{title} ({number}/{len(slides)})" if len(slides) > 1 else title
+        shown = popup(heading, slide) and shown
+    return shown and bool(slides)
+
 
 #--------------PASS/FAIL COLOR TEXT FORMATTING--------------------------------------------
 

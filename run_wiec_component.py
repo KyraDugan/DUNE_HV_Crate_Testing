@@ -18,6 +18,17 @@ working directory.
 
 /home/dune-daq/Desktop/wiec-test.desktop   runs this from a shell on the desktop.
 
+Hardware instruction slides (WIEC_utils.show_slides) appear at start-up (overview, finding the
+serial, setting up the stand) and after a normal finish (taking the stand down).
+
+-------------------------------------------------------------------------------------------------------
+config.json keys used here (the item modules list their own):
+
+"wiec_popups_enabled"                           Show the hardware instruction slides as pop-ups
+"wiec_popup_dir"                                Folder of the exported slides (GUI/export_wiec_slides.sh)
+"wiec_popup_pages"                              Step name -> slide number(s): overview, serial, setup, teardown
+-------------------------------------------------------------------------------------------------------
+
 """
 
 import argparse
@@ -86,10 +97,21 @@ def build_session(args, state):
     """Creates the session on first use, so --list and friends stay cheap."""
     if state.get("session") is None:
 
-        WIEC_serial = args.wiec_serial or WIEC_utils.confirm_input_ask("Enter WIEC serial:", "Reenter WIEC serial to confirm:")
+        # The serial slide comes before the serial prompt, before there is a session to read the config from
+        with open(args.config) as f:
+            config_data = json.load(f)
+        popup = WIEC_utils.make_instruction_popup(config_data)
+        WIEC_utils.show_slides(popup, config_data, "overview", "WIEC QC test")
+
+        if args.wiec_serial:
+            WIEC_serial = args.wiec_serial
+        else:
+            WIEC_utils.show_slides(popup, config_data, "serial", "Find the WIEC serial")
+            WIEC_serial = WIEC_utils.confirm_input_ask("Enter WIEC serial:", "Reenter WIEC serial to confirm:")
         WIEC_serial_safe = record_results.file_name_safe(WIEC_serial)
 
         session = TestSession(args.config, WIEC_serial_safe)
+        session.popup = popup       # the items show their hardware slides with it; may be None
         session.wiec_serial = WIEC_serial_safe
         session.datastore["wiec_serial"] = WIEC_serial_safe
 
@@ -103,6 +125,8 @@ def build_session(args, state):
         username = WIEC_utils.confirm_input_ask("Enter your name:")
         session.datastore["username"] = username
         session.username = username
+
+        WIEC_utils.show_slides(popup, config_data, "setup", "Set up the test stand")
 
 
 
@@ -155,6 +179,13 @@ def finish(session, beep=True):
         session.close_instruments()
         output_log.stop(session)
 
+    # Teardown slides (unplug the HV cables, the PTC, ...) only after a normal finish: here
+    # emergency_shutoff has powered everything down. After Ctrl-C or an error (beep=False)
+    # the operator may want to retry rather than take the stand apart.
+    if beep:
+        WIEC_utils.show_slides(getattr(session, "popup", None), config_data, "teardown",
+                               "Take down the test stand")
+
     return passed
 
 
@@ -163,12 +194,17 @@ def interactive(args, state, json_data):
         session = state.get("session")
         results = session.results if session else {}
         print_items(results)
+        print(WIEC_utils.color(WIEC_utils.rule(WIEC_utils.LIGHT_RULE), WIEC_utils.HEADER))
         if session:
             print(f" WIEC serial: {session.wiec_serial}")
             print(f"     results: {os.path.relpath(session.wiec_run_dir)}\n")
-        print("\n  n) new user instructions         q) save and quit            f) run full test \n\n")
-        print(  "  Uncommon Actions:    p) redo preflight hardware check\n"\
-                "                       s) shutdown instruments without quitting testing session\n")
+        # The letter to type for each option, in the colour used for operator actions.
+        # The colour codes take no space on screen, so the columns stay lined up.
+        def key(letter):
+            return WIEC_utils.color(letter, WIEC_utils.ACTION)
+
+        print(f"\n  {key('n')}) new user instructions         {key('q')}) save and quit            {key('f')}) run full test")
+        print(  f"  {key('p')}) redo preflight                {key('s')}) shutdown instruments without quitting testing session\n")
 
 
         try:

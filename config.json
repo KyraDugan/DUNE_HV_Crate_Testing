@@ -13,6 +13,17 @@
     "wiec_qc_sheet_name": "wiec_qc.xlsx",
     "wiec_report_name": "summary.html",
     "wiec_open_summary": true,
+    "wiec_popups_enabled": true,
+    "wiec_popup_dir": "GUI/wiec_pngs",
+    "wiec_popup_pages": {
+        "overview": 1,
+        "serial": 2,
+        "setup": [3, 4, 5, 6, 7, 8, 9],
+        "femb_check": 10,
+        "wib_slot": [11, 13, 15, 17, 19, 21],
+        "wib_remove": [12, 14, 16, 18, 20, 22],
+        "teardown": [23, 24, 25, 27, 28, 29, 30]
+    },
     "rounding_factor": 5,
     "PL506_IP_ADDR": "169.254.12.2",
     "PL506_settle_seconds": 5.0,

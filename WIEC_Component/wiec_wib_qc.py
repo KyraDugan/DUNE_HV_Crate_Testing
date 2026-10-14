@@ -16,6 +16,8 @@ config.json keys used:
 
 "wib_test_slots"                                Possible WIB test slots to be used in the setup
 "wib_boards_available"                          WIB boards that will be available to use for testing
+"wiec_popup_pages"                              Slides for "femb_check", "wib_slot" and "wib_remove" (lists,
+                                                one entry per slot); see WIEC_utils.show_slides
 
 -------------------------------------------------------------------------------------------------------
 
@@ -183,20 +185,27 @@ def run_batch(session, ser, batch, femb_sets):
     """
 
     config_data = session.json_data
+    popup = getattr(session, "popup", None)     # None in a standalone run: terminal prompts only
 
     #Separates if only one WIB tested for grammar reasons in prompting the user
     if len(batch) == 1:
-
         WIEC_utils.print_prompt_section(f"Testing WIB {batch[0]}")
         session.log(f"Preparing test for WIB {batch[0]}.")
-        WIEC_utils.ask(f"Move WIB to slot {batch[0]}, then press Enter.") 
+        instruction = f"Move WIB to slot {batch[0]}, then press Enter."
     else:
-
         WIEC_utils.print_prompt_section(f"Testing WIBs {batch}")
         session.log(f"Preparing test for WIBs {batch}")
-        WIEC_utils.ask(f"Move WIBs to slots {batch}, then press Enter.") 
+        instruction = f"Move WIBs to slots {batch}, then press Enter."
 
-    #PLACEHOLDER FOR BETTER INSTRUCTIONS!!!!!
+    # One slide per slot; its Confirm button stands in for "press Enter". If any slide could
+    # not be shown, the terminal prompt still has to hold the test until the WIB is in place.
+    shown = all([WIEC_utils.show_slides(popup, config_data, "wib_slot", f"Put the WIB in slot {slot}",
+                                        index=slot)
+                 for slot in batch])
+    if shown:
+        session.log(f"Operator confirmed the WIB placement for slot(s) {batch} on the pop-up.")
+    else:
+        WIEC_utils.ask(instruction)
 
 
     power_map = {slot: "on" for slot in batch}
@@ -270,6 +279,10 @@ def run(session):
     femb_sets = femb_checkout.get_femb_sets(session)
     femb_checkout.get_femb_tests(session)
 
+    # Check the FEMBs and their plugs while nothing is powered yet
+    popup = getattr(session, "popup", None)
+    WIEC_utils.show_slides(popup, json_data, "femb_check", "Check the FEMBs")
+
     if not ptc_power.power_up(session):
         return False
 
@@ -283,6 +296,11 @@ def run(session):
             return False
         for b in batches:
             WIB_results.extend(run_batch(session, ser, b, femb_sets))
+            # run_batch powered this batch's WIBs off, so they can come out: one slide per slot.
+            # Only a picture: the next batch's slot prompt is what holds the test.
+            for slot in b:
+                WIEC_utils.show_slides(popup, json_data, "wib_remove",
+                                       f"Take the WIB out of slot {slot}", index=slot)
     except OperatorAbort as abort:
         WIB_results.extend(abort.results)
         session.log("Test aborted by the operator. Remaining WIBs will not be tested.")
