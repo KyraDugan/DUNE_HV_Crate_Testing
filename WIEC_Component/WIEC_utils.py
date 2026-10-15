@@ -270,6 +270,7 @@ CELL_OPACITY = 0.3
 PASS_CELL = cell_rgb(PASS_HEX, CELL_OPACITY)
 FAIL_CELL = cell_rgb(FAIL_HEX, CELL_OPACITY)
 NOT_TESTED_CELL = cell_rgb(BAR_EMPTY_HEX, CELL_OPACITY)
+INTERRUPTED_CELL = cell_rgb(IN_PALETTE, CELL_OPACITY)    # an item stopped partway through (gold)
 
 
 #--------------PROGRESS BAR WITH RANDOM PRETTY GRADIENT--------------------------------------------

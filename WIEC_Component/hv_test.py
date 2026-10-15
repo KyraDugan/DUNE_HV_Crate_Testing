@@ -7,9 +7,11 @@ For every PCB channel under test, eight phases:
     negative open      0 -> -2000 V and back
     negative 10k       0 -> -20 V and back
 
-Each phase logs V/I for all 16 CAEN channels to CSV, fits a*exp(-b*t)+c to the
-ramp, plots it, and the leakage resistance V/I is checked against the config
-thresholds.
+Each phase logs V/I for all 16 CAEN channels to CSV and plots it. The open phases
+also fit a*exp(-b*t)+c to the ramp (the time constant tau = 1/b is graded). The
+resistance V/I at the end of each ramp up is checked against the config thresholds:
+for the 10k terminated phases that confirms the warm filter board's ~100 kOhm
+resistor, and those phases have no time constant.
 
 Relay bytes: the first selects the positive (bit 0) or negative (bit 1) branch,
 the second selects open (bit 1) or 10k terminated (bit 0).
@@ -33,8 +35,8 @@ config.json keys used:
 "hv_resistance_open_max"                        Maximum acceptable open circuit resistance
 "hv_resistance_term_min"                        Minimum acceptable 10 kOhm termination resistance
 "hv_resistance_term_max"                        Maximum acceptable 10 kOhm termination resistance
-"hv_tau_min"                                    Minimum acceptable decay rate b (1/s) of the exp fit; tau = 1/b
-"hv_tau_max"                                    Maximum acceptable decay rate b (1/s) of the exp fit; tau = 1/b
+"hv_tau_min"                                    Minimum acceptable decay rate b (1/s) of the open-phase exp fit; tau = 1/b
+"hv_tau_max"                                    Maximum acceptable decay rate b (1/s) of the open-phase exp fit; tau = 1/b
 "simultaneous_test"                             Whether to test all channels at once or one at a time
 "channels_to_test"                              List of PCB channels to test
 -------------------------------------------------------------------------------------------------------
@@ -218,12 +220,16 @@ def _phase(session, hv_results, chs_to_test, chs_string, spec):
 
     for i in chs_to_test:
         ch = json_data[f"pcb_ch_{i}_{polarity}"]
-        fit = analysis.hv_curve_fit(
-            raw_dir, csv_name, ch,
-            on=spec["on"],
-            initial_b=float(json_data["hv_fit_initial_b"])
-        )
-        hv_results[i][f"{key}_{suffix}_fit"] = fit
+        # Only the open phases are fitted. The terminated (20 V) phases check the termination
+        # resistor through V/I, and there is no time constant to measure in them
+        fit = None
+        if spec["termination"] == "open":
+            fit = analysis.hv_curve_fit(
+                raw_dir, csv_name, ch,
+                on=spec["on"],
+                initial_b=float(json_data["hv_fit_initial_b"])
+            )
+            hv_results[i][f"{key}_{suffix}_fit"] = fit
 
         if spec["on"]:
             # Read twice; the first reading back from the CAEN can be stale
@@ -235,26 +241,21 @@ def _phase(session, hv_results, chs_to_test, chs_string, spec):
         direction = f"0 to {sign}{voltage}V" if spec["on"] else f"{sign}{voltage} to 0V"
         title = f"Ch {i}{'+' if polarity == 'pos' else '-'} from {direction}, {spec['label']}"
         hv_results[i][f"{key}_{suffix}_plot_title"] = title
-        if spec["termination"] == "term":
-            # The 20 V step into the termination settles long before recording starts, so there
-            # is no decay to show: plot the steady hold (mean, noise, drift) instead of the fit
-            png = analysis.make_steady_plot(raw_dir, csv_name, title, ch, plot_dir=plot_dir)
+        # Fixed bounds for the panel under the fit: the voltage around its set value after a
+        # ramp up, the current on a fixed scale after a ramp down
+        if spec["on"]:
+            window = json_data["hv_plot_voltage_window"]
+            other_ylim = (voltage - window, voltage + window)
         else:
-            # Fixed bounds for the panel under the fit: the voltage around its set value after a
-            # ramp up, the current on a fixed scale after a ramp down
-            if spec["on"]:
-                window = json_data["hv_plot_voltage_window"]
-                other_ylim = (voltage - window, voltage + window)
-            else:
-                other_ylim = tuple(json_data["hv_plot_current_range"])
-            png = analysis.make_plot(
-                raw_dir, csv_name, title, ch,
-                fit=fit, on=spec["on"],
-                limits=(json_data["hv_tau_min"], json_data["hv_tau_max"]),
-                other_ylim=other_ylim,
-                plot_dir=plot_dir,
-            )
-        hv_results[i][f"{key}_{suffix}_plot"] = png
+            other_ylim = tuple(json_data["hv_plot_current_range"])
+        hv_results[i][f"{key}_{suffix}_plot"] = analysis.make_plot(
+            raw_dir, csv_name, title, ch,
+            fit=fit, on=spec["on"],
+            # no limits for an unfitted phase: no time constant box, no PASS/FAIL in the title
+            limits=(json_data["hv_tau_min"], json_data["hv_tau_max"]) if fit is not None else None,
+            other_ylim=other_ylim,
+            plot_dir=plot_dir,
+        )
 
 
 def _phase_specs(relay_setting):
@@ -375,8 +376,12 @@ def _evaluate(session, chs_to_test, hv_results):
                                    plot_title=hv_results[i].get(f"{j[:-2]}_on_plot_title"))
             result = result and passed
 
-        # The fit reports b; the spreadsheet carries the time constant 1/b
+        # The fit reports b; the spreadsheet carries the time constant 1/b.
+        # Open phases only: the terminated phases are not fitted, so their spreadsheet
+        # columns stay empty (num keeps the column positions of the full list)
         for num, j in enumerate(["pos_open", "pos_term", "neg_open", "neg_term"]):
+            if j.endswith("_term"):
+                continue
             for offset, suffix in ((1, "on"), (2, "off")):
                 fit_key = f"{j}_{suffix}_fit"
                 b = float(hv_results[i][fit_key][0][1])

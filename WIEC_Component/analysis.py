@@ -20,9 +20,9 @@ from . import WIEC_utils
 
 # Plot colours, all from the WIEC_utils palette
 DATA_HEX = WIEC_utils.BANNER_BACKGROUND_HEX    # the measured trace that is analysed (dark blue)
-FIT_HEX = WIEC_utils.IN_PALETTE                # the fit / drift line drawn over it (gold)
+FIT_HEX = WIEC_utils.IN_PALETTE                # the fit drawn over it (gold)
 OTHER_HEX = WIEC_utils.HEADER_HEX              # the quantity shown only for context
-BAND_HEX = WIEC_utils.BAR_EMPTY_HEX            # +/- 1 sigma band, grid and neutral box edges
+BAND_HEX = WIEC_utils.BAR_EMPTY_HEX            # grid and the time-constant box's edge
 
 
 def exp_fit(x, a, b, c):
@@ -75,25 +75,6 @@ def hv_curve_fit(results_path, name, ch, on=True, initial_b=0.02):
         return [[0, 0]]
 
 
-def steady_stats(seconds, values):
-    """Describes a reading that is held steady: mean, noise, drift and peak-to-peak.
-
-    The drift is a straight-line fit (always succeeds, unlike the exponential), and the noise
-    is the standard deviation of what is left after taking that line away, so a slow drift
-    does not count as noise. Returns a dict; drift is per minute, trend is the fitted line.
-    """
-    values = np.asarray(values, dtype=float)
-    slope, intercept = np.polyfit(seconds, values, 1)
-    trend = slope * seconds + intercept
-    return {
-        "mean": float(values.mean()),
-        "sigma": float((values - trend).std()),
-        "drift_per_min": float(slope * 60),
-        "peak_to_peak": float(np.ptp(values)),
-        "trend": trend,
-    }
-
-
 def _style(ax):
     ax.grid(True, color=BAND_HEX, alpha=0.5, linewidth=0.8)
     for side in ("top", "right"):
@@ -136,7 +117,9 @@ def make_plot(results_path, filename, title, ch, fit=None, on=True, limits=None,
     with the fit drawn over it, and a box giving the time constant tau = 1/b and its limits.
     Bottom panel: the other quantity, for context. PASS/FAIL goes after the title.
 
-    fit is hv_curve_fit's result; limits is (b_min, b_max) in 1/s, graded the same way as
+    fit is hv_curve_fit's result, or None for a phase that is not fitted (only the data is
+    drawn: no fit, no time constant box, and with limits None no PASS/FAIL in the title);
+    limits is (b_min, b_max) in 1/s, graded the same way as
     hv_test._evaluate (on b) and shown as the matching tau range. other_ylim is (low, high) for
     the bottom panel; it is only widened if the data goes outside it. The CSV is read from
     results_path; the PNG is saved in plot_dir if given, otherwise next to the CSV in
@@ -151,10 +134,13 @@ def make_plot(results_path, filename, title, ch, fit=None, on=True, limits=None,
         fitted, fitted_label, other, other_label = ch_voltage, "Voltage (V)", ch_current, "Current (µA)"
     fitted_name = fitted_label.split(" ")[0].lower()
 
+    # fit None: the phase is not fitted (the terminated ones), so only the data is drawn.
     # A fit that failed comes back from hv_curve_fit as [[0, 0]], with no covariance
     fit_ok = fit is not None and len(fit) == 2 and len(fit[0]) == 3
     b = float(fit[0][1]) if fit_ok else 0.0
-    if not fit_ok:
+    if fit is None:
+        lines = []
+    elif not fit_ok:
         lines = ["Fit failed"]
     elif b == 0:
         lines = ["τ: undefined (b = 0)"]
@@ -178,9 +164,10 @@ def make_plot(results_path, filename, title, ch, fit=None, on=True, limits=None,
         ax.plot(seconds, exp_fit(seconds, *fit[0]), color=FIT_HEX, linewidth=2.5, linestyle="--",
                 zorder=2, label="Exponential fit")
 
-    ax.text(0.98, 0.70, "\n".join(lines), transform=ax.transAxes, ha="right", va="top",
-            multialignment="left", fontsize=13,
-            bbox=dict(facecolor="white", edgecolor=BAND_HEX, linewidth=2))
+    if lines:
+        ax.text(0.98, 0.70, "\n".join(lines), transform=ax.transAxes, ha="right", va="top",
+                multialignment="left", fontsize=13,
+                bbox=dict(facecolor="white", edgecolor=BAND_HEX, linewidth=2))
     ax.set_ylabel(fitted_label, fontsize=13)
     ax.legend(loc="upper right", fontsize=11, frameon=False)
     _style(ax)
@@ -189,45 +176,8 @@ def make_plot(results_path, filename, title, ch, fit=None, on=True, limits=None,
     ax_other.set_ylabel(other_label, fontsize=11)
     _style(ax_other)
     if other_ylim is not None:
-        # Fixed bounds, so the readback's small steps don't look like noise. If the data leaves
+        # Fixed bounds, so the readback's small steps don't fill the panel. If the data leaves
         # them (e.g. a trip) the panel widens to show it rather than clipping it off.
         ax_other.set_ylim(min(other_ylim[0], min(other)), max(other_ylim[1], max(other)))
 
     return _save(fig, (ax, ax_other), filename, ch, results_path, plot_dir)
-
-
-def make_steady_plot(results_path, filename, title, ch, plot_dir=None):
-    """Plots one channel of an HV CSV taken while the output is held steady (the terminated
-    phases), where there is no decay to fit.
-
-    Current and voltage each get a panel with the measured trace, a straight-line drift fit,
-    a +/- 1 sigma band around it, and the steady_stats numbers written out. Saved like
-    make_plot; returns the PNG's file name.
-    """
-    seconds, ch_voltage, ch_current = get_ch_data(
-        os.path.join(results_path, filename), ch
-    )
-
-    # No verdict in the title: nothing on this plot is graded yet
-    fig, axes = _new_figure(title, height_ratios=[1, 1])
-
-    for ax, values, name, unit in ((axes[0], ch_current, "Current", "µA"),
-                                   (axes[1], ch_voltage, "Voltage", "V")):
-        stats = steady_stats(seconds, values)
-        trend, sigma = stats["trend"], stats["sigma"]
-        ax.fill_between(seconds, trend - sigma, trend + sigma, color=BAND_HEX, alpha=0.5,
-                        linewidth=0, label="±1σ")
-        ax.step(seconds, values, where="post", color=DATA_HEX, linewidth=2, zorder=3,
-                label=f"Measured {name.lower()}")
-        ax.plot(seconds, trend, color=FIT_HEX, linewidth=2, linestyle="--", zorder=2,
-                label="Linear drift")
-        ax.text(0.02, 0.95,
-                f"mean {stats['mean']:.3f} {unit}   σ {sigma:.4f} {unit}   "
-                f"drift {stats['drift_per_min']:+.3f} {unit}/min   p-p {stats['peak_to_peak']:.3f} {unit}",
-                transform=ax.transAxes, va="top", fontsize=12,
-                bbox=dict(facecolor="white", edgecolor=BAND_HEX))
-        ax.set_ylabel(f"{name} ({unit})", fontsize=13)
-        ax.legend(loc="lower right", fontsize=11, frameon=False, ncol=3)
-        _style(ax)
-
-    return _save(fig, axes, filename, ch, results_path, plot_dir)

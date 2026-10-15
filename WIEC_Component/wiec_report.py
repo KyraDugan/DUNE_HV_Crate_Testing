@@ -14,9 +14,10 @@ mailed or dropped on a share and still render. It reads only what the run wrote:
     run.json            the whole session datastore, including every measurement row
     plots/<test>/       the PNGs each test saved (searched recursively)
 
-Everything is shown, nothing is folded away. A measurement row that names its plot (the
-"plot" field from record_results.measure) is shown next to that plot; the rest of a test's
-rows are in one table above its plots.
+Graded results are always shown. A graded row that names its plot (the "plot" field from
+record_results.measure) is shown next to that plot; the rest of a test's graded rows are in
+one table above its plots. Rows with no PASS/FAIL are folded into one "Not graded" dropdown
+per test, the only thing on the page that is folded away.
 
 -------------------------------------------------------------------------------------------------------
 config.json keys used:
@@ -66,6 +67,7 @@ def _pale(hex_color):
 ROOT_CSS = (f":root {{ --pass: {WIEC_utils.PASS_HEX}; --fail: {WIEC_utils.FAIL_HEX}; "
             f"--pass-fill: {_pale(WIEC_utils.PASS_HEX)}; --fail-fill: {_pale(WIEC_utils.FAIL_HEX)}; "
             f"--na-fill: {_pale(WIEC_utils.BAR_EMPTY_HEX)}; --head: {_pale(WIEC_utils.HEADER_HEX)}; "
+            f"--interrupted-fill: {_pale(WIEC_utils.IN_PALETTE)}; "
             f"--title: {WIEC_utils.BANNER_BACKGROUND_HEX}; --link: {WIEC_utils.ACTION_HEX}; }}")
 
 CSS = """
@@ -97,6 +99,8 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .PASS { color: var(--pass); background: var(--pass-fill); font-weight: 700; }
 .FAIL { color: var(--fail); background: var(--fail-fill); font-weight: 700; }
 .NA   { color: var(--muted); background: var(--na-fill); }
+/* Gold text would be too faint on the pale gold, so stopped items are bold black on it */
+.INTERRUPTED { color: var(--fg); background: var(--interrupted-fill); font-weight: 700; }
 .plots { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1rem; }
 figure { margin: 0; }
 figure img { width: 100%; height: auto; border: 1px solid var(--line); }
@@ -109,6 +113,10 @@ figcaption { color: var(--muted); font-size: .85rem; margin-top: .3rem; word-bre
 @media (max-width: 800px) { .card-body { grid-template-columns: 1fr; } }
 .card img { width: 100%; height: auto; border: 1px solid var(--line); }
 .file { color: var(--muted); font-size: .75rem; word-break: break-all; margin-top: .2rem; }
+details.ungraded { border: 1px solid var(--line); margin: 1rem 0; }
+details.ungraded summary { cursor: pointer; padding: .5rem .8rem; color: var(--muted);
+                           font-weight: 600; background: var(--na-fill); }
+details.ungraded[open] summary { border-bottom: 1px solid var(--line); }
 .note { border-left: 3px solid var(--line); padding: .5rem .9rem; color: var(--muted);
         margin: 1rem 0; font-size: .9rem; }
 footer { margin-top: 3rem; color: var(--muted); font-size: .82rem; }
@@ -148,7 +156,7 @@ def _table(headers, rows, numeric=()):
         out.append("<tr>")
         for index, cell in enumerate(row):
             css = ' class="num"' if index in numeric else ""
-            if cell in ("PASS", "FAIL", "not tested"):
+            if cell in ("PASS", "FAIL", "INTERRUPTED", "not tested"):
                 css = f' class="{"NA" if cell == "not tested" else cell}"'
             out.append(f"<td{css}>{_e(cell)}</td>")
         out.append("</tr>")
@@ -185,7 +193,7 @@ def _verdict(passed):
 
 def _verdict_span(text):
     """PASS / FAIL / anything else, in the same colours as the table cells."""
-    css = text if text in ("PASS", "FAIL") else "NA"
+    css = text if text in ("PASS", "FAIL", "INTERRUPTED") else "NA"
     return f'<span class="verdict {css}">{_e(text)}</span>'
 
 
@@ -210,24 +218,34 @@ def _card(path, name, rows, places):
 
 
 def _test_section(directory, config, test, rows, places):
-    """A test's rows and plots. Rows that name a saved plot (their "plot" field) are shown in a
-    card beside that plot, cards in the order the rows were recorded; the other rows go in one
-    table above the cards. Plots no row names come after, as cards without a table, or as a plain
-    grid when no row names any plot (an older run, or an item that does not link them)."""
+    """A test's rows and plots. Graded rows (PASS/FAIL) that name a saved plot (their "plot" field)
+    are shown in a card beside that plot, cards in the order the rows were recorded; the other
+    graded rows go in one table above the cards. Rows with no grade go in a closed "Not graded"
+    dropdown under that table. Plots no graded row names come after, as cards without a table, or
+    as a plain grid when no row names any plot (an older run, or an item that does not link them)."""
     pattern = os.path.join(directory, config["wiec_plots_folder"], test, "**", "*.png")
     plot_root = os.path.join(directory, config["wiec_plots_folder"], test)
     path_of = {os.path.relpath(path, plot_root): path
                for path in sorted(glob.glob(pattern, recursive=True))}
 
+    # Readings with no PASS/FAIL (recorded for reference only) go in one dropdown per test,
+    # so the graded results are what the section shows first
+    ungraded = [row for row in rows if row.get("result") not in ("PASS", "FAIL")]
+    graded = [row for row in rows if row.get("result") in ("PASS", "FAIL")]
+
     rows_of = {}
     table_rows = []
-    for row in rows:
+    for row in graded:
         if row.get("plot") in path_of:
             rows_of.setdefault(row["plot"], []).append(row)
         else:
             table_rows.append(row)
 
     parts = [_measurement_table(table_rows, places)] if table_rows else []
+    if ungraded:
+        parts.append(f'<details class="ungraded"><summary>Not graded: {len(ungraded)} '
+                     f'reading{"s" if len(ungraded) != 1 else ""} recorded for reference, '
+                     f'no pass/fail limit</summary>{_measurement_table(ungraded, places)}</details>')
     if rows_of:
         for name in list(rows_of) + [name for name in path_of if name not in rows_of]:
             parts.append(_card(path_of[name], name, rows_of.get(name, []), places))
@@ -284,9 +302,17 @@ def build_html(directory, config, item_names=None):
     measurements = data.get("measurements", [])
     item_results = data.get("Items", {})
     overall = data.get("overall")
+    # Items stopped partway through (Ctrl-C or an error), from run_wiec_component.run_item
+    interrupted = data.get("interrupted_items", [])
 
-    # Item keys in the order they ran, then any item that did not run
-    items = list(item_results) + [key for key in names if key not in item_results]
+    # Item keys in the order they ran (a stopped one has no result), then any item that did not run
+    items = list(item_results) + [key for key in interrupted if key not in item_results]
+    items += [key for key in names if key not in items]
+
+    def item_verdict(item):
+        if item in interrupted:
+            return "INTERRUPTED"
+        return _verdict(None if item not in item_results else item_results[item] == "Pass")
 
     # Measurement test names in the order they were first recorded
     tests = []
@@ -308,6 +334,10 @@ def build_html(directory, config, item_names=None):
                               recursive=True))
 
     overall_text = str(overall).upper() if overall else "NOT RECORDED"
+    # Same rule as the QC sheet: a failed item outranks a stopped one
+    verdicts = [item_verdict(item) for item in items]
+    if "INTERRUPTED" in verdicts and "FAIL" not in verdicts:
+        overall_text = "INTERRUPTED"
 
     parts = ['<div class="wrap">']
     parts.append(f'<h1>WIEC {_e(data.get("wiec_serial", "unknown"))} {_verdict_span(overall_text)}</h1>')
@@ -328,7 +358,7 @@ def build_html(directory, config, item_names=None):
     parts.append("<h2>Items</h2>")
     item_rows = []
     for item in items:
-        verdict = _verdict(None if item not in item_results else item_results[item] == "Pass")
+        verdict = item_verdict(item)
         item_graded = [row for test in tests_of(item) for row in rows_for(test)
                        if row.get("result") in ("PASS", "FAIL")]
         item_failed = [row for row in item_graded if row["result"] == "FAIL"]
@@ -338,8 +368,11 @@ def build_html(directory, config, item_names=None):
     # -- detail for every item, with the tests recorded inside it
     shown = []
     for item in items:
-        verdict = _verdict(None if item not in item_results else item_results[item] == "Pass")
+        verdict = item_verdict(item)
         parts.append(f'<h2>{_e(title(item))} {_verdict_span(verdict)}</h2>')
+        if verdict == "INTERRUPTED":
+            parts.append('<div class="note">Interrupted partway through (Ctrl-C or an error). '
+                         'The results below are only what was recorded before it stopped.</div>')
         has_content = False
         for test in tests_of(item):
             shown.append(test)

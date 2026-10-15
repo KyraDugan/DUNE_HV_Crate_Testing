@@ -35,7 +35,8 @@ from . import WIEC_utils
 
 
 # Cell background colour for each result in the QC sheet (pale green / pale red, Excel's own good/bad shades)
-QC_SHEET_FILLS = {"PASS": f"{WIEC_utils.PASS_CELL}", "FAIL": f"{WIEC_utils.FAIL_CELL}", "not tested": f"{WIEC_utils.NOT_TESTED_CELL}"}
+QC_SHEET_FILLS = {"PASS": f"{WIEC_utils.PASS_CELL}", "FAIL": f"{WIEC_utils.FAIL_CELL}", "not tested": f"{WIEC_utils.NOT_TESTED_CELL}",
+                  "INTERRUPTED": f"{WIEC_utils.INTERRUPTED_CELL}"}
 
 
 
@@ -205,11 +206,14 @@ def failure_summary(session):
 def qc_sheet_row(session, items):
     """
     Returns one row of the QC sheet as a dict from column name to value, in column order:
-    run information, PASS/FAIL/not tested for each item, then a short "Why" for any failures.
+    run information, PASS/FAIL/INTERRUPTED/not tested for each item, then a short "Why" for any
+    failures. INTERRUPTED is an item that was stopped partway through (Ctrl-C or an error), listed
+    in datastore["interrupted_items"] by run_wiec_component.run_item.
     """
 
     datastore = session.datastore
     overall = datastore.get("overall")
+    interrupted_keys = datastore.get("interrupted_items", [])
 
     row = {
         "WIEC Serial": datastore.get("wiec_serial", ""),
@@ -221,14 +225,27 @@ def qc_sheet_row(session, items):
 
     for item in items:
         passed = session.results.get(item.KEY)
-        if passed is None:
+        if item.KEY in interrupted_keys:
+            row[item.NAME] = "INTERRUPTED"
+        elif passed is None:
             row[item.NAME] = "not tested"
         elif passed:
             row[item.NAME] = "PASS"
         else:
             row[item.NAME] = "FAIL"
 
+    # A failed item outranks a stopped one; otherwise a stopped item means the run did not finish
+    item_cells = [row[item.NAME] for item in items]
+    if "INTERRUPTED" in item_cells and "FAIL" not in item_cells:
+        row["Overall Result"] = "INTERRUPTED"
+
     why = failure_summary(session)
+    stopped = [item.NAME for item in items if item.KEY in interrupted_keys]
+    if stopped:
+        if why:
+            why.append("\n\n")
+        why.append(TextBlock(InlineFont(b=True), "Interrupted"))
+        why.append(f": {', '.join(stopped)}")
     if not why and "FAIL" in row.values():
         why = "No failed checks recorded, see session_log.txt"
     row["Why"] = why

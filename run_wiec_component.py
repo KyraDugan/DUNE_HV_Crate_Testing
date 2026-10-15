@@ -74,15 +74,23 @@ def print_items(results=None):
 
 def run_item(session, item):
     WIEC_utils.print_banner(f"Running {item.NAME}", "item")
+    # A new attempt replaces an earlier one that was stopped partway
+    interrupted = session.datastore.setdefault("interrupted_items", [])
+    if item.KEY in interrupted:
+        interrupted.remove(item.KEY)
+
     try:
         passed = bool(item.run(session))
     except KeyboardInterrupt:
         print(f"\n{item.NAME} interrupted by the user")
+        # Interrupted partway: shown as INTERRUPTED in the QC sheet (record_results.qc_sheet_row)
+        session.datastore.setdefault("interrupted_items", []).append(item.KEY)
         session.emergency_shutoff()
         raise
     except BaseException:
         print(traceback.format_exc())
         print(f"{item.NAME} raised an exception -- powering down")
+        session.datastore.setdefault("interrupted_items", []).append(item.KEY)
         session.emergency_shutoff()
         passed = False
 
