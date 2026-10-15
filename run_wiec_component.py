@@ -19,7 +19,8 @@ working directory.
 /home/dune-daq/Desktop/wiec-test.desktop   runs this from a shell on the desktop.
 
 Hardware instruction slides (WIEC_utils.show_slides) appear at start-up (overview, finding the
-serial, setting up the stand) and after a normal finish (taking the stand down).
+serial, setting up the stand) and after a normal finish (taking the stand down). The items show
+their own: hv_test the HV warning, wiec_wib_qc the FEMB check and WIB slot slides.
 
 -------------------------------------------------------------------------------------------------------
 config.json keys used here (the item modules list their own):

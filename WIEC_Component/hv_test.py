@@ -39,6 +39,8 @@ config.json keys used:
 "hv_tau_max"                                    Maximum acceptable decay rate b (1/s) of the open-phase exp fit; tau = 1/b
 "simultaneous_test"                             Whether to test all channels at once or one at a time
 "channels_to_test"                              List of PCB channels to test
+"wiec_popup_pages"                              Slide for "hv_warning", shown before the test starts; see WIEC_utils.show_slides
+"hv_warning_phrase"                             What the operator must type to start the test (case and extra spaces ignored)
 -------------------------------------------------------------------------------------------------------
 """
 
@@ -118,13 +120,6 @@ def _recover_connection(session):
     session.reset_pyvisa_connections()
     session.rigol1.power("ON", "hvpullup")
     session.rigol1.power("ON", "hvpullup2")
-
-
-def wait_for_ramp_with_bar(self, ch, going_up):
-    self.get_voltage(ch)
-    self.get_channel_status(ch)
-    self.channel_error()
-    self.json_data
 
 
 def wait_for_ramp_with_bar(self, ch, going_up):
@@ -409,9 +404,29 @@ def _evaluate(session, chs_to_test, hv_results):
     return result
 
 
+def acknowledge_hv_warning(session):
+    """
+    Shows the HV warning slide, then holds the test until the operator types the warning
+    phrase. The phrase is asked for even when the slide could not be shown.
+    """
+    json_data = session.json_data
+    popup = getattr(session, "popup", None)     # None in a standalone run: terminal prompt only
+    WIEC_utils.show_slides(popup, json_data, "hv_warning", "HV test warning")
+
+    phrase = json_data["hv_warning_phrase"]
+    while True:
+        answer = WIEC_utils.ask(f'Do not touch the setup during the HV test. Type "{phrase}" to begin.')
+        if " ".join(answer.split()).lower() == phrase.lower():
+            break
+        print(WIEC_utils.color(f'That does not match "{phrase}". Please type it exactly.', WIEC_utils.FAIL_COLOR))
+    session.log("Operator acknowledged the HV warning.")
+
+
 def run(session):
     json_data = session.json_data
     hv_results = {}
+
+    acknowledge_hv_warning(session)
 
     # Ramps in this test show a progress bar (see wait_for_ramp_with_bar)
     caen = session.caen
