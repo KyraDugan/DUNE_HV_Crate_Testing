@@ -31,7 +31,8 @@ config.json keys used:
 "hv_termination_wait"                           Seconds to wait for the 10 kOhm termination phases to stabilize
 "hv_fit_initial_b"                              Initial b parameter for the exp fit, to help convergence
 "hv_plot_voltage_window"                        Plot only: +/- V around the set voltage for the voltage panel under a ramp-up fit
-"hv_plot_current_range"                         Plot only: [low, high] uA for the current panel under a ramp-down fit
+"hv_plot_current_range"                         Plot only: [low, high] uA for the current panel above a ramp-down fit
+"hv_plot_term_off_voltage_range"                Plot only: [low, high] V for the voltage after a terminated ramp down (should sit near 0)
 "hv_resistance_open_min"                        Minimum acceptable open circuit resistance
 "hv_resistance_open_max"                        Maximum acceptable open circuit resistance
 "hv_resistance_term_min"                        Minimum acceptable 10 kOhm termination resistance
@@ -255,12 +256,18 @@ def _phase(session, hv_results, chs_to_test, chs_string, spec):
             other_ylim = (voltage - window, voltage + window)
         else:
             other_ylim = tuple(json_data["hv_plot_current_range"])
+        # After a terminated ramp down the voltage should sit near 0 V; on a fixed scale its
+        # readback noise (tens of mV) doesn't look like a swing
+        ylim = None
+        if not spec["on"] and spec["termination"] == "term":
+            ylim = tuple(json_data["hv_plot_term_off_voltage_range"])
         hv_results[i][f"{key}_{suffix}_plot"] = analysis.make_plot(
             raw_dir, csv_name, title, ch,
             fit=fit, on=spec["on"],
             # no limits for an unfitted phase: no time constant box, no PASS/FAIL in the title
             limits=(json_data["hv_tau_min"], json_data["hv_tau_max"]) if fit is not None else None,
             other_ylim=other_ylim,
+            ylim=ylim,
             plot_dir=plot_dir,
         )
 

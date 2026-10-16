@@ -166,7 +166,7 @@ def configure_femb(chk, position, pulse, max_tries):
         for attempt in range(1, max_tries + 1):
             chk.i2cerror = False
             if attempt % 5 == 0:
-                chk.wib_i2c_adj(n=50)            # shift the I2C phase, as BNL does every 5th try
+                chk.wib_i2c_adj(n=50)            # qift the I2C phase, as BNL does every 5th try
             time.sleep(0.2)
             chk.femb_cd_cfg(position)
             chk.femb_adc_cfg(position)

@@ -12,6 +12,7 @@
     "wiec_run_json_name": "run.json",
     "wiec_qc_sheet_name": "wiec_qc.xlsx",
     "wiec_report_name": "summary.html",
+    "wiec_report_plot_columns": {"default": 2, "fan_pwm_sweep": 3},
     "wiec_open_summary": true,
     "wiec_popups_enabled": true,
     "wiec_popup_dir": "GUI/wiec_pngs",
@@ -65,6 +66,7 @@
     "hv_fit_initial_b": 0.02,
     "hv_plot_voltage_window": 5.0,
     "hv_plot_current_range": [-0.05, 1.0],
+    "hv_plot_term_off_voltage_range": [-1.0, 5.0],
     "channels_to_test": [
         0,
         1,

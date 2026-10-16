@@ -30,6 +30,7 @@ FIT_HEX = WIEC_utils.IN_PALETTE                # the exponential fit, drawn in f
 GRADED_HEX = WIEC_utils.IN_PALETTE             # the star on the graded 20 V reading (gold)
 BAND_HEX = WIEC_utils.BAR_EMPTY_HEX            # grid and the time-constant box's edge
 POINT_SIZE = 3                                 # measured samples are points; only a fit is a line
+LABEL_SIZE = 16                                # every axis label and legend, so no panel's text is smaller
 
 
 def exp_fit(x, a, b, c):
@@ -99,9 +100,9 @@ def _points(ax, x, y, colour, **kwargs):
     ax.plot(x, y, linestyle="none", marker="o", markersize=POINT_SIZE, color=colour, **kwargs)
 
 
-def _legend(ax, fontsize):
+def _legend(ax):
     """A legend whose data dots are drawn big enough to see (other markers keep their size)."""
-    legend = ax.legend(loc="best", fontsize=fontsize)
+    legend = ax.legend(loc="best", fontsize=LABEL_SIZE)
     for handle in legend.legend_handles:
         if getattr(handle, "get_marker", lambda: None)() == "o":
             handle.set_markersize(3 * POINT_SIZE)
@@ -126,7 +127,7 @@ def _new_figure(title, height_ratios, verdict=None):
 
 
 def _save(fig, axes, filename, ch, results_path, plot_dir):
-    axes[-1].set_xlabel("Time since recording started (s)", fontsize=13)
+    axes[-1].set_xlabel("Time since recording started (s)", fontsize=LABEL_SIZE)
     # h_pad: a gap between the bordered panels
     fig.tight_layout(rect=[0, 0, 1, 0.92], h_pad=2.0)
     png_name = f"{Path(filename).stem}_ch{ch}.png"
@@ -135,19 +136,27 @@ def _save(fig, axes, filename, ch, results_path, plot_dir):
     return png_name
 
 
+def _bounded_ylim(ax, ylim, data):
+    """Fixed y bounds, so the readback's small steps don't fill the panel. If the data leaves
+    them (e.g. a trip) the panel widens to show it rather than clipping it off."""
+    ax.set_ylim(min(ylim[0], min(data)), max(ylim[1], max(data)))
+
+
 def make_plot(results_path, filename, title, ch, fit=None, on=True, limits=None, other_ylim=None,
-              plot_dir=None):
+              ylim=None, plot_dir=None):
     """Plots one channel of a recorded HV CSV with its exponential fit.
 
-    Top panel: the quantity that was fitted (current for a ramp up, voltage for a ramp down)
-    with the fit drawn over it, and a box giving the time constant tau = 1/b and its limits.
-    Bottom panel: the other quantity, for context. PASS/FAIL goes after the title.
+    Current is always the top panel and voltage the bottom. The quantity that was fitted
+    (current for a ramp up, voltage for a ramp down) gets the tall panel, with the fit drawn
+    over it and a box giving the time constant tau = 1/b and its limits; the other quantity is
+    the short panel, for context. PASS/FAIL goes after the title.
 
     fit is hv_curve_fit's result, or None for a phase that is not fitted (only the data is
     drawn: no fit, no time constant box, and with limits None no PASS/FAIL in the title);
     limits is (b_min, b_max) in 1/s, graded the same way as
     hv_test._evaluate (on b) and shown as the matching tau range. other_ylim is (low, high) for
-    the bottom panel; it is only widened if the data goes outside it. The CSV is read from
+    the short panel and ylim for the tall one (None: scaled to the data); each is only widened
+    if the data goes outside it. The CSV is read from
     results_path; the PNG is saved in plot_dir if given, otherwise next to the CSV in
     results_path. Returns the PNG's file name.
     """
@@ -183,7 +192,12 @@ def make_plot(results_path, filename, title, ch, fit=None, on=True, limits=None,
         # The limits are on b; a larger b is a shorter time constant, so they swap ends
         lines.append(f"Limit: {1 / b_max:.1f}–{1 / b_min:.1f} s")
 
-    fig, (ax, ax_other) = _new_figure(title, height_ratios=[3, 1], verdict=verdict)
+    # Current is always the top panel and voltage the bottom one, so every plot reads the same
+    # way; the fitted quantity gets the tall panel wherever it sits
+    if on:
+        fig, (ax, ax_other) = _new_figure(title, height_ratios=[3, 1], verdict=verdict)
+    else:
+        fig, (ax_other, ax) = _new_figure(title, height_ratios=[1, 3], verdict=verdict)
 
     # zorder puts the fit in front: the dots are dense enough to hide a fit drawn behind them
     _points(ax, seconds, fitted, fitted_hex, zorder=3, label=f"Measured {fitted_name}")
@@ -195,19 +209,20 @@ def make_plot(results_path, filename, title, ch, fit=None, on=True, limits=None,
         ax.text(0.98, 0.70, "\n".join(lines), transform=ax.transAxes, ha="right", va="top",
                 multialignment="left", fontsize=16,
                 bbox=dict(facecolor="white", edgecolor=BAND_HEX, linewidth=2))
-    ax.set_ylabel(fitted_label, fontsize=16)
-    _legend(ax, fontsize=14)
+    ax.set_ylabel(fitted_label, fontsize=LABEL_SIZE)
+    _legend(ax)
     _style(ax)
+    if ylim is not None:
+        _bounded_ylim(ax, ylim, fitted)
 
     _points(ax_other, seconds, other, other_hex)
-    ax_other.set_ylabel(other_label, fontsize=11)
+    ax_other.set_ylabel(other_label, fontsize=LABEL_SIZE)
     _style(ax_other)
     if other_ylim is not None:
-        # Fixed bounds, so the readback's small steps don't fill the panel. If the data leaves
-        # them (e.g. a trip) the panel widens to show it rather than clipping it off.
-        ax_other.set_ylim(min(other_ylim[0], min(other)), max(other_ylim[1], max(other)))
+        _bounded_ylim(ax_other, other_ylim, other)
 
-    return _save(fig, (ax, ax_other), filename, ch, results_path, plot_dir)
+    # fig.axes is top to bottom, so _save labels the time axis on the bottom panel
+    return _save(fig, fig.axes, filename, ch, results_path, plot_dir)
 
 
 def make_term_plot(results_path, filename, title, ch, graded_v, graded_i, limits, plot_dir=None):
@@ -216,8 +231,9 @@ def make_term_plot(results_path, filename, title, ch, graded_v, graded_i, limits
     Top panel: R = V/I for every recorded sample, in kOhm, over the shaded pass band, with a star
     on the reading that is graded and the sum it comes from. The CAEN reading behind the star is
     taken after the recording stops, so it is passed in (graded_v in V, graded_i in uA) rather
-    than read from the CSV. Below: the voltage and current R is made from, on scales of +/-25 %
-    of their mean so readback noise does not look like a change.
+    than read from the CSV. Below: the current and then the voltage R is made from (voltage at
+    the bottom, as on every HV plot), on scales of +/-25 % of their mean so readback noise does
+    not look like a change.
 
     limits is (R_min, R_max) in MOhm, graded the same way as hv_test._evaluate. PASS/FAIL goes
     after the title. The CSV is read from results_path; the PNG is saved in plot_dir if given,
@@ -235,7 +251,7 @@ def make_term_plot(results_path, filename, title, ch, graded_v, graded_i, limits
         graded_r = None
     verdict = "PASS" if graded_r is not None and r_min < graded_r < r_max else "FAIL"
 
-    fig, (ax, ax_v, ax_i) = _new_figure(title, height_ratios=[3, 1, 1], verdict=verdict)
+    fig, (ax, ax_i, ax_v) = _new_figure(title, height_ratios=[3, 1, 1], verdict=verdict)
 
     ax.axhspan(r_min, r_max, color=WIEC_utils.PASS_HEX, alpha=0.12,
                label=f"Pass band {r_min:g}–{r_max:g} kΩ")
@@ -256,17 +272,17 @@ def make_term_plot(results_path, filename, title, ch, graded_v, graded_i, limits
     margin = 0.5 * (r_max - r_min)
     shown = [r for r in r_kohm if np.isfinite(r)] + ([graded_r] if graded_r is not None else [])
     ax.set_ylim(min([r_min - margin] + shown), max([r_max + margin] + shown))
-    ax.set_ylabel("Resistance (kΩ)", fontsize=13)
-    _legend(ax, fontsize=12)
+    ax.set_ylabel("Resistance (kΩ)", fontsize=LABEL_SIZE)
+    _legend(ax)
     _style(ax)
 
-    for axis, data, label, colour in ((ax_v, ch_voltage, "Voltage (V)", VOLTAGE_HEX),
-                                      (ax_i, ch_current, "Current (µA)", CURRENT_HEX)):
+    for axis, data, label, colour in ((ax_i, ch_current, "Current (µA)", CURRENT_HEX),
+                                      (ax_v, ch_voltage, "Voltage (V)", VOLTAGE_HEX)):
         _points(axis, seconds, data, colour)
-        axis.set_ylabel(label, fontsize=11)
+        axis.set_ylabel(label, fontsize=LABEL_SIZE)
         _style(axis)
         mid = abs(sum(data) / len(data))
         if mid > 0:
             axis.set_ylim(min(0.75 * mid, min(data)), max(1.25 * mid, max(data)))
 
-    return _save(fig, (ax, ax_v, ax_i), filename, ch, results_path, plot_dir)
+    return _save(fig, (ax, ax_i, ax_v), filename, ch, results_path, plot_dir)
