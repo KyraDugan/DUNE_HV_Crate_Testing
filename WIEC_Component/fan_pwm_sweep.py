@@ -41,7 +41,8 @@ EST_MINUTES = 3
 
 def _save_plot(folder, filename, x, y, title, xlabel, ylabel):
     plt.figure()
-    plt.plot(x, y, marker="o")
+    # Measured points only: no line joining them (only a fit is drawn as a line)
+    plt.plot(x, y, linestyle="none", marker="o")
     plt.title(title, fontsize=14)
     plt.xlabel(xlabel, fontsize=12)
     plt.ylabel(ylabel, fontsize=12)

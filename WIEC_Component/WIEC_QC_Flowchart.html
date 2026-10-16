@@ -1,0 +1,521 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>WIEC QC Test Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one vertical spine of numbered stages; each stage pairs what happens (left) with a
+   "file → what it does here" list (right). Colours are the WIEC_utils.py palette. */
+:root {
+  --bg: #FCFCF0;            /* BANNER_TEXT_HEX */
+  --surface: #FFFFFF;
+  --fg: #26223F;
+  --muted: #5E5A72;
+  --rule: #C2BDA2;          /* BAR_EMPTY_HEX */
+  --spine: #43397F;         /* BANNER_BACKGROUND_HEX */
+  --c-test: #43397F;
+  --c-helper: #1A7997;      /* ACTION_HEX */
+  --c-general: #93629A;     /* HEADER_HEX */
+  --c-driver: #8A6A0E;      /* IN_PALETTE, darkened for text on light */
+  --c-driver-bg: #D0A11A;   /* IN_PALETTE */
+  --c-config: #6E6A52;
+  --c-wib: #4E7A44;         /* PASS_HEX, darkened */
+  --c-out: #26223F;
+  --chip-fill: 14%;
+  --decision: #FFF6D9;
+  --warn: #6F1A07;          /* FAIL_HEX */
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "DejaVu Sans Mono", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #17152A; --surface: #211E38; --fg: #ECEAF6; --muted: #A9A4C2; --rule: #4A4566; --spine: #9C93E0;
+  --c-test: #B3AAF5; --c-helper: #5EC3E2; --c-general: #D2A4D9; --c-driver: #E8BE45; --c-driver-bg: #D0A11A;
+  --c-config: #CFC9A8; --c-wib: #95CC86; --c-out: #ECEAF6; --chip-fill: 22%; --decision: #2E2A1A; --warn: #F08A70;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #17152A; --surface: #211E38; --fg: #ECEAF6; --muted: #A9A4C2; --rule: #4A4566; --spine: #9C93E0;
+  --c-test: #B3AAF5; --c-helper: #5EC3E2; --c-general: #D2A4D9; --c-driver: #E8BE45; --c-driver-bg: #D0A11A;
+  --c-config: #CFC9A8; --c-wib: #95CC86; --c-out: #ECEAF6; --chip-fill: 22%; --decision: #2E2A1A; --warn: #F08A70;
+  color-scheme: dark; }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: 2.1rem; font-weight: 700; letter-spacing: -0.01em; }
+.lede { color: var(--muted); max-width: 72ch; margin: 8px 0 0; }
+code { font-family: var(--font-mono); font-size: 0.86em; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 24px 0 8px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+.legend .eyebrow { width: 100%; }
+
+/* file chips */
+.f { --c: var(--c-out); display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.2;
+  padding: 3px 8px 3px 7px; border-radius: 4px; color: var(--c); background: color-mix(in srgb, var(--c) var(--chip-fill), transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.f::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--c); flex: none; }
+.f.test { --c: var(--c-test); font-weight: 500; }
+.f.helper { --c: var(--c-helper); }
+.f.general { --c: var(--c-general); }
+.f.driver { --c: var(--c-driver); }
+.f.driver::before { background: var(--c-driver-bg); }
+.f.config { --c: var(--c-config); border-style: dashed; }
+.f.wib { --c: var(--c-wib); }
+.f.out { --c: var(--c-out); background: transparent; border-style: dotted; }
+.f.out::before { background: transparent; border: 1.5px solid var(--c); width: 5px; height: 5px; }
+
+/* "file → what it does here" list */
+.uses { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; align-content: start; }
+.uses > li { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 2px 10px; align-items: baseline; }
+.uses .role { font-size: 0.84rem; line-height: 1.4; }
+.uses .role code { color: var(--muted); font-size: 0.82em; }
+.uses-head { font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 6px; }
+
+/* spine */
+.flow { margin-top: 28px; display: grid; }
+.stage { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(0, 500px); gap: 0 22px; padding-bottom: 30px; }
+.stage::before { content: ""; position: absolute; left: 21px; top: 30px; bottom: 0; width: 2px; background: var(--spine); opacity: 0.55; }
+.stage::after { content: ""; position: absolute; left: 16px; bottom: 2px; border: 6px solid transparent; border-top: 8px solid var(--spine); border-bottom: 0; opacity: 0.7; }
+.stage:last-child::before, .stage:last-child::after { display: none; }
+.num { width: 44px; height: 30px; display: grid; place-items: center; border-radius: 15px; background: var(--spine); color: var(--bg);
+  font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.what h2 { font-size: 1.25rem; font-weight: 600; line-height: 30px; }
+.what p { margin: 4px 0 0; max-width: 62ch; }
+.what ul { margin: 6px 0 0; padding-left: 18px; max-width: 62ch; }
+.what li { margin: 2px 0; }
+.stage > .side { padding-top: 6px; }
+
+.decision { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.decision .q { background: var(--decision); border: 1px solid var(--c-driver); padding: 6px 18px; font-weight: 600; font-size: 0.9rem;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%); }
+.decision .a { font-size: 0.88rem; color: var(--muted); flex: 1 1 220px; }
+.decision .a b { color: var(--fg); }
+
+/* the five items: full width under stage 5 */
+.items { grid-column: 2 / -1; margin-top: 14px; display: grid; gap: 14px; }
+.item { border: 1px solid var(--rule); border-left: 4px solid var(--c-test); background: var(--surface); border-radius: 0 6px 6px 0; padding: 12px 14px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 500px); gap: 8px 22px; }
+.item h3 { font-size: 1.08rem; font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.item h3 .k { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 400; color: var(--muted); }
+.item p { margin: 4px 0 0; font-size: 0.92rem; }
+.item ol { margin: 6px 0 0; padding-left: 20px; font-size: 0.92rem; }
+.item ol li { margin: 3px 0; }
+
+/* WIB sub-flow */
+.sub { grid-column: 1 / -1; border-top: 1px dashed var(--rule); padding-top: 12px; margin-top: 4px; }
+.sub-step { display: grid; grid-template-columns: 26px minmax(0, 1fr) minmax(0, 500px); gap: 4px 14px; padding: 8px 0; position: relative; }
+.sub-step .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--c-helper); display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: 0.7rem; color: var(--c-helper); background: var(--surface); position: relative; z-index: 1; }
+.sub-step::before { content: ""; position: absolute; left: 11px; top: 30px; bottom: -8px; width: 2px; background: var(--c-helper); opacity: 0.35; }
+.sub-step:last-child::before { display: none; }
+.sub-step .body { font-size: 0.9rem; }
+.sub-step .body ol { margin: 4px 0; padding-left: 18px; }
+.loop { border: 1.5px dashed var(--c-helper); border-radius: 8px; padding: 6px 10px; margin: 8px 0; position: relative; }
+.loop > .tag { position: absolute; top: -10px; left: 36px; background: var(--surface); padding: 0 6px; font-family: var(--font-mono); font-size: 0.72rem; color: var(--c-helper); }
+.loop.inner { border-color: var(--c-wib); }
+.loop.inner > .tag { color: var(--c-wib); }
+.remote { margin: 6px 0; padding: 8px 10px; border-radius: 6px; background: color-mix(in srgb, var(--c-wib) 10%, transparent); border: 1px solid color-mix(in srgb, var(--c-wib) 40%, transparent); font-size: 0.86rem; }
+.remote .eyebrow { color: var(--c-wib); }
+
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 8px; }
+.panel { border: 1px solid var(--rule); border-radius: 6px; padding: 14px; background: var(--surface); display: grid; gap: 8px; align-content: start; }
+.panel h2 { font-size: 1.1rem; font-weight: 600; }
+.panel p { margin: 0; font-size: 0.92rem; }
+.panel.warn { border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
+.panel.warn h2 { color: var(--warn); }
+.tree { font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.6; white-space: pre; overflow-x: auto; margin: 8px 0 0; }
+
+@media (max-width: 1020px) {
+  .stage { grid-template-columns: 44px minmax(0, 1fr); }
+  .stage > .side { grid-column: 2; padding-top: 12px; }
+  .item { grid-template-columns: minmax(0, 1fr); }
+  .sub-step { grid-template-columns: 26px minmax(0, 1fr); }
+  .sub-step > .uses { grid-column: 2; margin-top: 4px; }
+}
+@media (max-width: 560px) {
+  h1 { font-size: 1.7rem; }
+  .stage { grid-template-columns: 34px minmax(0,1fr); gap: 0 10px; } .num { width: 34px; }
+  .stage::before { left: 16px; } .stage::after { left: 11px; }
+  .uses > li { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">DUNE · BNL · WIEC component QC</div>
+  <h1>WIEC QC Test Flow</h1>
+  <p class="lede">What happens from launching <code>run_wiec_component.py</code> to the summary report. Next to each stage is every file it uses, the function called, and what that file is doing at that point. Traced from <code>main</code> (commit 0cdcf86c plus uncommitted edits), 15 Oct 2026.</p>
+
+  <div class="legend" aria-label="File categories">
+    <div class="eyebrow">File categories (the readme's, plus files outside WIEC_Component/)</div>
+    <span class="f test">Top script / test script</span>
+    <span class="f helper">Test helper</span>
+    <span class="f general">General helper</span>
+    <span class="f driver">Instrument driver / link</span>
+    <span class="f config">Config, state, slides</span>
+    <span class="f wib">Runs on the WIB</span>
+    <span class="f out">Output file</span>
+  </div>
+
+  <div class="flow">
+
+    <!-- 1 -->
+    <section class="stage">
+      <div class="num">1</div>
+      <div class="what">
+        <h2>Launch</h2>
+        <p>The operator double-clicks the desktop shortcut. With no flags the menu opens; <code>--all</code> / <code>--items</code> run straight through; <code>--list</code>, <code>--suggest</code>, <code>--preflight</code> and <code>--shutdown</code> do one thing and exit.</p>
+      </div>
+      <div class="side">
+        <div class="uses-head">File → what it does here</div>
+        <ul class="uses">
+          <li><span class="f config">wiec-test.desktop</span><span class="role">Opens a shell in the repo root and runs the top script. The root matters: the CAEN driver loads its <code>.so</code> from there.</span></li>
+          <li><span class="f test">run_wiec_component.py</span><span class="role"><code>main</code> reads the flags and decides which mode to run.</span></li>
+          <li><span class="f config">config.json</span><span class="role">Loaded once here; every later step reads its settings from it.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="stage">
+      <div class="num">2</div>
+      <div class="what">
+        <h2>Preflight checks</h2>
+        <p>Make sure the PC and the instruments are ready before anything is powered.</p>
+        <div class="decision">
+          <span class="q">Preflight OK?</span>
+          <span class="a"><b>No</b> → “Continue? [y/N]”; N exits. <b>Yes</b> → menu.</span>
+        </div>
+      </div>
+      <div class="side">
+        <div class="uses-head">File → what it does here</div>
+        <ul class="uses">
+          <li><span class="f general">preflight.py</span><span class="role"><code>check_environment</code> checks Python packages and config, and pings each instrument IP. <code>print_report</code> shows the results. <code>print_suggestions</code> prints new-user notes on a first run.</span></li>
+          <li><span class="f config">.wiec_component_state.json</span><span class="role">Read by <code>preflight.is_first_run</code> to decide whether to show the notes; rewritten at exit by <code>preflight.mark_run</code>.</span></li>
+          <li><span class="f config">config.json</span><span class="role">Supplies the instrument IPs that get pinged.</span></li>
+          <li><span class="f general">WIEC_utils.py</span><span class="role">Title banner and PASS/FAIL colours on the report; <code>ask</code> for the y/N prompt.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="stage">
+      <div class="num">3</div>
+      <div class="what">
+        <h2>Menu</h2>
+        <p>The operator picks what to do:</p>
+        <ul>
+          <li>item numbers, or <b>f</b> for all five in order → stage 4</li>
+          <li><b>n</b> new-user notes · <b>p</b> redo preflight · <b>s</b> shut instruments down</li>
+          <li><b>q</b> save and quit → stage 6</li>
+        </ul>
+      </div>
+      <div class="side">
+        <div class="uses-head">File → what it does here</div>
+        <ul class="uses">
+          <li><span class="f test">run_wiec_component.py</span><span class="role"><code>interactive</code> loops on the menu; <code>print_items</code> lists the items with their status so far.</span></li>
+          <li><span class="f general">WIEC_utils.py</span><span class="role">Colours the option letters (teal = operator action) and the status column.</span></li>
+          <li><span class="f general">preflight.py</span><span class="role">Options <b>n</b> and <b>p</b> rerun <code>print_suggestions</code> and <code>check_environment</code>.</span></li>
+          <li><span class="f general">session.py</span><span class="role">Option <b>s</b>: <code>shutdown_only</code> turns every supply off without ending the session.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="stage">
+      <div class="num">4</div>
+      <div class="what">
+        <h2>Set up the session</h2>
+        <p>Happens once, before the first item runs.</p>
+        <ul>
+          <li>Overview slide, then “find the serial” slide; WIEC serial typed twice.</li>
+          <li>Session created, legacy spreadsheet row opened, run folder made, session log started.</li>
+          <li>Operator name, then the “set up the test stand” slide.</li>
+        </ul>
+      </div>
+      <div class="side">
+        <div class="uses-head">File → what it does here</div>
+        <ul class="uses">
+          <li><span class="f test">run_wiec_component.py</span><span class="role"><code>build_session</code> runs these steps in order.</span></li>
+          <li><span class="f general">WIEC_utils.py</span><span class="role"><code>make_instruction_popup</code> checks a window can open; <code>show_slides</code> shows each slide; <code>confirm_input_ask</code> asks for the serial and name.</span></li>
+          <li><span class="f general">popups.py</span><span class="role"><code>available</code> says if a window can open here (desktop, tkinter, PIL); <code>image_path</code> finds the PNG for a slide number.</span></li>
+          <li><span class="f config">GUI/pop_window.py</span><span class="role">Draws the slide window with its Confirm button.</span></li>
+          <li><span class="f config">GUI/wiec_pngs/</span><span class="role">The slide images, made from <code>Hardware_Instructions.odp</code> by <code>GUI/export_wiec_slides.sh</code>.</span></li>
+          <li><span class="f helper">record_results.py</span><span class="role"><code>file_name_safe</code> cleans the serial for file names; <code>run_path</code> makes <code>runs/&lt;date-time&gt;_&lt;serial&gt;/</code>.</span></li>
+          <li><span class="f general">session.py</span><span class="role"><code>TestSession</code> loads config and holds the instruments, results paths and datastore for every later step.</span></li>
+          <li><span class="f general">spreadsheet.py</span><span class="role"><code>ResultSpreadsheet.open</code> (called by <code>TestSession</code>) opens the legacy results spreadsheet row and stamps the date.</span></li>
+          <li><span class="f general">output_log.py</span><span class="role"><code>start</code> copies everything printed from here on into <code>session_log.txt</code>.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="stage">
+      <div class="num">5</div>
+      <div class="what">
+        <h2>Run each item</h2>
+        <p>Each item's <code>run(session)</code> returns pass or fail. If it errors or the operator presses Ctrl-C, everything is powered down and the item is marked INTERRUPTED. In a full run, a failed item does not stop the next.</p>
+      </div>
+      <div class="side">
+        <div class="uses-head">Files every item uses</div>
+        <ul class="uses">
+          <li><span class="f test">run_wiec_component.py</span><span class="role"><code>run_item</code> calls the item and catches errors and Ctrl-C.</span></li>
+          <li><span class="f general">session.py</span><span class="role">Opens each instrument the first time an item asks for it (<code>session.caen</code>, <code>.keysight</code>, <code>.rigol0</code>, <code>.rigol1</code>, <code>.pl506</code>); <code>record</code> stores the item's result; <code>emergency_shutoff</code> on errors.</span></li>
+          <li><span class="f helper">record_results.py</span><span class="role"><code>measure</code> grades each reading against its min/max and adds it to the measurements.</span></li>
+          <li><span class="f general">WIEC_utils.py</span><span class="role">Progress bars during waits (<code>run_with_bar</code>, <code>countdown_sleep</code>), prompts, PASS/FAIL colours.</span></li>
+        </ul>
+      </div>
+
+      <div class="items">
+        <!-- fan -->
+        <article class="item">
+          <div>
+            <h3>Fan Test <span class="k">fan_test · ~1 min</span></h3>
+            <p>Power the fans at nominal voltage, wait <code>fan_wait</code>, then record the fan supply V/I and each fan's RD frequency.</p>
+          </div>
+          <ul class="uses">
+            <li><span class="f test">fan_test.py</span><span class="role"><code>run</code> → <code>measure</code> runs the test and grades it.</span></li>
+            <li><span class="f driver">rigol_dp832a.py</span><span class="role">Rigol #0 powers the fans; Rigol #1 powers the RD pull-up. Reads back supply V and I.</span></li>
+            <li><span class="f driver">keysight_daq970a.py</span><span class="role"><code>initialize_fan</code> / <code>measure_fan</code> read the RD frequency of each fan.</span></li>
+          </ul>
+        </article>
+
+        <!-- pwm -->
+        <article class="item">
+          <div>
+            <h3>Fan PWM Sweep <span class="k">fan_pwm_sweep · ~3 min</span></h3>
+            <p>Step the fan voltage from min to max, measure at each point, then grade the fans against each other by correlation and RMSE.</p>
+          </div>
+          <ul class="uses">
+            <li><span class="f test">fan_pwm_sweep.py</span><span class="role">Runs the sweep, saves the CSV and PNG curves, grades the curves.</span></li>
+            <li><span class="f test">fan_test.py</span><span class="role"><code>measure</code> is reused for the reading at each voltage step.</span></li>
+            <li><span class="f driver">rigol_dp832a.py</span><span class="role">Sets each sweep voltage, then restores the nominal one.</span></li>
+            <li><span class="f driver">keysight_daq970a.py</span><span class="role">Reads the fan frequencies at each step (through <code>fan_test.measure</code>).</span></li>
+          </ul>
+        </article>
+
+        <!-- heater -->
+        <article class="item">
+          <div>
+            <h3>Heater Test <span class="k">heater_test · ~1 min</span></h3>
+            <p>Measure the four heating-element resistances unpowered, then power them and record the RTD temperature rise after <code>heat_wait</code>.</p>
+          </div>
+          <ul class="uses">
+            <li><span class="f test">heater_test.py</span><span class="role"><code>run</code> does both halves and grades them.</span></li>
+            <li><span class="f driver">keysight_daq970a.py</span><span class="role"><code>measure_resistance</code> for the elements; <code>measure_rtd</code> for the temperature before and after.</span></li>
+            <li><span class="f driver">rigol_dp832a.py</span><span class="role">Rigol #0 powers the heater supply and heater switch; reads back their V and I.</span></li>
+          </ul>
+        </article>
+
+        <!-- hv -->
+        <article class="item">
+          <div>
+            <h3>HV Test <span class="k">hv_test</span></h3>
+            <ol>
+              <li>HV warning slide; operator types <code>hv_warning_phrase</code>.</li>
+              <li>Relay pull-ups on.</li>
+              <li>For each channel group (all at once or one at a time, per <code>simultaneous_test</code>), four phases, each ramped up and back down: +2000 V open, +20 V into 10 kΩ, −2000 V open, −20 V into 10 kΩ.</li>
+              <li>V/I logged, τ fitted on the open phases, resistance checked, plots saved.</li>
+            </ol>
+          </div>
+          <ul class="uses">
+            <li><span class="f test">hv_test.py</span><span class="role"><code>acknowledge_hv_warning</code>, then <code>test_channels</code> runs the phases; <code>record_hv_data</code> logs V/I to CSV; <code>_evaluate</code> grades.</span></li>
+            <li><span class="f driver">caen_r8033dm_wrapper.py</span><span class="role">Sets the voltage, ramps channels on and off, reads V and I on all 16 channels.</span></li>
+            <li><span class="f driver">caen_r8033dm.py</span><span class="role">Low-level CAEN library calls under the wrapper (loads the <code>.so</code>).</span></li>
+            <li><span class="f driver">keysight_daq970a.py</span><span class="role"><code>set_relay</code> picks positive/negative and open/10 kΩ for each phase.</span></li>
+            <li><span class="f driver">rigol_dp832a.py</span><span class="role">Rigol #1 powers the two HV relay pull-ups.</span></li>
+            <li><span class="f helper">analysis.py</span><span class="role"><code>hv_curve_fit</code> fits a·e<sup>−bt</sup>+c for τ; <code>make_plot</code> / <code>make_term_plot</code> draw the PNGs.</span></li>
+            <li><span class="f general">output_log.py</span><span class="role"><code>log</code> writes each channel's full results to the session log only.</span></li>
+          </ul>
+        </article>
+
+        <!-- wib -->
+        <article class="item">
+          <div>
+            <h3>WIB/FEMB <span class="k">wiec_wib_qc · ~70 min</span></h3>
+            <p>Move one WIB (or <code>wib_boards_available</code> WIBs) through the selected slots. At each slot, check the WIB's link through the WIEC, then run an FEMB checkout through it.</p>
+          </div>
+          <ul class="uses">
+            <li><span class="f test">wiec_wib_qc.py</span><span class="role"><code>run</code> drives the whole item; <code>run_batch</code> handles one batch of slots.</span></li>
+            <li><span class="f helper">ptc_power.py</span><span class="role">Fan-interlocked 48 V power for the PTC.</span></li>
+            <li><span class="f helper">wib_setup.py</span><span class="role">Zynq login and the per-slot WIB check.</span></li>
+            <li><span class="f helper">femb_checkout.py</span><span class="role">Runs the FEMB checkout on the WIB over ssh and grades it on the PC.</span></li>
+            <li><span class="f helper">wiec_femb_chk.py</span><span class="role">The script copied to and run on the WIB.</span></li>
+            <li><span class="f driver">wiec_serial.py</span><span class="role">Serial console to the Zynq: WIB power and sensor reads.</span></li>
+          </ul>
+
+          <div class="sub">
+            <div class="sub-step"><span class="dot">a</span>
+              <div class="body">Operator picks the WIB slots (all, or a list typed twice). Slots are split into batches. FEMB sets and enabled tests are read. “Check the FEMBs” slide.</div>
+              <ul class="uses">
+                <li><span class="f test">wiec_wib_qc.py</span><span class="role"><code>prompt_wiec_test_info</code> asks for slots; <code>make_batches</code> splits them.</span></li>
+                <li><span class="f helper">femb_checkout.py</span><span class="role"><code>get_femb_sets</code> / <code>get_femb_tests</code> read and check which FEMBs and tests to use.</span></li>
+                <li><span class="f config">config.json</span><span class="role"><code>wib_test_slots</code>, <code>wib_boards_available</code>, <code>wiec_femb_sets</code>, <code>wiec_femb_tests</code>.</span></li>
+              </ul>
+            </div>
+            <div class="sub-step"><span class="dot">b</span>
+              <div class="body">PTC power-up: fans on and confirmed spinning, then 48 V on. If this fails, the item fails.</div>
+              <ul class="uses">
+                <li><span class="f helper">ptc_power.py</span><span class="role"><code>power_up</code> → <code>ensure_fans_on</code> → <code>turn_on_pl506</code>.</span></li>
+                <li><span class="f driver">rigol_dp832a.py</span><span class="role">Powers the fans (Rigol #0) and RD pull-up (Rigol #1).</span></li>
+                <li><span class="f driver">keysight_daq970a.py</span><span class="role">Confirms every fan is above <code>fan_osc_freq</code> before 48 V is allowed.</span></li>
+                <li><span class="f driver">pl506.py</span><span class="role"><code>safe_turn_on_channel</code> brings the PTC's 48 V up within the V/I limits.</span></li>
+                <li><span class="f driver">wiec_serial.py</span><span class="role"><code>store_current_usb_ports</code> notes the USB ports present before the Zynq powers, so its new port can be found.</span></li>
+              </ul>
+            </div>
+            <div class="sub-step"><span class="dot">c</span>
+              <div class="body">Log in to the Zynq (PetaLinux) over USB serial.</div>
+              <ul class="uses">
+                <li><span class="f helper">wib_setup.py</span><span class="role"><code>login_zynq</code> handles failures and returns the serial handle.</span></li>
+                <li><span class="f driver">wiec_serial.py</span><span class="role"><code>login</code> finds the new <code>/dev/ttyUSB*</code> port and logs in as root.</span></li>
+              </ul>
+            </div>
+
+            <div class="loop"><span class="tag">for each batch</span>
+              <div class="sub-step"><span class="dot">d</span>
+                <div class="body">“Put the WIB in slot N” slide for each slot. Power the batch's WIBs and read their sensor addresses.</div>
+                <ul class="uses">
+                  <li><span class="f test">wiec_wib_qc.py</span><span class="role"><code>run_batch</code> shows the slides (falls back to “press Enter”).</span></li>
+                  <li><span class="f driver">wiec_serial.py</span><span class="role"><code>power_wib</code> powers the slots; <code>run_ecat_soft_timeout_then_i2cdetect</code> scans I²C; <code>sensors_addr</code> reads each WIB's sensors.</span></li>
+                </ul>
+              </div>
+
+              <div class="loop inner"><span class="tag">for each WIB in the batch</span>
+                <div class="sub-step"><span class="dot">e</span>
+                  <div class="body">Slot check: expected I²C address present and WIB IP answers ping. Fail → recorded, next WIB.</div>
+                  <ul class="uses">
+                    <li><span class="f helper">wib_setup.py</span><span class="role"><code>check_slot</code> → <code>validate_wib_i2c_outputs</code> compares I²C addresses; <code>ping_wib</code> pings the expected IP.</span></li>
+                  </ul>
+                </div>
+                <div class="sub-step"><span class="dot">f</span>
+                  <div class="body">FEMB checkout through this slot:
+                    <ol>
+                      <li>Pick the FEMB set for this slot (prompt to move it if needed).</li>
+                      <li>Copy the checkout script to the WIB.</li>
+                      <li>First attempt only: set the WIB clock, run <code>wib_startup.py</code>.</li>
+                      <li>Run the checkout over ssh, settings sent as JSON.</li>
+                    </ol>
+                    <div class="remote"><div class="eyebrow">On the WIB</div>
+                      Powers the FEMBs, drops any with no current, no I²C or unsafe current, runs the enabled BNL warm tests, powers the FEMBs off, prints one <code>WIEC_RESULT_JSON</code> line.
+                    </div>
+                    Back on the PC: parse the result, copy BNL's plots back, grade.
+                  </div>
+                  <ul class="uses">
+                    <li><span class="f helper">femb_checkout.py</span><span class="role"><code>femb_set_for_slot</code> picks the set; <code>copy_script_to_wib</code> scp's the script; <code>prepare_wib</code> sets the clock and starts the WIB; <code>run_assembly_checkout</code> runs it over ssh; <code>parse_result</code> reads the JSON; <code>fetch_report</code> copies plots back; <code>grade</code> checks against <code>wiec_femb_limits</code>; <code>fembs_off</code> makes sure FEMBs are off.</span></li>
+                    <li><span class="f helper">wiec_femb_chk.py</span><span class="role">Runs on the WIB: power, I²C and safety checks, then the BNL tests. Only measures; grading is on the PC.</span></li>
+                    <li><span class="f wib">wib_startup.py</span><span class="role">BNL's WIB start-up: timing and I²C phase setup. Once per power-up.</span></li>
+                    <li><span class="f wib">wib_cfgs.py</span><span class="role">BNL's WIB/FEMB configuration class, used by <code>wiec_femb_chk.py</code>.</span></li>
+                    <li><span class="f wib">components/assembly_function.py</span><span class="role">BNL's analysis for the ADC data tests (noise, pulse); writes plots to <code>CHK/Report</code>.</span></li>
+                    <li><span class="f out">femb_checkout_wibN.txt</span><span class="role">Full WIB output, saved under <code>raw/femb_checkout/</code>.</span></li>
+                  </ul>
+                </div>
+                <div class="sub-step"><span class="dot">g</span>
+                  <div class="body">
+                    <div class="decision" style="margin-top:0"><span class="q">FEMB checks pass?</span>
+                      <span class="a"><b>No</b> → <b>c</b>ontinue, <b>r</b>etry (back to f, no second <code>wib_startup.py</code>) or <b>a</b>bort (skip remaining WIBs).</span></div>
+                    The final attempt is written to the measurements.
+                  </div>
+                  <ul class="uses">
+                    <li><span class="f test">wiec_wib_qc.py</span><span class="role"><code>prompt_after_failure</code> asks c/r/a.</span></li>
+                    <li><span class="f helper">femb_checkout.py</span><span class="role"><code>print_femb_results</code> shows the checks; <code>record_measurements</code> writes the final attempt.</span></li>
+                    <li><span class="f helper">record_results.py</span><span class="role"><code>measure</code> stores each FEMB check with its slot and FEMB serial.</span></li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="sub-step"><span class="dot">h</span>
+                <div class="body">Batch WIBs powered off; “take the WIB out of slot N” slide for each slot.</div>
+                <ul class="uses">
+                  <li><span class="f driver">wiec_serial.py</span><span class="role"><code>power_wib</code> with every slot set to off.</span></li>
+                  <li><span class="f general">WIEC_utils.py</span><span class="role"><code>show_slides</code> for the removal slide.</span></li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="sub-step"><span class="dot">i</span>
+              <div class="body">Always, even after abort or an error: close serial, 48 V off, then fans off.</div>
+              <ul class="uses">
+                <li><span class="f driver">wiec_serial.py</span><span class="role"><code>close_serial</code> closes the Zynq console.</span></li>
+                <li><span class="f helper">ptc_power.py</span><span class="role"><code>power_down</code>: PL506 channel and main off first, then the fans.</span></li>
+                <li><span class="f driver">pl506.py</span><span class="role"><code>channel_off</code>, <code>main_off</code>.</span></li>
+              </ul>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section class="stage">
+      <div class="num">6</div>
+      <div class="what">
+        <h2>Finish and write results</h2>
+        <p>Runs on <b>q</b>, at the end of <code>--all</code>/<code>--items</code>, or after Ctrl-C or an error. Each write is wrapped so one failure does not stop the others.</p>
+        <p>The “take down the test stand” slide shows only after a normal finish. After Ctrl-C or an error it is skipped so the operator can retry.</p>
+      </div>
+      <div class="side">
+        <div class="uses-head">File → what it does here</div>
+        <ul class="uses">
+          <li><span class="f test">run_wiec_component.py</span><span class="role"><code>finish</code> runs these steps in order.</span></li>
+          <li><span class="f general">session.py</span><span class="role"><code>emergency_shutoff</code> turns every supply off; <code>finalize</code> writes the overall result; <code>save_datastore</code> writes <code>run.json</code>; <code>close_instruments</code>.</span></li>
+          <li><span class="f driver">caen, rigol, pl506, keysight</span><span class="role">Each told to turn off by <code>emergency_shutoff</code>; relays reset to 0.</span></li>
+          <li><span class="f driver">iseg_mpod.py</span><span class="role">Used only here: turns off the HV channels of the MPOD slot.</span></li>
+          <li><span class="f general">spreadsheet.py</span><span class="role"><code>write_overall</code> puts the overall PASS/FAIL in the legacy spreadsheet.</span></li>
+          <li><span class="f helper">record_results.py</span><span class="role"><code>write_measurements</code> → <code>measurements.csv</code>; <code>write_qc_sheet</code> → <code>wiec_qc.xlsx</code>.</span></li>
+          <li><span class="f helper">wiec_report.py</span><span class="role"><code>write_report</code> builds <code>summary.html</code> from <code>run.json</code> and <code>plots/</code>.</span></li>
+          <li><span class="f general">output_log.py</span><span class="role"><code>stop</code> closes <code>session_log.txt</code>.</span></li>
+          <li><span class="f general">preflight.py</span><span class="role"><code>mark_run</code> updates the state file so the next run is not a “first run”.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="stage">
+      <div class="num">7</div>
+      <div class="what">
+        <h2>Output: the run folder</h2>
+        <p>Names come from <code>config.json</code>.</p>
+<pre class="tree">WIEC_Component_Results/runs/&lt;YYYY-MM-DD_HH-MM-SS&gt;_&lt;serial&gt;/
+├── run.json
+├── measurements.csv
+├── wiec_qc.xlsx
+├── summary.html
+├── session_log.txt
+├── plots/&lt;test&gt;/
+└── raw/</pre>
+      </div>
+      <div class="side">
+        <div class="uses-head">File → what it holds · written by</div>
+        <ul class="uses">
+          <li><span class="f out">run.json</span><span class="role">The whole session datastore · <code>session.save_datastore</code></span></li>
+          <li><span class="f out">measurements.csv</span><span class="role">One row per reading, with limits and result · <code>record_results.write_measurements</code></span></li>
+          <li><span class="f out">wiec_qc.xlsx</span><span class="role">One QC row: PASS / FAIL / INTERRUPTED per item · <code>record_results.write_qc_sheet</code></span></li>
+          <li><span class="f out">summary.html</span><span class="role">Self-contained report with plots embedded · <code>wiec_report.write_report</code></span></li>
+          <li><span class="f out">session_log.txt</span><span class="role">Everything printed, colour codes removed · <code>output_log</code></span></li>
+          <li><span class="f out">plots/</span><span class="role">PNGs per item, including BNL's FEMB plots · each item, <code>femb_checkout.fetch_report</code></span></li>
+          <li><span class="f out">raw/</span><span class="role">HV V/I CSVs, fan sweep CSV, WIB output · each item</span></li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <div class="panels">
+    <section class="panel">
+      <h2>Other ways in</h2>
+      <ul class="uses">
+        <li><span class="f general">cli.py</span><span class="role"><code>run_single_item</code> runs one item alone, e.g. <code>python3 -m WIEC_Component.heater_test config.json name</code>. It builds its own session and powers down on exit. No slides.</span></li>
+        <li><span class="f helper">wiec_report.py</span><span class="role">Run directly to rebuild a summary: <code>python3 -m WIEC_Component.wiec_report [run folder | --all]</code>.</span></li>
+        <li><span class="f general">session.py</span><span class="role"><code>shutdown_only</code>, from <code>--shutdown</code> or menu <b>s</b>: CAEN, MPOD slot, PL506, both Rigols off, relays reset.</span></li>
+      </ul>
+    </section>
+    <section class="panel warn">
+      <h2>Not part of this flow</h2>
+      <p>Nothing in the WIEC run imports these; they belong to the iseg HV module test.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:6px"><span class="f general">hv_module_test.py</span><span class="f general">hv_limit_adjust.py</span><span class="f general">hv_module_report.py</span><span class="f general">operator.py</span><span class="f config">HV_MODULE_TEST_DEVLOG.md</span></div>
+      <p>The readme also lists <code>popups.py</code>, <code>spreadsheet.py</code> and <code>iseg_mpod.py</code> as unused, but the WIEC run uses them (stages 4 and 6).</p>
+    </section>
+  </div>
+</div>
+
+</body></html>

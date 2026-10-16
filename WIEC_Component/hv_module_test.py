@@ -1541,8 +1541,9 @@ def plot_ramp(ctx):
     ):
         figure, axes = plt.subplots(figsize=(10, 6))
         for channel in sorted(series):
+            # Sampled readings: points, not a line (only a fit is drawn as a line)
             axes.plot(series[channel]["t"], series[channel][quantity],
-                      label=channel.upper(), linewidth=1.0)
+                      label=channel.upper(), linestyle="none", marker="o", markersize=2)
 
         axes.set_xlabel("Time [s]")
         axes.set_ylabel(label)
@@ -1552,7 +1553,7 @@ def plot_ramp(ctx):
             f"{ctx.cfg['iseg_ramp_target_voltage']:g} V"
         )
         axes.grid(True, alpha=0.3)
-        axes.legend(ncol=4, fontsize="x-small")
+        axes.legend(ncol=4, fontsize="x-small", markerscale=3)
         path = os.path.join(directory, filename)
         figure.tight_layout()
         figure.savefig(path, dpi=120)
@@ -1577,11 +1578,11 @@ def plot_ramp(ctx):
                 if abs(row["snmp_hv_v"]) > 50.0 and not math.isnan(row["implied_ratio"]):
                     ratios.append((abs(row["snmp_hv_v"]), row["implied_ratio"]))
                 hv.append(abs(row["daq_voltage_v"]))
-            top.plot(times, hv, marker="o", markersize=3, linewidth=0.8,
+            top.plot(times, hv, linestyle="none", marker="o", markersize=3,
                      label=channel.upper())
             if ratios:
                 bottom.plot([r[0] for r in ratios], [r[1] for r in ratios],
-                            marker="o", markersize=3, linewidth=0.8,
+                            linestyle="none", marker="o", markersize=3,
                             label=channel.upper())
 
         nominal = (
@@ -1595,13 +1596,13 @@ def plot_ramp(ctx):
         top.set_ylabel("34970A reading [V]")
         top.set_title(f"34970A through the HV divider -- SN {ctx.serial()} (recorded, not graded)")
         top.grid(True, alpha=0.3)
-        top.legend(ncol=4, fontsize="small")
+        top.legend(ncol=4, fontsize="small", markerscale=3)
 
         bottom.set_xlabel("Module reported |Voltage| [V]")
         bottom.set_ylabel("implied ratio  (module / meter)")
         bottom.set_title("Ratio the measurements imply, against the nominal 10M:500k")
         bottom.grid(True, alpha=0.3)
-        bottom.legend(ncol=4, fontsize="small")
+        bottom.legend(ncol=4, fontsize="small", markerscale=3)
 
         path = os.path.join(directory, "hv_ramp_daq.png")
         figure.tight_layout()
@@ -1670,7 +1671,7 @@ def plot_iv(ctx):
         residuals = [100.0 * (y - (a["slope_ua_per_v"] * x + a["offset_ua"])) / a["top_current_ua"]
                      for x, y in zip(v, i)] if a["top_current_ua"] > 0 else []
         if residuals:
-            middle.plot(v, residuals, marker="o", markersize=4, linewidth=0.8,
+            middle.plot(v, residuals, linestyle="none", marker="o", markersize=4,
                         color=colour, label=channel.upper())
 
     top.set_xlabel("Module reported |Voltage| [V]")

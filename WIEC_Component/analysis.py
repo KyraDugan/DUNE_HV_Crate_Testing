@@ -1,4 +1,8 @@
-"""Curve fitting and plotting shared by the HV items."""
+""" analysis.py
+
+Curve fitting and plotting shared by the HV items.
+
+"""
 
 
 import csv
@@ -19,10 +23,13 @@ from scipy.optimize import curve_fit
 from . import WIEC_utils
 
 # Plot colours, all from the WIEC_utils palette
-DATA_HEX = WIEC_utils.BANNER_BACKGROUND_HEX    # the measured trace that is analysed (dark blue)
-FIT_HEX = WIEC_utils.IN_PALETTE                # the fit drawn over it (gold)
-OTHER_HEX = WIEC_utils.HEADER_HEX              # the quantity shown only for context
+CURRENT_HEX = WIEC_utils.ACTION_HEX            # every current trace, in every panel (teal)
+VOLTAGE_HEX = WIEC_utils.BANNER_BACKGROUND_HEX # every voltage trace, in every panel (dark blue)
+DATA_HEX = WIEC_utils.HEADER_HEX               # the resistance trace on the 20 V plots (purple)
+FIT_HEX = WIEC_utils.IN_PALETTE                # the exponential fit, drawn in front of the data (gold)
+GRADED_HEX = WIEC_utils.IN_PALETTE             # the star on the graded 20 V reading (gold)
 BAND_HEX = WIEC_utils.BAR_EMPTY_HEX            # grid and the time-constant box's edge
+POINT_SIZE = 3                                 # measured samples are points; only a fit is a line
 
 
 def exp_fit(x, a, b, c):
@@ -77,18 +84,36 @@ def hv_curve_fit(results_path, name, ch, on=True, initial_b=0.02):
 
 def _style(ax):
     ax.grid(True, color=BAND_HEX, alpha=0.5, linewidth=0.8)
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
+    # A full border on every panel, so stacked panels read as separate plots
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_color("0.35")
+        spine.set_linewidth(1.2)
     ax.tick_params(labelsize=12)
     # Show 1999.5 V as 1999.5, not as "-0.5" with a "+2e3" offset above the axis
     ax.ticklabel_format(axis="y", useOffset=False)
 
 
+def _points(ax, x, y, colour, **kwargs):
+    """Measured samples as unconnected dots: the data is discrete, so only a fit gets a line."""
+    ax.plot(x, y, linestyle="none", marker="o", markersize=POINT_SIZE, color=colour, **kwargs)
+
+
+def _legend(ax, fontsize):
+    """A legend whose data dots are drawn big enough to see (other markers keep their size)."""
+    legend = ax.legend(loc="best", fontsize=fontsize)
+    for handle in legend.legend_handles:
+        if getattr(handle, "get_marker", lambda: None)() == "o":
+            handle.set_markersize(3 * POINT_SIZE)
+
+
 def _new_figure(title, height_ratios, verdict=None):
-    """Two stacked panels sharing the time axis, with the title above them. verdict ("PASS" or
-    "FAIL") is written right after the title in the program's pass/fail colour."""
+    """Stacked panels sharing the time axis (one per entry in height_ratios), with the title above
+    them. verdict ("PASS" or "FAIL") is written right after the title in the program's pass/fail
+    colour."""
+    rows = len(height_ratios)
     fig, axes = plt.subplots(
-        2, 1, figsize=(12, 8), sharex=True, gridspec_kw=dict(height_ratios=height_ratios)
+        rows, 1, figsize=(12, 6 + rows), sharex=True, gridspec_kw=dict(height_ratios=height_ratios)
     )
     title_text = fig.text(0.06, 0.96, title, fontsize=18, ha="left", va="top")
     if verdict is not None:
@@ -102,7 +127,8 @@ def _new_figure(title, height_ratios, verdict=None):
 
 def _save(fig, axes, filename, ch, results_path, plot_dir):
     axes[-1].set_xlabel("Time since recording started (s)", fontsize=13)
-    fig.tight_layout(rect=[0, 0, 1, 0.92])
+    # h_pad: a gap between the bordered panels
+    fig.tight_layout(rect=[0, 0, 1, 0.92], h_pad=2.0)
     png_name = f"{Path(filename).stem}_ch{ch}.png"
     fig.savefig(os.path.join(plot_dir or results_path, png_name), dpi=90)
     plt.close(fig)
@@ -128,10 +154,13 @@ def make_plot(results_path, filename, title, ch, fit=None, on=True, limits=None,
     seconds, ch_voltage, ch_current = get_ch_data(
         os.path.join(results_path, filename), ch
     )
+    # Each quantity keeps its own colour whichever panel it is in
     if on:
-        fitted, fitted_label, other, other_label = ch_current, "Current (µA)", ch_voltage, "Voltage (V)"
+        fitted, fitted_label, fitted_hex = ch_current, "Current (µA)", CURRENT_HEX
+        other, other_label, other_hex = ch_voltage, "Voltage (V)", VOLTAGE_HEX
     else:
-        fitted, fitted_label, other, other_label = ch_voltage, "Voltage (V)", ch_current, "Current (µA)"
+        fitted, fitted_label, fitted_hex = ch_voltage, "Voltage (V)", VOLTAGE_HEX
+        other, other_label, other_hex = ch_current, "Current (µA)", CURRENT_HEX
     fitted_name = fitted_label.split(" ")[0].lower()
 
     # fit None: the phase is not fitted (the terminated ones), so only the data is drawn.
@@ -156,23 +185,21 @@ def make_plot(results_path, filename, title, ch, fit=None, on=True, limits=None,
 
     fig, (ax, ax_other) = _new_figure(title, height_ratios=[3, 1], verdict=verdict)
 
-    # The CAEN holds each reading until its next update, so draw the data as steps.
-    # zorder puts the data on top of the fit, which is drawn behind it.
-    ax.step(seconds, fitted, where="post", color=DATA_HEX, linewidth=2, zorder=3,
-            label=f"Measured {fitted_name}")
+    # zorder puts the fit in front: the dots are dense enough to hide a fit drawn behind them
+    _points(ax, seconds, fitted, fitted_hex, zorder=3, label=f"Measured {fitted_name}")
     if fit_ok:
-        ax.plot(seconds, exp_fit(seconds, *fit[0]), color=FIT_HEX, linewidth=2.5, linestyle="--",
-                zorder=2, label="Exponential fit")
+        ax.plot(seconds, exp_fit(seconds, *fit[0]), color=FIT_HEX, linewidth=2.5,
+                zorder=4, label="Exponential fit")
 
     if lines:
         ax.text(0.98, 0.70, "\n".join(lines), transform=ax.transAxes, ha="right", va="top",
-                multialignment="left", fontsize=13,
+                multialignment="left", fontsize=16,
                 bbox=dict(facecolor="white", edgecolor=BAND_HEX, linewidth=2))
-    ax.set_ylabel(fitted_label, fontsize=13)
-    ax.legend(loc="upper right", fontsize=11, frameon=False)
+    ax.set_ylabel(fitted_label, fontsize=16)
+    _legend(ax, fontsize=14)
     _style(ax)
 
-    ax_other.step(seconds, other, where="post", color=OTHER_HEX, linewidth=1.5)
+    _points(ax_other, seconds, other, other_hex)
     ax_other.set_ylabel(other_label, fontsize=11)
     _style(ax_other)
     if other_ylim is not None:
@@ -181,3 +208,65 @@ def make_plot(results_path, filename, title, ch, fit=None, on=True, limits=None,
         ax_other.set_ylim(min(other_ylim[0], min(other)), max(other_ylim[1], max(other)))
 
     return _save(fig, (ax, ax_other), filename, ch, results_path, plot_dir)
+
+
+def make_term_plot(results_path, filename, title, ch, graded_v, graded_i, limits, plot_dir=None):
+    """Plots one channel of a terminated (20 V) ramp up as the resistance that is graded.
+
+    Top panel: R = V/I for every recorded sample, in kOhm, over the shaded pass band, with a star
+    on the reading that is graded and the sum it comes from. The CAEN reading behind the star is
+    taken after the recording stops, so it is passed in (graded_v in V, graded_i in uA) rather
+    than read from the CSV. Below: the voltage and current R is made from, on scales of +/-25 %
+    of their mean so readback noise does not look like a change.
+
+    limits is (R_min, R_max) in MOhm, graded the same way as hv_test._evaluate. PASS/FAIL goes
+    after the title. The CSV is read from results_path; the PNG is saved in plot_dir if given,
+    otherwise next to the CSV in results_path. Returns the PNG's file name.
+    """
+    seconds, ch_voltage, ch_current = get_ch_data(os.path.join(results_path, filename), ch)
+    # V over uA is MOhm; x1000 for kOhm. A zero current reading is a gap, not a divide by zero
+    r_kohm = np.array([1e3 * v / i if i else np.nan for v, i in zip(ch_voltage, ch_current)])
+    r_min, r_max = 1e3 * limits[0], 1e3 * limits[1]
+
+    try:
+        graded_v, graded_i = float(graded_v), float(graded_i)
+        graded_r = 1e3 * graded_v / graded_i
+    except (TypeError, ValueError, ZeroDivisionError):
+        graded_r = None
+    verdict = "PASS" if graded_r is not None and r_min < graded_r < r_max else "FAIL"
+
+    fig, (ax, ax_v, ax_i) = _new_figure(title, height_ratios=[3, 1, 1], verdict=verdict)
+
+    ax.axhspan(r_min, r_max, color=WIEC_utils.PASS_HEX, alpha=0.12,
+               label=f"Pass band {r_min:g}–{r_max:g} kΩ")
+    _points(ax, seconds, r_kohm, DATA_HEX, label="R = V / I during the hold")
+    if graded_r is not None:
+        ax.plot(seconds[-1], graded_r, marker="*", markersize=18, color=GRADED_HEX,
+                markeredgecolor="black", linestyle="none", zorder=5, label="Reading that is graded")
+        ax.annotate(f"R = {graded_v:.2f} V / {graded_i:.1f} µA\n   = {graded_r:.1f} kΩ",
+                    (seconds[-1], graded_r), xytext=(-20, -60), textcoords="offset points",
+                    ha="right", fontsize=13,
+                    bbox=dict(facecolor="white", edgecolor=BAND_HEX, linewidth=2),
+                    arrowprops=dict(arrowstyle="->", color="black"))
+    else:
+        ax.text(0.98, 0.70, "No reading to grade", transform=ax.transAxes, ha="right", va="top",
+                fontsize=13, bbox=dict(facecolor="white", edgecolor=BAND_HEX, linewidth=2))
+
+    # Half a band of margin either side; widened if the data (or the star) leaves it
+    margin = 0.5 * (r_max - r_min)
+    shown = [r for r in r_kohm if np.isfinite(r)] + ([graded_r] if graded_r is not None else [])
+    ax.set_ylim(min([r_min - margin] + shown), max([r_max + margin] + shown))
+    ax.set_ylabel("Resistance (kΩ)", fontsize=13)
+    _legend(ax, fontsize=12)
+    _style(ax)
+
+    for axis, data, label, colour in ((ax_v, ch_voltage, "Voltage (V)", VOLTAGE_HEX),
+                                      (ax_i, ch_current, "Current (µA)", CURRENT_HEX)):
+        _points(axis, seconds, data, colour)
+        axis.set_ylabel(label, fontsize=11)
+        _style(axis)
+        mid = abs(sum(data) / len(data))
+        if mid > 0:
+            axis.set_ylim(min(0.75 * mid, min(data)), max(1.25 * mid, max(data)))
+
+    return _save(fig, (ax, ax_v, ax_i), filename, ch, results_path, plot_dir)

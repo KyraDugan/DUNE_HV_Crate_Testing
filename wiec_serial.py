@@ -371,16 +371,20 @@ def power_wib(ser, wibs):
     serial_log(f"\nSetting power for WIBs as follows {wibs}...")
     for wib, power_state in wibs.items():
         command = f"python3 power_on_wib.py {wib} {power_state}"
-        output = run_petalinux_command(ser, command)
+        # Overestimate: run_petalinux_command gives up after 10 s, so the bar can never run past
+        # the real wait; it jumps to full as soon as the PTC prompt comes back
+        output = WIEC_utils.run_with_bar(f"Waiting for WIB {wib} power-{power_state} command", 10,
+                                         run_petalinux_command, ser, command)
         serial_log(output)
         outputs[wib] = output
-    serial_log(output)
-    # user prompted wait 
+    # user prompted wait
     # userinput = "no"
     # while userinput != "go":
     #     print(output)
     #     userinput = input("continue?")
-    time.sleep(35)
+    # The command only switches the power; the WIB still has to boot (or settle once it is off)
+    starting = "on" in wibs.values()
+    WIEC_utils.countdown("Waiting for WIB start-up" if starting else "Waiting for WIB power-down", 35)
 
     return outputs
 
@@ -394,7 +398,7 @@ def sensors_addr(ser, wibs):
         # userinput = "no"
         # while userinput != "go":
         #     userinput = input("continue?") 
-        time.sleep(35)
+        WIEC_utils.countdown("WIB getting sensor output ", 35)
     	           
     	           
         detect_output = run_petalinux_command(ser, f"i2cdetect -y -r 2")       
@@ -402,7 +406,7 @@ def sensors_addr(ser, wibs):
         # userinput = "no"
         # while userinput != "go":
         #     userinput = input("continue?") 
-        time.sleep(35)
+        WIEC_utils.countdown("WIB detecting output ", 35)
     	           
         sensor_outputs[wib] = {
             "i2cset": switch_output,

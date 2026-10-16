@@ -393,10 +393,13 @@ def run_with_bar(message, expected_s, function, *args, **kwargs):
         print(f"Stopping after the current step ({message}) finishes...")
         thread.join()
         raise
-    finish_bar(message)
 
     if "error" in outcome:
+        # Leave the bar partial (a full bar looks "done") and end its line before the error
+        print()
+        _bar_colors.pop(message, None)
         raise outcome["error"]
+    finish_bar(message)
     return outcome.get("result")
 
 

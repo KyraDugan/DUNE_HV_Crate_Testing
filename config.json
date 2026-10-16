@@ -148,7 +148,7 @@
     "wib_startup_timeout_s": 40,
     "wib_startup_expected_s": 20,
     "wiec_femb_checkout_timeout_s": 300,
-    "wiec_femb_checkout_expected_s": 130,
+    "wiec_femb_checkout_expected_s": 180,
     "wiec_femb_limits": {
         "power_V": {"BIAS": [4.5, 5.5], 
                     "LArASIC": [2.8, 3.2], 

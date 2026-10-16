@@ -11,7 +11,8 @@ Each phase logs V/I for all 16 CAEN channels to CSV and plots it. The open phase
 also fit a*exp(-b*t)+c to the ramp (the time constant tau = 1/b is graded). The
 resistance V/I at the end of each ramp up is checked against the config thresholds:
 for the 10k terminated phases that confirms the warm filter board's ~100 kOhm
-resistor, and those phases have no time constant.
+resistor, and those phases have no time constant. Their ramp-up plot shows that
+resistance over the hold against its limits (analysis.make_term_plot).
 
 Relay bytes: the first selects the positive (bit 0) or negative (bit 1) branch,
 the second selects open (bit 1) or 10k terminated (bit 0).
@@ -56,6 +57,7 @@ from . import analysis
 from . import cli
 from . import WIEC_utils
 from . import record_results
+from . import output_log
 
 NAME = "HV Test"
 KEY = "hv_test"
@@ -236,6 +238,16 @@ def _phase(session, hv_results, chs_to_test, chs_string, spec):
         direction = f"0 to {sign}{voltage}V" if spec["on"] else f"{sign}{voltage} to 0V"
         title = f"Ch {i}{'+' if polarity == 'pos' else '-'} from {direction}, {spec['label']}"
         hv_results[i][f"{key}_{suffix}_plot_title"] = title
+        if spec["on"] and spec["termination"] == "term":
+            # The terminated ramp up is graded on R = V/I, so its plot shows that resistance
+            # against the limits, with the readings just taken above as the graded point
+            hv_results[i][f"{key}_{suffix}_plot"] = analysis.make_term_plot(
+                raw_dir, csv_name, title, ch,
+                hv_results[i][f"{key}_V"], hv_results[i][f"{key}_I"],
+                limits=(json_data["hv_resistance_term_min"], json_data["hv_resistance_term_max"]),
+                plot_dir=plot_dir,
+            )
+            continue
         # Fixed bounds for the panel under the fit: the voltage around its set value after a
         # ramp up, the current on a fixed scale after a ramp down
         if spec["on"]:
@@ -319,7 +331,8 @@ def _evaluate(session, chs_to_test, hv_results):
                 hv_results[i][f"{key}_R"] = 0
                 session.log(f"Could not compute {key}_R for channel {i}: {exc}")
 
-        session.log(f"Channel {i} HV results are {hv_results[i]}")
+        # Session log only: the full fit arrays fill the terminal (the verdict is printed after the test)
+        output_log.log(f"{session.prefix} --> Channel {i} HV results are {hv_results[i]}")
 
         # The CAEN readings each resistance comes from: recorded, not graded
         for key in ["pos_open", "pos_term", "neg_open", "neg_term"]:
