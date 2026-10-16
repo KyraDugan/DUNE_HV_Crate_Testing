@@ -15,7 +15,7 @@ The git for this folder is maintained at **https://github.com/KyraDugan/DUNE_HV_
 
 Importantly, through the development of the WIEC QC test, I have intentionally not altered files that the HV Crate test utilizes so as to not impact its dependencies. This is a goal that should be maintained if the WIEC QC test has continued development. 
 
-The WIEC QC test should be designed without hard coding as many things as possible, except in config.json. This will allow for better customization going forward, and much easier debugging when there are inevitable hardware changes to be dealt with.
+The WIEC QC test should be designed without hard coding as many things as possible, except in config.json. This will allow for better customization going forward, and much easier debugging when there are inevitable hardware changes to be dealt with. config.json has its keys sorted within the file for ease of finding and altering configuration as needed. The keys used as headings are never used in the code, they are just there to allow for easy parsing by a human reading it.
 
 Colors should be used to convey a meaning. There is a color scheme that has been selected for this project, which can be viewed in WIEC_utils.py. Each color has a defined meaning.
 
