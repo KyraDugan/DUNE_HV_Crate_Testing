@@ -19,15 +19,19 @@ working directory.
 /home/dune-daq/Desktop/wiec-test.desktop   runs this from a shell on the desktop.
 
 Hardware instruction slides (WIEC_utils.show_slides) appear at start-up (overview, finding the
-serial, setting up the stand) and after a normal finish (taking the stand down). The items show
-their own: hv_test the HV warning, wiec_wib_qc the FEMB check and WIB slot slides.
+serial, setting up the stand) and after a normal finish (taking the stand down, the QC pass or
+fail slide, cleaning up). The items show their own: hv_test the HV warning, wiec_wib_qc the FEMB
+check, PTC connection and WIB slot slides.
 
 -------------------------------------------------------------------------------------------------------
 config.json keys used here (the item modules list their own):
 
 "wiec_popups_enabled"                           Show the hardware instruction slides as pop-ups
 "wiec_popup_dir"                                Folder of the exported slides (GUI/export_wiec_slides.sh)
-"wiec_popup_pages"                              Step name -> slide number(s): overview, serial, setup, teardown
+"wiec_popup_pages"                              Step name -> slide number(s): overview, serial, visual_inspection,
+                                                setup, teardown, qc_pass, qc_fail, cleanup
+"vi_pass_phrase"                                What the operator types when the visual inspection passed
+"vi_fail_phrase"                                What the operator types when it failed (no tests run, QC fails)
 -------------------------------------------------------------------------------------------------------
 
 """
@@ -35,7 +39,6 @@ config.json keys used here (the item modules list their own):
 import argparse
 import json
 import os
-import subprocess
 import sys
 import traceback
 
@@ -135,11 +138,46 @@ def build_session(args, state):
         session.datastore["username"] = username
         session.username = username
 
-        WIEC_utils.show_slides(popup, config_data, "setup", "Set up the test stand")
+        WIEC_utils.show_slides(popup, config_data, "visual_inspection", "Visual inspection of WIEC")
+        pass_phrase = config_data["vi_pass_phrase"]
+        fail_phrase = config_data["vi_fail_phrase"]
+        while True:
+            VI_input = WIEC_utils.ask(f"If the visual inspection passed, type '{pass_phrase}'. If it failed, type '{fail_phrase}':").lower()
+            if VI_input == pass_phrase.lower():
+                VI_result = "PASS"
+                WIEC_utils.show_slides(popup, config_data, "setup", "Set up the test stand")
+                break
+            elif VI_input == fail_phrase.lower():
+                VI_result = "FAIL"
+                break
+            print(WIEC_utils.color(f"Please type '{pass_phrase}' or '{fail_phrase}' exactly.", WIEC_utils.FAIL_COLOR))
+        session.datastore["VI_result"] = VI_result
+        session.log(f"Visual inspection: {VI_result}")
 
+        # A failed inspection needs the reason: it goes in the CSV note, the QC sheet's Why and the summary
+        VI_reason = ""
+        if VI_result == "FAIL":
+            VI_reason = WIEC_utils.ask("Describe why the visual inspection failed:")
+            while not VI_reason:
+                print(WIEC_utils.color("A reason is needed for a failed visual inspection.", WIEC_utils.FAIL_COLOR))
+                VI_reason = WIEC_utils.ask("Describe why the visual inspection failed:")
+            session.datastore["VI_reason"] = VI_reason
+            session.log(f"Visual inspection failure reason: {VI_reason}")
+
+        # No value: PASS/FAIL is the result itself, so a value column would only repeat it
+        record_results.measure(session, "visual_inspection", "Visual Inspection", None,
+                               passed=(VI_result == "PASS"), note=VI_reason)
 
 
     return state["session"]
+
+
+def inspection_failed(session):
+    """True if the operator failed the visual inspection: no tests run and the whole QC fails."""
+    if session.datastore.get("VI_result") == "FAIL":
+        print(WIEC_utils.fail_text("\nVisual inspection failed -- skipping all tests, the WIEC QC is a FAIL."))
+        return True
+    return False
 
 
 def finish(session, beep=True):
@@ -180,7 +218,7 @@ def finish(session, beep=True):
             session.log(f"Summary: {summary_path}")
             # Only when there is a screen to show it on (not over SSH)
             if config_data["wiec_open_summary"] and (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
-                subprocess.Popen(["xdg-open", summary_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                wiec_report.open_summary(summary_path, config_data)    # on the other monitor
         except Exception as error:
             session.log(f"Could not write summary: {error}")
 
@@ -192,8 +230,26 @@ def finish(session, beep=True):
     # emergency_shutoff has powered everything down. After Ctrl-C or an error (beep=False)
     # the operator may want to retry rather than take the stand apart.
     if beep:
-        WIEC_utils.show_slides(getattr(session, "popup", None), config_data, "teardown",
-                               "Take down the test stand")
+        popup = getattr(session, "popup", None)
+
+        # A failed visual inspection ran no tests and plugged nothing in: no teardown, just the fail slide
+        if session.datastore.get("VI_result") == "FAIL":
+            WIEC_utils.show_slides(popup, config_data, "qc_fail", "WIEC QC failed")
+            WIEC_utils.show_slides(popup, config_data, "cleanup", "Clean up and reset")
+            return passed
+
+        WIEC_utils.show_slides(popup, config_data, "teardown", "Take down the test stand")
+
+        # The pass slide needs every crate item run and passed; one failed item gives the fail
+        # slide. A run of only some items with no failures (e.g. --items fan_test) shows
+        # neither, because the crate has not been fully tested.
+        crate_results = [session.results.get(item.KEY) for item in CRATE_ITEMS]   # None = not run
+        if all(crate_results):
+            WIEC_utils.show_slides(popup, config_data, "qc_pass", "WIEC QC passed")
+        elif False in crate_results:
+            WIEC_utils.show_slides(popup, config_data, "qc_fail", "WIEC QC failed")
+
+        WIEC_utils.show_slides(popup, config_data, "cleanup", "Clean up and reset")
 
     return passed
 
@@ -243,6 +299,9 @@ def interactive(args, state, json_data):
 
         if choice == "f":
             session = build_session(args, state)
+            if inspection_failed(session):
+                finish(session)
+                return 0
             for item in CRATE_ITEMS:
                 if not run_item(session, item):
                     print(WIEC_utils.fail_text(f"\n{item.NAME} failed -- continuing with the next item."))
@@ -264,6 +323,9 @@ def interactive(args, state, json_data):
             continue
 
         session = build_session(args, state)
+        if inspection_failed(session):
+            finish(session)
+            return 0
         for item in selected:
             run_item(session, item)
 
@@ -280,6 +342,7 @@ def main():
     parser.add_argument("--shutdown", action="store_true", help="power everything down")
     parser.add_argument("--no-ping", action="store_true", help="skip the ping checks")
     args = parser.parse_args()
+
 
     if args.list:
         print_items()
@@ -333,8 +396,9 @@ def main():
                 items = CRATE_ITEMS
 
             session = build_session(args, state)
-            for item in items:
-                run_item(session, item)
+            if not inspection_failed(session):
+                for item in items:
+                    run_item(session, item)
             exit_code = 0 if finish(session) else 1
             state["session"] = None
         else:

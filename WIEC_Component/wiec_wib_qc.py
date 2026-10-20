@@ -16,7 +16,7 @@ config.json keys used:
 
 "wib_test_slots"                                Possible WIB test slots to be used in the setup
 "wib_boards_available"                          WIB boards that will be available to use for testing
-"wiec_popup_pages"                              Slides for "femb_check", "wib_slot" and "wib_remove" (lists,
+"wiec_popup_pages"                              Slides for "femb_check", "ptc_connect", "wib_slot" and "wib_remove" (lists,
                                                 one entry per slot); see WIEC_utils.show_slides
 
 -------------------------------------------------------------------------------------------------------
@@ -279,9 +279,10 @@ def run(session):
     femb_sets = femb_checkout.get_femb_sets(session)
     femb_checkout.get_femb_tests(session)
 
-    # Check the FEMBs and their plugs while nothing is powered yet
+    # Check the FEMBs and their plugs, then connect the PTC, while nothing is powered yet
     popup = getattr(session, "popup", None)
     WIEC_utils.show_slides(popup, json_data, "femb_check", "Check the FEMBs")
+    WIEC_utils.show_slides(popup, json_data, "ptc_connect", "Connect the PTC")
 
     if not ptc_power.power_up(session):
         return False

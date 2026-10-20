@@ -89,7 +89,7 @@ def run_path(session):
 
 CSV_COLUMNS = ["test", "measurement", "channel", "wib_slot", "femb_position", "femb_serial", #Info for specific measurement
                "result", "value", "unit", "min", "max", "setpoint", "note",   #Info for result pass/fail
-               "wiec_serial", "run_id", "start_time", "username"]             #Info for run as a whole
+               "wiec_serial", "run_id", "start_time", "username", "visual_inspection"]   #Info for run as a whole
 
 
 def measure(session, test, measurement, value, passed=None, unit="", low=None, high=None,
@@ -115,6 +115,7 @@ def measure(session, test, measurement, value, passed=None, unit="", low=None, h
         "start_time": session.datastore.get("session_stamp", ""),
         "username": session.datastore.get("username", ""),
         "wiec_serial": session.datastore.get("wiec_serial", ""),
+        "visual_inspection": session.datastore.get("VI_result", ""),
         "test": test,
         "result": pass_output,
         "wib_slot": wib_slot,
@@ -189,8 +190,12 @@ def failure_summary(session):
             label += f" FEMB {row['femb_position']}"
 
         names = reasons.setdefault(label, [])
-        if row["measurement"] not in names:
-            names.append(row["measurement"])
+        name = row["measurement"]
+        # The operator's reason for a failed visual inspection is the useful part, so it is shown too
+        if row["test"] == "visual_inspection" and row["note"]:
+            name += f" ({row['note']})"
+        if name not in names:
+            names.append(name)
 
     summary = CellRichText()
     for label, names in reasons.items():
@@ -221,6 +226,7 @@ def qc_sheet_row(session, items):
         "Start Time": datastore.get("session_stamp", ""),
         "Run Folder": datastore.get("run_id", ""),
         "User": datastore.get("username", ""),
+        "Visual Inspection": datastore.get("VI_result", "not tested"),
     }
 
     for item in items:

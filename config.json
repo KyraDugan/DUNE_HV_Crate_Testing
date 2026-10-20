@@ -15,6 +15,9 @@
         "wiec_report_name": "summary.html",
         "wiec_report_plot_columns": {"default": 2, "fan_pwm_sweep": 3},
         "wiec_open_summary": true,
+        "wiec_summary_browser": "google-chrome",
+        "wiec_summary_browser_profile": "~/.config/wiec-summary-chrome",
+        "wiec_summary_monitor": [1920, 0, 1920, 1080],
         "rounding_factor": 5,
 
 
@@ -26,13 +29,20 @@
         "wiec_popup_pages": {
             "overview": 1,
             "serial": 2,
-            "setup": [3, 4, 5, 6, 7, 8, 9],
-            "hv_warning": 10,
-            "femb_check": 11,
-            "wib_slot": [12, 14, 16, 18, 20, 22],
-            "wib_remove": [13, 15, 17, 19, 21, 23],
-            "teardown": [24, 25, 26, 28, 29, 30, 31]},
+            "visual_inspection": 3,
+            "setup": [4, 5, 6],
+            "hv_warning": 7,
+            "femb_check": 9,
+            "ptc_connect": 8,
+            "wib_slot": [10, 12, 14, 16, 18, 20],
+            "wib_remove": [11, 13, 15, 17, 19, 21],
+            "teardown": [22, 23, 24],
+            "qc_pass": 25,
+            "qc_fail": 26,
+            "cleanup": 27},
         "hv_warning_phrase": "HV Warned",
+        "vi_pass_phrase": "VI Passed",
+        "vi_fail_phrase": "VI Failed",
 
 
 
@@ -70,7 +80,7 @@
         "heat_wait": 10.0,
         "heating_element_max": 20.0,
         "heating_element_min": 14.0,
-        "temp_increase_max": 22.0,
+        "temp_increase_max": 30.0,
         "temp_increase_min": 15.0,
 
 

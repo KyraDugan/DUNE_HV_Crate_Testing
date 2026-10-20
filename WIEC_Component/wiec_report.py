@@ -36,6 +36,10 @@ config.json keys used:
 "wiec_report_plot_columns"                           Plot boxes across the page, per test (plots folder
                                                      name, e.g. "fan_pwm_sweep"); "default" for the rest
 "rounding_factor"                                    Decimal places shown for measured values
+"wiec_summary_browser"                               Chrome command that open_summary shows the summary with
+"wiec_summary_browser_profile"                       Chrome profile folder used only for the summary window
+"wiec_summary_monitor"                               [x, y, width, height] of the monitor for the summary
+                                                     (xrandr --listmonitors); [1920, 0, ...] = the right one
 -------------------------------------------------------------------------------------------------------
 """
 
@@ -46,7 +50,9 @@ import html
 import json
 import os
 import re
+import shutil
 import struct
+import subprocess
 import sys
 from datetime import datetime
 
@@ -59,7 +65,7 @@ CONFIG_FILE = "config.json"
 TEST_GROUPS = {"wiec_wib_qc": ["ptc_power", "wib_checkout", "femb_checkout"]}
 
 # Headings for the measurement tests that are not items themselves
-SECTION_NAMES = {"ptc_power": "PTC Power", "wib_checkout": "WIB Checkout", "femb_checkout": "FEMB Checkout"}
+SECTION_NAMES = {"visual_inspection": "Visual Inspection", "ptc_power": "PTC Power","wib_checkout": "WIB Checkout", "femb_checkout": "FEMB Checkout"}
 
 # Measurement row field -> column heading, in the order the columns are shown
 ROW_COLUMNS = [("wib_slot", "WIB"), ("femb_position", "FEMB"), ("femb_serial", "FEMB serial"),
@@ -533,8 +539,15 @@ def build_html(directory, config, item_names=None):
     # Item keys in the order they ran (a stopped one has no result), then any item that did not run
     items = list(item_results) + [key for key in interrupted if key not in item_results]
     items += [key for key in names if key not in items]
+    # The visual inspection (run_wiec_component.build_session) is not a test item, but it comes
+    # first in the run, so it is listed first with its own section
+    visual_inspection = data.get("VI_result")
+    if visual_inspection:
+        items.insert(0, "visual_inspection")
 
     def item_verdict(item):
+        if item == "visual_inspection":
+            return visual_inspection
         if item in interrupted:
             return "INTERRUPTED"
         return _verdict(None if item not in item_results else item_results[item] == "Pass")
@@ -658,6 +671,25 @@ def write_report(directory, config, item_names=None):
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(build_html(directory, config, item_names))
     return path
+
+
+def open_summary(path, config):
+    """Opens the summary full size on the monitor in config "wiec_summary_monitor", away from the
+    terminal and the slide pop-ups. GNOME on Wayland ignores where a program asks its window to go,
+    so Chrome runs as an X11 window (--ozone-platform=x11), which keeps its position. Its own
+    profile makes it a separate Chrome, so the position is used even when Chrome is already open.
+    Falls back to xdg-open (default browser, wherever GNOME puts it) if that Chrome is missing."""
+    browser = shutil.which(config.get("wiec_summary_browser", ""))
+    quiet = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "start_new_session": True}
+    if browser is None:
+        subprocess.Popen(["xdg-open", path], **quiet)
+        return
+    x, y, width, height = config["wiec_summary_monitor"]
+    profile = os.path.expanduser(config["wiec_summary_browser_profile"])
+    subprocess.Popen([browser, f"--user-data-dir={profile}", "--ozone-platform=x11",
+                      "--no-first-run", "--no-default-browser-check",
+                      f"--window-position={x},{y}", f"--window-size={width},{height}",
+                      "--start-maximized", "--new-window", "file://" + os.path.abspath(path)], **quiet)
 
 
 # ----------------------------------------------------------------------
