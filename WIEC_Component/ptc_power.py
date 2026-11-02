@@ -118,13 +118,24 @@ def turn_on_pl506(session):
 
 def power_up(session):
     """
-    Powers up the PTC
+    Powers up the PTC: fans first, then the PL506. Powers back down if the PL506 fails.
     """
-
-    json_data = session.json_data
 
     if not ensure_fans_on(session):
         return False
+    if not turn_on_ptc(session):
+        power_down(session)
+        return False
+    return True
+
+
+def turn_on_ptc(session):
+    """
+    Turns on the PL506 channel that powers the PTC (up to 3 tries) and records its readback.
+    Call ensure_fans_on first. Returns False if the PTC never drew current; the caller powers down.
+    """
+
+    json_data = session.json_data
 
     WIEC_SERIAL.store_current_usb_ports()
 
@@ -136,8 +147,7 @@ def power_up(session):
             session.log(WIEC_utils.pass_text(f"Attempt {tries + 1}/3 to turn on PL506 channel {json_data['PL506_channel']} SUCCESS!"))
             break
     else:
-        session.log(WIEC_utils.fail_text(f"Third and final attempt to turn on PL506 channel {json_data['PL506_channel']} FAILED. Terminating testing."))
-        power_down(session)
+        session.log(WIEC_utils.fail_text(f"Third and final attempt to turn on PL506 channel {json_data['PL506_channel']} FAILED."))
         return False
 
 

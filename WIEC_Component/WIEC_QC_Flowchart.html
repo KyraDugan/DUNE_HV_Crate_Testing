@@ -231,7 +231,8 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
         <ul>
           <li>Overview slide, then “find the serial” slide; WIEC serial typed twice.</li>
           <li>Session created, legacy spreadsheet row opened, run folder made, session log started.</li>
-          <li>Operator name, then the “set up the test stand” slide.</li>
+          <li>Operator name, then the visual inspection: one slide per step (<code>vi_steps</code>), each with pass / fail buttons. A fail must be confirmed with a reason and ends the test (no items run, QC fails).</li>
+          <li>Inspection passed: the “set up the test stand” slides, the SHV check slide (operator types <code>shv_check_phrase</code>) and the HV warning slide (operator types <code>hv_warning_phrase</code>), all before any item runs.</li>
         </ul>
       </div>
       <div class="side">
@@ -241,7 +242,7 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
           <li><span class="f general">WIEC_utils.py</span><span class="role"><code>make_instruction_popup</code> checks a window can open; <code>show_slides</code> shows each slide; <code>confirm_input_ask</code> asks for the serial and name.</span></li>
           <li><span class="f general">popups.py</span><span class="role"><code>available</code> says if a window can open here (desktop, tkinter, PIL); <code>image_path</code> finds the PNG for a slide number.</span></li>
           <li><span class="f config">GUI/pop_window.py</span><span class="role">Draws the slide window with its Confirm button.</span></li>
-          <li><span class="f config">GUI/wiec_pngs/</span><span class="role">The slide images, made from <code>Hardware_Instructions.odp</code> by <code>GUI/export_wiec_slides.sh</code>.</span></li>
+          <li><span class="f config">GUI/wiec_pngs/</span><span class="role">The slide images, made from <code>WIEC_Popups.pdf</code> (<code>wiec_popup_source</code>) by <code>GUI/export_wiec_slides.sh</code>.</span></li>
           <li><span class="f helper">record_results.py</span><span class="role"><code>file_name_safe</code> cleans the serial for file names; <code>run_path</code> makes <code>runs/&lt;date-time&gt;_&lt;serial&gt;/</code>.</span></li>
           <li><span class="f general">session.py</span><span class="role"><code>TestSession</code> loads config and holds the instruments, results paths and datastore for every later step.</span></li>
           <li><span class="f general">spreadsheet.py</span><span class="role"><code>ResultSpreadsheet.open</code> (called by <code>TestSession</code>) opens the legacy results spreadsheet row and stamps the date.</span></li>
@@ -313,7 +314,7 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
           <div>
             <h3>HV Test <span class="k">hv_test</span></h3>
             <ol>
-              <li>HV warning slide; operator types <code>hv_warning_phrase</code>.</li>
+              <li>HV warning slide, only if the session set-up did not already show it (standalone run).</li>
               <li>Relay pull-ups on.</li>
               <li>For each channel group (all at once or one at a time, per <code>simultaneous_test</code>), four phases, each ramped up and back down: +2000 V open, +20 V into 10 kΩ, −2000 V open, −20 V into 10 kΩ.</li>
               <li>V/I logged, τ fitted on the open phases, resistance checked, plots saved.</li>
@@ -347,7 +348,7 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 
           <div class="sub">
             <div class="sub-step"><span class="dot">a</span>
-              <div class="body">Operator picks the WIB slots (all, or a list typed twice). Slots are split into batches. FEMB sets and enabled tests are read. “Check the FEMBs” slide.</div>
+              <div class="body">Operator picks the WIB slots (all, or a list typed twice). Slots are split into batches. FEMB sets and enabled tests are read. WIB/FEMB set-up slides: install the PTC, the WIB in slot 1 and its FEMB cables.</div>
               <ul class="uses">
                 <li><span class="f test">wiec_wib_qc.py</span><span class="role"><code>prompt_wiec_test_info</code> asks for slots; <code>make_batches</code> splits them.</span></li>
                 <li><span class="f helper">femb_checkout.py</span><span class="role"><code>get_femb_sets</code> / <code>get_femb_tests</code> read and check which FEMBs and tests to use.</span></li>
@@ -355,9 +356,11 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
               </ul>
             </div>
             <div class="sub-step"><span class="dot">b</span>
-              <div class="body">PTC power-up: fans on and confirmed spinning, then 48 V on. If this fails, the item fails.</div>
+              <div class="body">PTC power-up: fans on and confirmed spinning, then 48 V on. A fan failure fails the item straight away. If the PTC draws no current, or the Zynq login in c fails, the PTC is powered off and the PTC error slide asks the operator to check it (they type <code>retry_check_phrase</code>); b and c then run once more, and a second failure fails the item.</div>
               <ul class="uses">
-                <li><span class="f helper">ptc_power.py</span><span class="role"><code>power_up</code> → <code>ensure_fans_on</code> → <code>turn_on_pl506</code>.</span></li>
+                <li><span class="f test">wiec_wib_qc.py</span><span class="role"><code>start_ptc</code> runs b and c with the one retry.</span></li>
+                <li><span class="f helper">ptc_power.py</span><span class="role"><code>ensure_fans_on</code>, then <code>turn_on_ptc</code> → <code>turn_on_pl506</code>.</span></li>
+                <li><span class="f helper">WIEC_utils.py</span><span class="role"><code>ask_to_fix_on_slide</code> shows an error slide and waits for <code>retry_check_phrase</code>.</span></li>
                 <li><span class="f driver">rigol_dp832a.py</span><span class="role">Powers the fans (Rigol #0) and RD pull-up (Rigol #1).</span></li>
                 <li><span class="f driver">keysight_daq970a.py</span><span class="role">Confirms every fan is above <code>fan_osc_freq</code> before 48 V is allowed.</span></li>
                 <li><span class="f driver">pl506.py</span><span class="role"><code>safe_turn_on_channel</code> brings the PTC's 48 V up within the V/I limits.</span></li>
@@ -374,18 +377,19 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 
             <div class="loop"><span class="tag">for each batch</span>
               <div class="sub-step"><span class="dot">d</span>
-                <div class="body">“Put the WIB in slot N” slide for each slot. Power the batch's WIBs and read their sensor addresses.</div>
+                <div class="body">From the second batch on, the “move the WIB and FEMB cables” slides. Power the batch's WIBs and read their sensor addresses.</div>
                 <ul class="uses">
-                  <li><span class="f test">wiec_wib_qc.py</span><span class="role"><code>run_batch</code> shows the slides (falls back to “press Enter”).</span></li>
+                  <li><span class="f test">wiec_wib_qc.py</span><span class="role"><code>test_batches</code> shows the move slides; <code>run_batch</code> falls back to “press Enter” if they were not shown.</span></li>
                   <li><span class="f driver">wiec_serial.py</span><span class="role"><code>power_wib</code> powers the slots; <code>run_ecat_soft_timeout_then_i2cdetect</code> scans I²C; <code>sensors_addr</code> reads each WIB's sensors.</span></li>
                 </ul>
               </div>
 
               <div class="loop inner"><span class="tag">for each WIB in the batch</span>
                 <div class="sub-step"><span class="dot">e</span>
-                  <div class="body">Slot check: expected I²C address present and WIB IP answers ping. Fail → recorded, next WIB.</div>
+                  <div class="body">Slot check: expected I²C address present and WIB IP answers ping. Fail → the WIB is powered off and the WIB error slide shows the WIB slot it must be in; after the operator types <code>retry_check_phrase</code> it is powered on and checked once more. A second fail is recorded, next WIB.</div>
                   <ul class="uses">
-                    <li><span class="f helper">wib_setup.py</span><span class="role"><code>check_slot</code> → <code>validate_wib_i2c_outputs</code> compares I²C addresses; <code>ping_wib</code> pings the expected IP.</span></li>
+                    <li><span class="f test">wiec_wib_qc.py</span><span class="role"><code>check_wib</code> runs the check with the one retry; <code>power_on_slots</code> powers the WIB back on.</span></li>
+                    <li><span class="f helper">wib_setup.py</span><span class="role"><code>check_slot</code> → <code>validate_wib_i2c_outputs</code> compares I²C addresses; <code>ping_wib</code> pings the expected IP; <code>record_slot_checks</code> records the last attempt.</span></li>
                   </ul>
                 </div>
                 <div class="sub-step"><span class="dot">f</span>
@@ -413,11 +417,11 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
                 <div class="sub-step"><span class="dot">g</span>
                   <div class="body">
                     <div class="decision" style="margin-top:0"><span class="q">FEMB checks pass?</span>
-                      <span class="a"><b>No</b> → <b>c</b>ontinue, <b>r</b>etry (back to f, no second <code>wib_startup.py</code>) or <b>a</b>bort (skip remaining WIBs).</span></div>
+                      <span class="a"><b>No</b> → the FEMB error slide shows the WIB slot the FEMB cables must be in; after the operator types <code>retry_check_phrase</code>, f runs once more (no second <code>wib_startup.py</code>). A second fail is recorded, next WIB.</span></div>
                     The final attempt is written to the measurements.
                   </div>
                   <ul class="uses">
-                    <li><span class="f test">wiec_wib_qc.py</span><span class="role"><code>prompt_after_failure</code> asks c/r/a.</span></li>
+                    <li><span class="f test">wiec_wib_qc.py</span><span class="role"><code>check_fembs</code> runs the checkout with the one retry.</span></li>
                     <li><span class="f helper">femb_checkout.py</span><span class="role"><code>print_femb_results</code> shows the checks; <code>record_measurements</code> writes the final attempt.</span></li>
                     <li><span class="f helper">record_results.py</span><span class="role"><code>measure</code> stores each FEMB check with its slot and FEMB serial.</span></li>
                   </ul>
@@ -425,10 +429,10 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
               </div>
 
               <div class="sub-step"><span class="dot">h</span>
-                <div class="body">Batch WIBs powered off; “take the WIB out of slot N” slide for each slot.</div>
+                <div class="body">Batch WIBs powered off. After the last batch and the PTC power-down, the disassembly slides: FEMB cables, WIB and PTC out.</div>
                 <ul class="uses">
                   <li><span class="f driver">wiec_serial.py</span><span class="role"><code>power_wib</code> with every slot set to off.</span></li>
-                  <li><span class="f general">WIEC_utils.py</span><span class="role"><code>show_slides</code> for the removal slide.</span></li>
+                  <li><span class="f general">WIEC_utils.py</span><span class="role"><code>show_slides</code> for the disassembly slides (<code>wib_teardown</code>).</span></li>
                 </ul>
               </div>
             </div>
@@ -452,7 +456,7 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
       <div class="what">
         <h2>Finish and write results</h2>
         <p>Runs on <b>q</b>, at the end of <code>--all</code>/<code>--items</code>, or after Ctrl-C or an error. Each write is wrapped so one failure does not stop the others.</p>
-        <p>The “take down the test stand” slide shows only after a normal finish. After Ctrl-C or an error it is skipped so the operator can retry.</p>
+        <p>The “remove cabling” slide, then the QC pass or fail slide, show only after a normal finish. After Ctrl-C or an error they are skipped so the operator can retry. A failed visual inspection shows only the fail slide.</p>
       </div>
       <div class="side">
         <div class="uses-head">File → what it does here</div>

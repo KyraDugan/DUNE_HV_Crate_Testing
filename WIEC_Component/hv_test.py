@@ -41,8 +41,8 @@ config.json keys used:
 "hv_tau_max"                                    Maximum acceptable decay rate b (1/s) of the open-phase exp fit; tau = 1/b
 "simultaneous_test"                             Whether to test all channels at once or one at a time
 "channels_to_test"                              List of PCB channels to test
-"wiec_popup_pages"                              Slide for "hv_warning", shown before the test starts; see WIEC_utils.show_slides
-"hv_warning_phrase"                             What the operator must type to start the test (case and extra spaces ignored)
+"wiec_popup_pages"                              Slide for "hv_warning"; see WIEC_utils.ask_phrase_on_slide
+"hv_warning_phrase"                             What the operator must type to acknowledge it (case and extra spaces ignored)
 -------------------------------------------------------------------------------------------------------
 """
 
@@ -426,19 +426,16 @@ def _evaluate(session, chs_to_test, hv_results):
 
 def acknowledge_hv_warning(session):
     """
-    Shows the HV warning slide, then holds the test until the operator types the warning
-    phrase. The phrase is asked for even when the slide could not be shown.
+    Shows the HV warning slide and holds until the operator types the warning phrase into it
+    (in the terminal without a window). run_wiec_component.build_session asks for it during the
+    set-up, before any test; run() only asks again if that has not happened (standalone run).
     """
     json_data = session.json_data
     popup = getattr(session, "popup", None)     # None in a standalone run: terminal prompt only
-    WIEC_utils.show_slides(popup, json_data, "hv_warning", "HV test warning")
-
-    phrase = json_data["hv_warning_phrase"]
-    while True:
-        answer = WIEC_utils.ask(f'Do not touch the setup during the HV test. Type "{phrase}" to begin.')
-        if " ".join(answer.split()).lower() == phrase.lower():
-            break
-        print(WIEC_utils.color(f'That does not match "{phrase}". Please type it exactly.', WIEC_utils.FAIL_COLOR))
+    WIEC_utils.ask_phrase_on_slide(popup, json_data, "hv_warning", "High voltage warning",
+                                   "Do not touch the setup while the HV supply lights are on.",
+                                   json_data["hv_warning_phrase"], "Continue")
+    session.datastore["hv_warning_acknowledged"] = True
     session.log("Operator acknowledged the HV warning.")
 
 
@@ -446,7 +443,8 @@ def run(session):
     json_data = session.json_data
     hv_results = {}
 
-    acknowledge_hv_warning(session)
+    if not session.datastore.get("hv_warning_acknowledged"):
+        acknowledge_hv_warning(session)
 
     # Ramps in this test show a progress bar (see wait_for_ramp_with_bar)
     caen = session.caen

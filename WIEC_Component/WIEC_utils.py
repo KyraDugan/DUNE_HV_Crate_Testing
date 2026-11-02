@@ -159,17 +159,19 @@ def confirm_input_ask(text, reenter_text = "", retry_text = "", no_input_text = 
 
 #--------------HARDWARE INSTRUCTION POP-UPS----------------------------------------------
 #
-# Slides from WIEC_Component/Hardware_Instructions.odp, exported to <wiec_popup_dir>/<slide>.png
-# by GUI/export_wiec_slides.sh, shown full screen with a Confirm button.
+# Slides from <wiec_popup_source> (WIEC_Component/WIEC_Popups.pdf), exported to
+# <wiec_popup_dir>/<slide>.png by GUI/export_wiec_slides.sh, shown full screen with a button under them.
 #
 # config.json keys used:
 # "wiec_popups_enabled"     Show the slides at all (false = terminal prompts only)
+# "wiec_popup_source"       The slideshow the slides are exported from (read by GUI/export_wiec_slides.sh)
 # "wiec_popup_dir"          Folder of the exported slides, relative to the repository root
 # "wiec_popup_pages"        Step name -> slide number, or a list of slide numbers shown in order
+# "retry_check_phrase"      What the operator types on an error slide before a failed check is retried
 
 def make_instruction_popup(config_data, log=print):
     """
-    Returns popup(title, slide) -> True if the slide was shown, or None when no window can be
+    Returns popup(title, slide, button) -> True if the slide was shown, or None when no window can be
     opened (turned off, no desktop over ssh, tkinter/PIL missing). Called once at start-up so
     the operator hears up front that the slides are not coming.
 
@@ -189,14 +191,14 @@ def make_instruction_popup(config_data, log=print):
 
     directory = config_data["wiec_popup_dir"]
 
-    def popup(title, slide):
+    def popup(title, slide, button="Confirm"):
         path = popups.image_path(slide, directory)
         if not os.path.isfile(path):
             print(color(f"(pop-up slide not found: {path})", FAIL_COLOR))
             return False
         try:
             from GUI import pop_window
-            pop_window.show_image_popup(title=title, image_path=path)
+            pop_window.show_image_popup(title=title, image_path=path, button_text=button)
             return True
         except Exception as exc:
             # KeyboardInterrupt is not caught: Ctrl-C on a slide still aborts and powers down
@@ -206,10 +208,10 @@ def make_instruction_popup(config_data, log=print):
     return popup
 
 
-def show_slides(popup, config_data, name, title, index=None):
+def show_slides(popup, config_data, name, title, index=None, button="Confirm"):
     """
-    Shows the slides config_data["wiec_popup_pages"][name], one after another; index picks
-    one entry from a list (e.g. the slide for one WIB slot). Returns True only if every
+    Shows the slides config_data["wiec_popup_pages"][name], one after another, each closed with
+    the button labelled button; index picks one entry from a list. Returns True only if every
     slide was shown, so the caller can fall back to a terminal prompt otherwise.
     """
     if popup is None:
@@ -227,8 +229,95 @@ def show_slides(popup, config_data, name, title, index=None):
     shown = True
     for number, slide in enumerate(slides, start=1):
         heading = f"{title} ({number}/{len(slides)})" if len(slides) > 1 else title
-        shown = popup(heading, slide) and shown
+        shown = popup(heading, slide, button) and shown
     return shown and bool(slides)
+
+
+def ask_on_slide(popup, config_data, name, title, prompt, fields=(), buttons=("Submit",), message="",
+                 index=None, heading=""):
+    """
+    Shows the slide config_data["wiec_popup_pages"][name] with text boxes and answer buttons
+    under it (GUI.pop_window.show_input_popup); index picks one slide from a list (e.g. one
+    visual inspection step); heading is a bold line above the prompt. Returns {"button": ..., "fields": [...]}, or None when there is no
+    window to answer in: pop-ups off, slide missing, an error, or the window closed. On None the
+    caller asks in the terminal instead.
+    """
+    from . import popups
+
+    if popup is None:
+        return None
+    slide = config_data.get("wiec_popup_pages", {}).get(name)
+    if index is not None:
+        if not isinstance(slide, list) or not 0 <= index < len(slide):
+            return None
+        slide = slide[index]
+    if slide is None or isinstance(slide, list):
+        return None     # an input slide is one slide, not a list
+    path = popups.image_path(slide, config_data["wiec_popup_dir"])
+    if not os.path.isfile(path):
+        print(color(f"(pop-up slide not found: {path})", FAIL_COLOR))
+        return None
+    try:
+        from GUI import pop_window
+        answer = pop_window.show_input_popup(title=title, image_path=path, prompt=prompt,
+                                             fields=fields, buttons=buttons, message=message,
+                                             heading=heading)
+    except Exception as exc:
+        # KeyboardInterrupt is not caught: Ctrl-C on a slide still aborts and powers down
+        print(color(f"(pop-up failed: {type(exc).__name__}: {exc})", FAIL_COLOR))
+        return None
+
+    # Printed, so the answer shows in the terminal and the session log like a typed one
+    # (record_answer only finishes a "> " prompt line, and a pop-up has none)
+    if answer is not None:
+        print(f"[pop-up] {title}: " + " | ".join([answer["button"]] + answer["fields"]))
+    return answer
+
+
+def same_phrase(answer, phrase):
+    """True if answer is phrase, ignoring case and extra spaces."""
+    return " ".join(answer.split()).lower() == " ".join(phrase.split()).lower()
+
+
+def ask_phrase_on_slide(popup, config_data, name, title, prompt, phrase, button, heading=""):
+    """
+    Shows the slide config_data["wiec_popup_pages"][name] and holds until the operator types
+    phrase into it (case and extra spaces ignored), then clicks button. Without a window the
+    phrase is asked for in the terminal instead. Used where the operator must stop and check
+    something (SHV cable mapping, HV warning), so a click alone is not enough.
+    heading: a bold line above the prompt (on its own line first in the terminal).
+    """
+    message = ""
+    while True:
+        answer = ask_on_slide(popup, config_data, name, title, prompt,
+                              fields=(f'Type "{phrase}"',), buttons=(button,), message=message,
+                              heading=heading)
+        if answer is None:
+            break       # no window: the terminal prompt below
+        if same_phrase(answer["fields"][0], phrase):
+            return
+        message = f'That does not match "{phrase}". Please type it exactly.'
+
+    if heading:
+        print(f"{Style.BRIGHT}{heading}{Style.RESET_ALL}")
+    while True:
+        answer = ask(f'{prompt} Type "{phrase}" to continue.')
+        if same_phrase(answer, phrase):
+            return
+        print(color(f'That does not match "{phrase}". Please type it exactly.', FAIL_COLOR))
+
+
+def ask_to_fix_on_slide(popup, config_data, name, title, lines, heading=""):
+    """
+    After a failed check: shows the error slide config_data["wiec_popup_pages"][name] with lines
+    under it (what failed, which WIB slot), and holds until the operator types retry_check_phrase
+    to say they went through the slide's questions. The caller then runs the check once more.
+    heading: a bold line above the others, e.g. the WIB slot. Without a window the same is asked
+    in the terminal.
+    """
+    prompt = "\n".join(list(lines) + ["Check the above questions and fix the hardware as needed."])
+    ask_phrase_on_slide(popup, config_data, name, title, prompt, config_data["retry_check_phrase"], "Retry Test",
+                        heading=heading)
 
 
 #--------------PASS/FAIL COLOR TEXT FORMATTING--------------------------------------------

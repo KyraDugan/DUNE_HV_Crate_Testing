@@ -24,6 +24,8 @@ config.json keys used:
 "wiec_femb_safety_A"                            presence_min_A: below this DC-DC current a FEMB counts as not
                                                 connected; BIAS/LArASIC/ColdDATA: BNL's safety current cut
 "wiec_femb_i2c_tries"                           I2C configuration retries before a FEMB is dropped
+"wiec_femb_cable_mapping_check"                 true: check each FEMB's data cable is on the same position as
+                                                its power cable (catches swapped data cables)
 "wiec_femb_summary_max_failures"                Maximum number of failed checks to show in the summary
 -------------------------------------------------------------------------------------------------------
 """
@@ -32,6 +34,8 @@ import os
 import sys
 import time
 import csv
+import glob
+import shutil
 import tempfile
 import time
 
@@ -208,6 +212,52 @@ REQUIRED_LIMITS = {"power": ["power_V", "power_A"], "se_power": ["power_V", "pow
                    "diff_rails": ["rail_monitor_mV"], "monitor_path": ["monitor_path_mV"]}
 
 
+CABLE_MAPPING_CHECK = "cable mapping (power -> data)"     # grade's check name; cable_mapping_problems finds it
+
+
+def connector_number(position):
+    """
+    The flange connector number (P1-P4 / D1-D4, as on the FEMB cable labels) for a FEMB
+    position or data link as the WIB counts them (0-3). Remove once the code counts FEMBs 1-4.
+    """
+    return position + 1
+
+
+def describe_cable_mapping(position, mapping):
+    """
+    One FEMB's cable mapping result as readable text. mapping is the whole checkout's
+    {power position: [data links that answered]}, so a swap can be recognised from both sides.
+    Returns (text, correct):
+        cables right                  "correct", True
+        two FEMBs' cables swapped     "P1 and P2 swapped", False   (the same text for both FEMBs)
+        answers on another D only     "P1 answers on D3", False
+        no data cable answers         "no data cable answers for P1", False
+    """
+    links = mapping[position]
+    if links == [position]:
+        return "correct", True
+    if not links:
+        return f"no data cable answers for P{connector_number(position)}", False
+    if len(links) == 1 and mapping.get(links[0]) == [position]:
+        first, second = sorted((position, links[0]))
+        return f"P{connector_number(first)} and P{connector_number(second)} swapped", False
+    return f"P{connector_number(position)} answers on " + ", ".join(
+        f"D{connector_number(link)}" for link in links), False
+
+
+def cable_mapping_problems(record):
+    """
+    The failed cable mapping checks of one FEMB checkout, as readable text for the FEMB error
+    slide, e.g. ["P1 and P2 swapped"]. A swap is reported by both FEMBs, so each text is listed
+    once. Empty if the mapping was right or not checked.
+    """
+    problems = []
+    for check in record["checks"]:
+        if check["measurement"] == CABLE_MAPPING_CHECK and not check["passed"] and check["value"] not in problems:
+            problems.append(check["value"])
+    return problems
+
+
 def script_path(session):
     """Full path of the WIB-side script, which lives next to this file."""
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), session.json_data["wiec_femb_script"])
@@ -251,6 +301,7 @@ def femb_settings(session, femb_ids):
         "settle_s": config_data["wiec_femb_settle_s"],
         "toy_tpc": config_data["wiec_femb_toy_tpc"],
         "i2c_tries": config_data["wiec_femb_i2c_tries"],
+        "cable_mapping_check": config_data["wiec_femb_cable_mapping_check"],
     }
 
 
@@ -292,15 +343,16 @@ def parse_result(output):
             result = json.loads(line[len(RESULT_MARKER):])
         except ValueError:          # a cut-off line is not valid JSON
             return None
-        for section in TEST_NAMES + ("dropped_reasons",):
+        for section in TEST_NAMES + ("dropped_reasons", "cable_mapping"):
             result[section] = {int(position): values for position, values in result[section].items()}
         return result
     return None
 
 
-def run_assembly_checkout(session, wib_number, femb_ids):
+def run_assembly_checkout(session, wib_number, femb_ids, retry=False):
     """
     Runs wiec_femb_chk.py on the WIB for every FEMB position that has a serial number.
+    retry: this is the retry after a failed checkout, so its output is saved under the retry name.
     Returns (result, output): result is the parsed measurements, or None if the script did not finish.
     """
 
@@ -323,7 +375,7 @@ def run_assembly_checkout(session, wib_number, femb_ids):
 
 
     # Keep the full output: it is the first place to look when a checkout fails.
-    output_file = femb_output_file(session, wib_number)
+    output_file = femb_output_file(session, wib_number, retry)
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(wib_output)
 
@@ -331,29 +383,52 @@ def run_assembly_checkout(session, wib_number, femb_ids):
     if result is None:
         session.log(f"WIB {wib_number}: the FEMB checkout did not finish. Its output is in {output_file}")
     elif result.get("report_dir"):
-        fetch_report(session, wib_number, result["report_dir"])
+        fetch_report(session, wib_number, result["report_dir"], retry)
     return result, wib_output
 
 
-def femb_output_file(session, wib_number):
+def retry_suffix(retry):
+    """
+    Inputs True/False for the retry, then will output a suffix for a retry file/folder for consistency
+    """
+    if not retry:
+        return ""
+    else:
+        return "_retry"
+
+
+def femb_output_file(session, wib_number, retry=False):
     """
     Where the WIB's full checkout output for the WIB in wib_number is kept:
-    <run folder>/raw/femb_checkout/femb_checkout_wib<N>.txt. Used both to write and to read it.
+    <run folder>/raw/femb_checkout/femb_checkout_wib<N>.txt, or femb_checkout_wib<N>_retry.txt for
+    the retry, so the first attempt's output is kept. Used both to write and to read it.
     """
     return os.path.join(record_results.test_folder(session, "raw", "femb_checkout"),
-                        f"femb_checkout_wib{wib_number}.txt")
+                        f"femb_checkout_wib{wib_number}{retry_suffix(retry)}.txt")
 
 
-def fetch_report(session, wib_number, report_dir):
+def femb_plot_folder(session, wib_number, retry=False):
+    """
+    Where BNL's plots from the checkout of the WIB in wib_number are kept:
+    <run folder>/plots/femb_checkout/wib<N>/, or wib<N>_retry/ for the retry, so the first
+    attempt's plots are kept. Used both to copy them in and to link the recorded rows to them.
+    """
+    return os.path.join(record_results.test_folder(session, "plots", "femb_checkout"),
+                        f"wib{wib_number}{retry_suffix(retry)}")
+
+
+def fetch_report(session, wib_number, report_dir, retry=False):
     """
     Copies BNL's report folder (plots from the ADC data tests) back into this run's folder,
-    as <run folder>/plots/femb_checkout/wib<N>/. Returns the local path, or None.
+    as femb_plot_folder. Returns the local path, or None.
     """
     config_data = session.json_data
     wib_ip = wib_setup.expected_wib_ip(session, wib_number)
-    destination = os.path.join(record_results.test_folder(session, "plots", "femb_checkout"),
-                               f"wib{wib_number}")
-    command = ["scp", "-r", "-o", "BatchMode=yes", "-o", f"ConnectTimeout={config_data['wib_ssh_connect_timeout_s']}",
+    destination = femb_plot_folder(session, wib_number, retry)
+    # scp -r copies into a folder that already exists as <folder>/Report/ instead of filling it,
+    # so anything left at the destination (e.g. a rerun of the same attempt) is cleared first
+    shutil.rmtree(destination, ignore_errors=True)
+    command =["scp", "-r", "-o", "BatchMode=yes", "-o", f"ConnectTimeout={config_data['wib_ssh_connect_timeout_s']}",
                f"root@{wib_ip}:{config_data['wib_software_dir']}/{report_dir}", destination]
     try:
         result = subprocess.run(command, capture_output=True, text=True, timeout=config_data["wib_command_timeout_s"])
@@ -389,6 +464,11 @@ def grade(result, limits, femb_ids):
 
     tests = result["tests"]
     for position in result["positions"]:
+        # Cable mapping: powering position N must make a FEMB answer on data link N, and only there.
+        if position in result["cable_mapping"]:
+            text, correct = describe_cable_mapping(position, result["cable_mapping"])
+            add(position, CABLE_MAPPING_CHECK, text, "", passed=correct)
+
         # Power: initial power is measured for every FEMB, including one the safety check switches off.
         for test, label in POWER_TESTS.items():
             if tests[test] and position in result[test]:
@@ -461,10 +541,47 @@ def describe_check(check):
     return text
 
 
+def first_attempt_summary(session, wib_number, record):
+    """
+    What the summary page says about a failed first attempt once the retry has replaced its record:
+    {"result": "67 of 324 checks failed" (or why it did not finish), "raw": its output file name,
+     "plots": its plot folder name}. The retry's record keeps it as record["first_attempt"].
+    """
+    checks = record["checks"]
+    if checks:
+        failed = [check for check in checks if not check["passed"]]
+        result = f"{len(failed)} of {len(checks)} checks failed"
+    else:
+        result = record["reason"]       # set without colour codes when no checks were graded
+    return {"result": result,
+            "raw": os.path.basename(femb_output_file(session, wib_number, record.get("retry", False))),
+            "plots": os.path.basename(femb_plot_folder(session, wib_number, record.get("retry", False)))}
+
+
+def femb_plots(session, wib_number, record):
+    """
+    The pulse plot of each FEMB in this checkout of the WIB in wib_number, as
+    {serial: path relative to plots/femb_checkout/}, for record_measurements to link rows to.
+    BNL names each FEMB's folder FEMB<serial>_...; a FEMB with no plot is left out.
+    """
+    plot_root = record_results.test_folder(session, "plots", "femb_checkout")
+    folder = femb_plot_folder(session, wib_number, record.get("retry", False))
+    plots = {}
+    for serial in record["femb_ids"]:
+        if not serial:
+            continue
+        found = sorted(glob.glob(os.path.join(folder, f"FEMB{glob.escape(serial)}_*", "*.png")))
+        if found:
+            plots[serial] = os.path.relpath(found[0], plot_root)
+    return plots
+
+
 def record_measurements(session, wib_number, attempts=1):
     """
     Copies the last FEMB checkout of the WIB in wib_number into the measurements CSV, one row per
     check. Call it once per WIB after any retries, so a retried checkout is not recorded twice.
+    Each row is linked to its FEMB's pulse plot from the same attempt (run.json only, not the CSV),
+    so the summary shows that attempt's plots.
     A checkout that did not finish becomes one failed row with the reason.
     """
     record = session.datastore.get("femb_checkout", {}).get(wib_number)
@@ -475,11 +592,13 @@ def record_measurements(session, wib_number, attempts=1):
         record_results.measure(session, "femb_checkout", "checkout completed", "no",
                                passed=False, wib_slot=wib_number, note=record["reason"])
         return
+    plots = femb_plots(session, wib_number, record)
     for check in record["checks"]:
         record_results.measure(session, "femb_checkout", check["measurement"], check["value"],
                                passed=check["passed"], unit=check["unit"],
                                low=check["min"], high=check["max"], wib_slot=wib_number,
-                               femb_position=check["position"], femb_serial=check["femb"], note=note)
+                               femb_position=check["position"], femb_serial=check["femb"], note=note,
+                               plot=plots.get(check["femb"]))
 
 
 def print_femb_results(session, wib_number):
@@ -497,7 +616,7 @@ def print_femb_results(session, wib_number):
     checks = record["checks"]
     if not checks:
         print(WIEC_utils.color(f"  The checkout did not complete: {record['reason']}", Fore.RED))
-        output_file = femb_output_file(session, wib_number)
+        output_file = femb_output_file(session, wib_number, record.get("retry", False))
         if os.path.isfile(output_file):
             with open(output_file, encoding="utf-8") as f:
                 last_lines = f.read().strip().splitlines()[-max_lines:]
@@ -518,13 +637,16 @@ def print_femb_results(session, wib_number):
             print(f"      ... and {len(failed) - max_lines} more failed checks (all are in the results JSON)")
 
 
-def run(session, wib_number, femb_ids, start_wib=True):
+def run(session, wib_number, femb_ids, start_wib=True, retry=False):
     """
     FEMB pass-through checkout of the WIB in wib_number, using the FEMBs in femb_ids.
-    Returns (passed, reason), like wib_setup.check_slot.
+    retry: this is the retry after a failed checkout. It is kept in the record (and so in run.json),
+    and the WIB output is saved under the retry name, so the first attempt's is not overwritten.
+    Returns (passed, reason).
     """
     limits = session.json_data.get("wiec_femb_limits")
-    record = {"femb_ids": list(femb_ids), "passed": False, "reason": "", "checks": []}
+    record = {"femb_ids": list(femb_ids), "passed": False, "reason": "", "checks": [], "wib_started": False,
+              "retry": retry}
     session.datastore.setdefault("femb_checkout", {})[wib_number] = record   # stored before anything can fail
 
     if not copy_script_to_wib(session, wib_number):
@@ -532,15 +654,18 @@ def run(session, wib_number, femb_ids, start_wib=True):
         return False, record["reason"]
 
     try:
-        if start_wib and not prepare_wib(session, wib_number):
-            record["reason"] = "WIB clock sync or wib_startup.py failed"
-            return False, record["reason"]
-        result, _ = run_assembly_checkout(session, wib_number, femb_ids)
+        if start_wib:
+            if not prepare_wib(session, wib_number):
+                record["reason"] = "WIB clock sync or wib_startup.py failed"
+                return False, record["reason"]
+            record["wib_started"] = True
+        result, _ = run_assembly_checkout(session, wib_number, femb_ids, retry)
     finally:
         fembs_off(session, wib_number)       # the script switches them off too; this makes sure
 
     if result is None:
-        record["reason"] = f"the checkout script did not finish (see femb_checkout_wib{wib_number}.txt)"
+        output_name = os.path.basename(femb_output_file(session, wib_number, retry))
+        record["reason"] = f"the checkout script did not finish (see {output_name})"
         return False, record["reason"]
 
     checks = grade(result, limits, femb_ids)

@@ -21,10 +21,18 @@ given in the CTS script:
 
 Always run, whatever the selection: FEMB power on, the connection checks,
 the safety current cut (it protects the FEMBs), and FEMB power off at the end.
+
+Before that, if "cable_mapping_check" is on, each position's COLDATA is powered on its
+own to check that its FEMB answers on the data link of the same position. A swapped
+pair of data cables (e.g. D0 and D1) passes every other test, because all FEMBs are
+powered and set up the same way. This check does not drop a FEMB; it is reported
+as a failed check, and the other tests still run.
 A FEMB position is dropped (switched off, not tested further, reported with
 the reason) when, in this order:
     - it draws no current right after power on: FEMB or power cable not connected
     - it does not answer on I2C within "i2c_tries" retries: data cable problem
+    - its LArASIC configuration status never reads 0xFF. BNL then switches off
+      every FEMB, so the others are powered on again without it and carry on
     - its current is outside the safety limits (BNL Part 2.1)
 so a missing FEMB costs seconds, not BNL's 100 I2C retries. The monitor path
 subtracts each FEMB's ground, which the SE rail monitor measures, so the SE
@@ -49,7 +57,8 @@ JSON object on stdin:
      "data_samples": 5,                                      spy buffer captures per ADC data test
      "settle_s": 3.5,                                        wait after configuring, before capture
      "toy_tpc": "PCB_Based",                                 label used in BNL's report folder names
-     "i2c_tries": 10}                                        I2C configuration retries before a FEMB is dropped (BNL: 100)
+     "i2c_tries": 10,                                        I2C configuration retries before a FEMB is dropped (BNL: 100)
+     "cable_mapping_check": true}                            power one position at a time, find which data link answers
 
 The master copy lives in the DUNE-HV-Crate-Testing repo. femb_checkout.py
 copies it into BNL_CE_WIB_SW_QC/ on the WIB before every run, so do not edit
@@ -77,13 +86,19 @@ TEST_NAMES = ["power", "registers", "noise", "noise_peaking_times", "se_power", 
               "se_pulse", "diff_pulse", "diff_power", "diff_rails", "monitor_path"]
 DATA_TESTS = ["noise", "noise_peaking_times", "se_pulse", "diff_pulse"]   # capture ADC data
 SETTING_NAMES = ["tests", "femb_ids", "dc2dc_V", "safety_A", "monitor_samples", "monitor_lsb_mV",
-                 "data_samples", "settle_s", "toy_tpc", "i2c_tries"]
+                 "data_samples", "settle_s", "toy_tpc", "i2c_tries", "cable_mapping_check"]
 DC2DC_SENSORS = ["DC2DC0", "DC2DC1", "DC2DC2"]    # the FEMB's three DC-DC supplies (LArASIC, COLDATA, ColdADC)
 
 # Power rail name used in config.json -> sensor name in chk.get_sensors()
 POWER_RAILS = {"BIAS": "BIAS", "LArASIC": "DC2DC0", "ColdDATA": "DC2DC1", "ColdADC": "DC2DC2"}
 
 MONITOR_NAMES = ["VSSA", "FE T", "FE BGP", "ADC_VCMI", "ADC_VCMO", "ADC_VREFP", "ADC_VREFN"]
+
+# COLDATA register the cable mapping check writes and reads back: chip 3, page 0, 0x2B
+# (WIB_FEEDBACK_CODE, used only by BNL's unfinished cable latency measurement; default 0x00).
+# Two patterns, so a link that always reads back the same value cannot look like an answer.
+MAPPING_REGISTER = {"chip_addr": 3, "reg_page": 0, "reg_addr": 0x2B}
+MAPPING_PATTERNS = (0xA5, 0x5A)
 
 # BNL front end configurations (copied from femb_assembly_chk.py). All are 14 mV/fC.
 SE_200MV = {"snc": 1, "sts": 0, "swdac": 0, "dac": 0x00, "pulse": 0}                     # 3.1, 3.2, 3.3
@@ -147,19 +162,75 @@ def presence_check(chk, positions, min_current_a):
     return missing
 
 
+def link_answers(chk, link):
+    """
+    True if a FEMB answers on the data link of position `link`: a COLDATA register reads
+    back both test patterns written to it. One I2C write and read per pattern, no retries.
+    """
+    for pattern in MAPPING_PATTERNS:
+        chk.femb_i2c_wr(link, wrdata=pattern, **MAPPING_REGISTER)
+        if chk.femb_i2c_rd(link, **MAPPING_REGISTER) != pattern:
+            return False
+    return True
+
+
+def cable_mapping_check(chk, positions):
+    """
+    Checks that each FEMB's data cable is on the same position as its power cable.
+    Powers only the COLDATA of one position at a time (all I2C needs) and asks every
+    data link whether a FEMB answers; only the link of the powered position should.
+    Every FEMB is off again at the end. Returns {position: [links that answered]},
+    where [position] is correct.
+    """
+    print(f"Cable mapping check: powering FEMB positions {positions} one at a time")
+    all_links = list(range(FEMB_POSITIONS))      # all four, so a swap with an untested position shows too
+    chk.all_femb_bias_ctrl(enable=1)
+    chk.wib_femb_link_en(all_links)
+    chk.wib_timing_wrap()
+
+    answered = {}
+    for position in positions:
+        # BNL's power-on order: bias first, then COLDATA. LArASIC and ColdADC stay off.
+        chk.femb_power_en_ctrl(femb_id=position, vfe_en=0, vcd_en=0, vadc_en=0, bias_en=1)
+        time.sleep(1)
+        chk.femb_power_en_ctrl(femb_id=position, vfe_en=0, vcd_en=1, vadc_en=0, bias_en=1)
+        time.sleep(1)
+        chk.femb_cd_rst()
+
+        answered[position] = [link for link in all_links if link_answers(chk, link)]
+        print(f"Power position {position}: FEMB answers on data link(s) {answered[position]}")
+
+        # BNL's power-off order: COLDATA first, then bias. Switching off also clears the test pattern.
+        chk.femb_power_en_ctrl(femb_id=position, vfe_en=0, vcd_en=0, vadc_en=0, bias_en=1)
+        time.sleep(1)
+        chk.femb_power_en_ctrl(femb_id=position, vfe_en=0, vcd_en=0, vadc_en=0, bias_en=0)
+        time.sleep(1)
+    return answered
+
+
 def configure_femb(chk, position, pulse, max_tries):
     """
     BNL's WIB_CFGS.femb_cfg with two changes: it gives up after max_tries I2C retries
-    (BNL: 100, minutes per FEMB), and on failure it does not switch off every FEMB.
-    Returns True if the FEMB is configured.
+    (BNL: 100, minutes per FEMB), and it stops as soon as BNL has switched every FEMB off.
+
+    Returns (configured, reason):
+        (True, "configured")    the FEMB is configured
+        (False, "i2c_failed")   I2C read-back errors after max_tries retries; only this FEMB
+                                is affected, and the caller switches it off
+        (False, "all_off")      the LArASIC configuration status never read 0xFF. BNL's
+                                femb_fe_cfg then switched off EVERY FEMB, not just this one
     """
+
     chk.i2cerror = False    # BNL keeps one flag for all FEMBs: clear a failure left by the previous one
+    # BNL's femb_cd_cfg and femb_adc_cfg always return True; only femb_fe_cfg can fail.
+    # The first two checks are kept in case BNL changes that.
     if chk.cd_flg[position] and not chk.femb_cd_cfg(position):
-        return False
+        return (False, "all_off")
     if chk.adc_flg[position] and not chk.femb_adc_cfg(position):
-        return False
+        return (False, "all_off")
     if chk.fe_flg[position] and not chk.femb_fe_cfg(position):
-        return False
+        print(f"FEMB position {position}: LArASIC configuration failed; BNL switched off every FEMB")
+        return (False, "all_off")
 
     if chk.i2cerror:
         good_in_row = 0
@@ -170,32 +241,31 @@ def configure_femb(chk, position, pulse, max_tries):
             time.sleep(0.2)
             chk.femb_cd_cfg(position)
             chk.femb_adc_cfg(position)
-            chk.femb_fe_cfg(position)
+            if not chk.femb_fe_cfg(position):    # BNL switched every FEMB off: no point retrying
+                print(f"FEMB position {position}: LArASIC configuration failed; BNL switched off every FEMB")
+                return (False, "all_off")
             good_in_row = 0 if chk.i2cerror else good_in_row + 1
             if good_in_row >= 5:                 # BNL: 5 clean configurations in a row
                 break
         else:
             print(f"FEMB position {position}: I2C configuration failed after {max_tries} tries")
-            return False
+            return (False, "i2c_failed")
 
     if pulse and not chk.adac_cali_quo[position]:
         chk.femb_adac_cali(position)
     print(f"FEMB{position} is configurated")
-    return True
+    return (True, "configured")
 
 
-def power_on(chk, positions, settings):
+def power_on_round(chk, positions, settings):
     """
-    BNL Part 2 start: all FEMBs off, set the DC-DC voltages, power on, check each FEMB is
-    there, then the default configuration. Returns {position: [reasons]} for every FEMB
-    that was switched off because it is not connected or does not answer on I2C.
+    One attempt at powering on and configuring the FEMBs in positions: power on, check each
+    FEMB is there, then the default configuration. Stops at the first FEMB whose LArASIC
+    configuration fails, because BNL has then switched every FEMB off.
+    Returns (dropped, all_off_position): dropped is {position: [reasons]} for every FEMB
+    dropped in this round; all_off_position is the FEMB that made BNL switch every FEMB off,
+    or None if that did not happen.
     """
-
-    dc2dc_v = settings["dc2dc_V"]
-    print("Power off FEMBs to start from a known state")
-    chk.femb_powering([])
-    chk.fembs_vol_set(vfe=dc2dc_v["LArASIC"], vcd=dc2dc_v["ColdDATA"], vadc=dc2dc_v["ColdADC"])
-
     print(f"Power on FEMB positions {positions}")
     chk.femb_power_com_on(positions)
     time.sleep(0.5)
@@ -203,17 +273,57 @@ def power_on(chk, positions, settings):
     dropped = presence_check(chk, positions, settings["safety_A"]["presence_min_A"])
     connected = [position for position in positions if position not in dropped]
     if not connected:
-        return dropped
+        return dropped, None
 
     chk.wib_femb_link_en(connected)     # the legacy cable test enabled the data links before configuring
     chk.femb_cd_rst()
     for chip in range(8):
         chk.adcs_paras[chip][8] = 1    # ColdADC auto calibration on
     for position in connected:
-        if not configure_femb(chk, position, False, settings["i2c_tries"]):
-            chk.femb_powering_single(position, "off")
-            dropped[position] = [f"I2C configuration failed after {settings['i2c_tries']} tries "
-                                 "(read-back errors: data cable, connector or flange path)"]
+        configured, reason = configure_femb(chk, position, False, settings["i2c_tries"])
+        if configured:
+            continue
+        if reason == "all_off":
+            dropped[position] = ["LArASIC configuration status never read 0xFF "
+                                 "(data cable, connector or flange path?); BNL switched every FEMB off"]
+            return dropped, position
+        chk.femb_powering_single(position, "off")
+        dropped[position] = [f"I2C configuration failed after {settings['i2c_tries']} tries "
+                             "(read-back errors: data cable, connector or flange path)"]
+    return dropped, None
+
+
+def start_from_off(chk, settings):
+    """
+    BNL Part 2 start: all FEMBs off, set the DC-DC voltages. Runs before the cable mapping
+    check and power_on, which both power FEMBs at these voltages.
+    """
+    dc2dc_v = settings["dc2dc_V"]
+    print("Power off FEMBs to start from a known state")
+    chk.femb_powering([])
+    chk.fembs_vol_set(vfe=dc2dc_v["LArASIC"], vcd=dc2dc_v["ColdDATA"], vadc=dc2dc_v["ColdADC"])
+
+
+def power_on(chk, positions, settings):
+    """
+    Powers on and configures the FEMBs (call start_from_off first).
+    If one FEMB's LArASIC configuration fails, BNL switches every FEMB off; the others are
+    then powered on again without it, so each FEMB still gets its own result. Every round
+    drops at least that FEMB, so there are at most as many rounds as positions.
+    Returns {position: [reasons]} for every FEMB that was dropped: not connected, no I2C
+    answer, or a failed LArASIC configuration.
+    """
+
+    dropped = {}
+    remaining = list(positions)
+    while remaining:
+        round_dropped, all_off_position = power_on_round(chk, remaining, settings)
+        dropped.update(round_dropped)
+        if all_off_position is None:
+            break
+        remaining = [position for position in remaining if position not in dropped]
+        if remaining:
+            print(f"Re-powering FEMB positions {remaining} without FEMB {all_off_position}")
     return dropped
 
 
@@ -222,8 +332,9 @@ def configure_fembs(chk, positions, i2c_tries, snc, sts, swdac, dac, pulse, st0=
     """
     Reset and configure the FEMBs: 14 mV/fC, peaking time from st0/st1 (default 2 us),
     single ended or differential (diff) ColdADC input. These FEMBs all configured at power
-    on, so one that stops answering now is a real fault: the run stops (FEMBs are switched
-    off by main's finally) and femb_checkout.py reports that the checkout did not finish.
+    on, so one that fails now is a real fault: the run stops (FEMBs are switched off by
+    main's finally) and femb_checkout.py reports that the checkout did not finish. The
+    measurements so far were taken with that FEMB in place, so the others are not re-powered.
     """
     chk.femb_cd_rst()
     for chip in range(8):
@@ -232,7 +343,11 @@ def configure_fembs(chk, positions, i2c_tries, snc, sts, swdac, dac, pulse, st0=
     for position in positions:
         chk.set_fe_board(sts=sts, snc=snc, sg0=0, sg1=0, st0=st0, st1=st1,
                          sdd=1 if diff else 0, swdac=swdac, dac=dac)
-        if not configure_femb(chk, position, pulse, i2c_tries):
+        configured, reason = configure_femb(chk, position, pulse, i2c_tries)
+        if reason == "all_off":
+            raise RuntimeError(f"FEMB position {position} failed its LArASIC configuration during the "
+                               "checkout (BNL switched every FEMB off)")
+        if not configured:
             raise RuntimeError(f"FEMB position {position} stopped answering on I2C during the checkout")
 
 
@@ -550,10 +665,14 @@ def main():
     chk = WIB_CFGS()
     chk.wib_fw()
 
-    result = {"positions": positions, "tests": tests, "dropped": [], "dropped_reasons": {}, "report_dir": None}
+    result = {"positions": positions, "tests": tests, "dropped": [], "dropped_reasons": {}, "report_dir": None,
+              "cable_mapping": {}}
     for name in TEST_NAMES:
         result[name] = {}
     try:
+        start_from_off(chk, settings)
+        if settings["cable_mapping_check"]:
+            result["cable_mapping"] = cable_mapping_check(chk, positions)   # reported, never dropped
         result["dropped_reasons"] = power_on(chk, positions, settings)      # not connected / no I2C
         connected = [position for position in positions if position not in result["dropped_reasons"]]
         power = measure_power(chk, connected) if connected else {}

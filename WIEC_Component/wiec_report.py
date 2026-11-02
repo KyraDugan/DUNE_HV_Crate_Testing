@@ -40,6 +40,7 @@ config.json keys used:
 "wiec_summary_browser_profile"                       Chrome profile folder used only for the summary window
 "wiec_summary_monitor"                               [x, y, width, height] of the monitor for the summary
                                                      (xrandr --listmonitors); [1920, 0, ...] = the right one
+"wiec_summary_close_with_terminal"                   Close the summary window when the test's terminal closes
 -------------------------------------------------------------------------------------------------------
 """
 
@@ -417,6 +418,15 @@ def _group_grid(group, names, path_of, rows_of, places, params, columns):
             + _plot_grid(cells, columns))
 
 
+def _visual_inspection_section(rows):
+    """The visual inspection's own table: its result and, if it failed, the operator's reason
+    (the row's note, typed in run_wiec_component.build_session). Fixed columns, so it is the same
+    for every run, pass or fail."""
+    table_rows = [[row.get("measurement", ""), row.get("result", ""),
+                   row.get("note", "") if row.get("result") == "FAIL" else ""] for row in rows]
+    return _table(["Measurement", "Result", "Why it failed"], table_rows)
+
+
 def _test_section(directory, config, test, rows, places, params=None):
     """A test's rows and plots. Plots go in the plot grid, each boxed with the graded rows
     (PASS/FAIL) that name it (their "plot" field) in a table above it, in the order the rows were
@@ -471,14 +481,32 @@ def _femb_plot(path_of, slot, serial):
     return None
 
 
-def _femb_section(directory, config, rows, places):
+def _first_attempt_note(config, first):
+    """The line under a WIB's heading when its FEMB checkout was retried: what attempt 1 found and
+    where its output and plots are kept (they are not shown on the page)."""
+    raw = "/".join([config["wiec_raw_folder"], "femb_checkout", first["raw"]])
+    plots = "/".join([config["wiec_plots_folder"], "femb_checkout", first["plots"]])
+    return (f'<div class="note">Retry: the first FEMB checkout failed ({_e(first["result"])}). '
+            f"These are the retry's results. The first attempt is kept in {_e(raw)} and "
+            f"{_e(plots)}/.</div>")
+
+
+def _femb_section(directory, config, rows, places, records=None):
     """FEMB checkout: one block per WIB slot, with a box per FEMB in the plot grid. A box's table
     is that FEMB's line (result and how many checks passed), then any checks it failed, above its
     pulse plot. Every check is in the measurements CSV; only the failed ones are listed here.
+    records: run.json's "femb_checkout" ({slot: record}). A retried WIB gets a note saying so,
+    and its first attempt's plots are left out (only the recorded attempt is shown).
     Plots that match no FEMB come after, with no table."""
+    records = records or {}
     plot_root = os.path.join(directory, config["wiec_plots_folder"], "femb_checkout")
     path_of = {os.path.relpath(path, plot_root): path
                for path in sorted(glob.glob(os.path.join(plot_root, "**", "*.png"), recursive=True))}
+    # The plots of a first attempt that was retried are kept in the run folder but not shown
+    superseded = [record["first_attempt"]["plots"] for record in records.values()
+                  if record.get("first_attempt")]
+    path_of = {name: path for name, path in path_of.items()
+               if name.split(os.sep)[0] not in superseded}
     columns = _columns(config, "femb_checkout")
     shown = []
 
@@ -491,6 +519,9 @@ def _femb_section(directory, config, rows, places):
     for slot in slots:
         slot_rows = [row for row in rows if row.get("wib_slot") == slot]
         parts.append(f"<h3>WIB {_e(slot)}</h3>")
+        first = (records.get(str(slot)) or {}).get("first_attempt")     # JSON keys are text
+        if first:
+            parts.append(_first_attempt_note(config, first))
 
         positions = []
         for row in slot_rows:
@@ -507,7 +538,9 @@ def _femb_section(directory, config, rows, places):
                              f"{len(femb_rows) - len(failed)} of {len(femb_rows)}"]])
             if failed:
                 table += _measurement_table(failed, places, skip=("wib_slot", "femb_position", "femb_serial"))
-            name = _femb_plot(path_of, slot, serial) if serial else None
+            # The plot recorded with the rows (from the same attempt); older runs: found by folder name
+            linked = [row["plot"] for row in femb_rows if row.get("plot") in path_of]
+            name = linked[0] if linked else (_femb_plot(path_of, slot, serial) if serial else None)
             shown.append(name)
             cells.append(_cell(path_of.get(name), name,
                                f"FEMB {position if position is not None else '-'}",
@@ -629,7 +662,9 @@ def build_html(directory, config, item_names=None):
             if test != item:
                 parts.append(f"<h3>{_e(title(test))}</h3>")
             if test == "femb_checkout":
-                parts.append(_femb_section(directory, config, rows, places))
+                parts.append(_femb_section(directory, config, rows, places, data.get("femb_checkout")))
+            elif test == "visual_inspection":
+                parts.append(_visual_inspection_section(rows))
             else:
                 parts.append(_test_section(directory, config, test, rows, places, params))
         if not has_content:
@@ -690,6 +725,28 @@ def open_summary(path, config):
                       "--no-first-run", "--no-default-browser-check",
                       f"--window-position={x},{y}", f"--window-size={width},{height}",
                       "--start-maximized", "--new-window", "file://" + os.path.abspath(path)], **quiet)
+    if config.get("wiec_summary_close_with_terminal", False):
+        _close_with_terminal(profile)
+
+
+# Waits for the process given as argv[1] to end, then closes every Chrome using the profile in
+# argv[2]. "[-]-" matches "--" in Chrome's command line but not in this watcher's own (where it
+# reads "[-]-"), so pkill does not stop the watcher before Chrome.
+_WATCHER = """
+import os, subprocess, sys, time
+while os.path.exists(f"/proc/{sys.argv[1]}"):
+    time.sleep(2)
+subprocess.run(["pkill", "-f", "[-]-user-data-dir=" + sys.argv[2]])
+"""
+
+
+def _close_with_terminal(profile):
+    """Closes the summary window when the terminal running the test closes. The parent of this
+    program is the terminal's shell (start_wiec_test.sh, which ends in exec bash, or the shell
+    it was typed in), and that shell ends when its window is closed. The watcher runs in its own
+    session, so closing the terminal does not stop it too."""
+    subprocess.Popen([sys.executable, "-c", _WATCHER, str(os.getppid()), profile],
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
 
 # ----------------------------------------------------------------------

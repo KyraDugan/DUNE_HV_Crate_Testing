@@ -16,8 +16,11 @@ config.json keys used:
 
 "wib_test_slots"                                Possible WIB test slots to be used in the setup
 "wib_boards_available"                          WIB boards that will be available to use for testing
-"wiec_popup_pages"                              Slides for "femb_check", "ptc_connect", "wib_slot" and "wib_remove" (lists,
-                                                one entry per slot); see WIEC_utils.show_slides
+"wiec_popup_pages"                              Slides for "wib_intro" (PTC, first WIB and FEMB cables in), "wib_move"
+                                                (before every later batch) and "wib_teardown" (FEMB cables, WIB and
+                                                PTC out at the end); see WIEC_utils.show_slides. Error slides
+                                                "ptc_error", "wib_error" and "femb_error", shown when that check fails
+"retry_check_phrase"                            Typed on an error slide; the failed check then runs once more
 
 -------------------------------------------------------------------------------------------------------
 
@@ -36,6 +39,7 @@ from . import wib_setup
 from . import femb_checkout
 from . import cli
 from . import WIEC_utils
+from . import record_results
 
 
 NAME = "WIB/FEMB"
@@ -57,6 +61,13 @@ def prompt_wiec_test_info(session):
     
     WIEC_utils.print_prompt_section("WIEC QC : Test Info")
 
+    print("Testing all WIB slots.")
+    planned = possible_slots
+    session.WIBs_testing = planned
+    return
+
+    #The following code is good for debugging the QC process. It is not necessary for the test.
+    #This code allows for the user to pick which WIB slots to be used instead of running all slots.
     while True:
         print("Which WIBs will you test?")
         print(f"  a) test all {possible_slots} WIB slots")
@@ -146,46 +157,130 @@ def make_batches(session):
     Splits the desired slots to be tested into batches based on the WIBs available to test with.
     """
 
-
     slots = sorted(int(slot) for slot in session.WIBs_testing)
     boards = get_boards_available(session)
     return [slots[start:start + boards] for start in range(0, len(slots), boards)]
 
 
-def prompt_after_failure(session, wib, reason):
+def flange_slot(wib):
     """
-    Asks the operator what to do after the WIB in slot wib failed FEMB checkout.
-    Can continue, retry, or abort.
+    The WIB slot number printed on the flange (1-6) for the code's slot number (0-5).
+    Only for what the operator reads on the error slides; remove once the code counts slots 1-6.
     """
-
-    options = {"c": "continue", "r": "retry", "a": "abort"}
-    print()
-    session.log(WIEC_utils.fail_text(f"WIB {wib} failed FEMB checkout: {reason}"))
-    session.log("The FEMBs are switched off, the WIB is still powered.")
-    while True:
-        answer = WIEC_utils.ask("Type 'c' to continue to the next WIB, 'r' to retry this WIB, or 'a' to abort the test: ").lower()
-        if answer[:1] in options:
-            return options[answer[:1]]
-        print('Please type "c" to continue, "r" to retry, or "a" to abort.\n')
-
-class OperatorAbort(Exception):
-    """
-    Raised when the operator chooses "abort". Carries the results the batch had
-    gathered, so run() can keep them.
-    """
-    def __init__(self, results):
-        super().__init__("Test aborted by the operator")
-        self.results = results
+    return wib + 1
 
 
-def run_batch(session, ser, batch, femb_sets):
+def start_ptc(session):
+    """
+    Fans, PTC power and Zynq login. If the PTC draws no current or the Zynq login fails, the PTC
+    is powered down and the operator gets the PTC error slide; once they confirm, it is tried
+    once more. A fan interlock failure stops straight away (the slide is about the PTC, not fans).
+    Returns the Zynq serial connection, or None if the PTC failed.
+    """
+    for attempt in (1, 2):
+        if not ptc_power.ensure_fans_on(session):
+            return None
+        if not ptc_power.turn_on_ptc(session):
+            problem = "the PTC drew no current from the PL506"
+        else:
+            ser = wib_setup.login_zynq(session)
+            if ser is not None:
+                return ser
+            problem = "the Zynq serial login failed"
+
+        ptc_power.power_down(session)
+        if attempt == 1:
+            session.log(WIEC_utils.fail_text(f"PTC startup failed: {problem}. The PTC is powered off."))
+            WIEC_utils.ask_to_fix_on_slide(getattr(session, "popup", None), session.json_data, "ptc_error",
+                                           "PTC startup failed", [])
+
+    session.log(WIEC_utils.fail_text(f"PTC startup failed again ({problem}). The WIB/FEMB test cannot run."))
+    record_results.measure(session, ptc_power.KEY, "PTC startup", "failed", passed=False,
+                           note=f"{problem} (after one retry)")
+    return None
+
+
+def power_on_slots(session, ser, slots):
+    """
+    Powers on the WIBs in slots, scans I2C and reads each WIB's sensors.
+    Returns the sensor outputs ({slot: ...}) that wib_setup.check_slot reads.
+    """
+    power_map = {slot: "on" for slot in slots}
+    WIEC_SERIAL.power_wib(ser, power_map)
+    WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
+    WIEC_utils.countdown_sleep(session, "Waiting before WIB sensor readout",
+                               session.json_data.get("wib_sensor_read_wait_seconds"))
+    return WIEC_SERIAL.sensors_addr(ser, power_map)
+
+
+def check_wib(session, ser, wib, sensor_outputs):
+    """
+    WIB checkout of the WIB in slot wib (I2C address and ping). On a failure the WIB is powered
+    off and the operator gets the WIB error slide; once they confirm, the WIB is powered on and
+    checked once more. Only the last attempt is recorded. Returns (passed, reason).
+    """
+    passed, reason, checks = wib_setup.check_slot(session, wib, sensor_outputs)
+    attempts = 1
+    if not passed:
+        slot = flange_slot(wib)
+        session.log(WIEC_utils.fail_text(f"WIB {wib} (flange WIB slot {slot}) checkout failed: {reason}. "
+                                         "Powering the WIB off so it can be checked."))
+        WIEC_SERIAL.power_wib(ser, {wib: "off"})
+        WIEC_utils.ask_to_fix_on_slide(getattr(session, "popup", None), session.json_data, "wib_error",
+                                       f"WIB checkout failed: WIB slot {slot}",
+                                       [], heading=f"WIB slot {slot}")
+        sensor_outputs.update(power_on_slots(session, ser, [wib]))
+        passed, reason, checks = wib_setup.check_slot(session, wib, sensor_outputs)
+        attempts = 2
+        if not passed:
+            session.log(WIEC_utils.fail_text(f"WIB {wib} (flange WIB slot {slot}) failed the WIB checkout "
+                                             "again. Recorded as FAIL; moving on."))
+    wib_setup.record_slot_checks(session, wib, checks, attempts)
+    return passed, reason
+
+
+def check_fembs(session, wib, femb_ids):
+    """
+    FEMB checkout through the WIB in slot wib. On a failure (the FEMBs are off, the WIB stays
+    powered) the operator gets the FEMB error slide; once they confirm, it runs once more.
+    Only the last attempt is recorded. Returns (passed, reason).
+    """
+    passed, reason = femb_checkout.run(session, wib, femb_ids, start_wib=True)
+    wib_started = session.datastore["femb_checkout"][wib].get("wib_started")
+    femb_checkout.print_femb_results(session, wib)
+    attempts = 1
+    if not passed:
+        slot = flange_slot(wib)
+        session.log(WIEC_utils.fail_text(f"WIB {wib} (flange WIB slot {slot}) failed FEMB checkout: {reason}"))
+        session.log("The FEMBs are switched off, the WIB is still powered.")
+        lines = []
+        # A swapped or missing data cable is the likely cause of the other failures, so say so
+        mapping = femb_checkout.cable_mapping_problems(session.datastore["femb_checkout"][wib])
+        if mapping:
+            lines.append(f"Cable mapping wrong: {', '.join(mapping)}.")
+        WIEC_utils.ask_to_fix_on_slide(getattr(session, "popup", None), session.json_data, "femb_error",
+                                       f"FEMB checkout failed: WIB slot {slot}", lines,
+                                       heading=f"WIB slot {slot}")
+        # The retry replaces this record, so keep what the summary needs to say about attempt 1
+        first_attempt = femb_checkout.first_attempt_summary(session, wib, session.datastore["femb_checkout"][wib])
+        # wib_startup.py only runs again if it did not succeed the first time
+        passed, reason = femb_checkout.run(session, wib, femb_ids, start_wib=not wib_started, retry=True)
+        session.datastore["femb_checkout"][wib]["first_attempt"] = first_attempt
+        femb_checkout.print_femb_results(session, wib)
+        attempts = 2
+        if not passed:
+            session.log(WIEC_utils.fail_text(f"WIB {wib} (flange WIB slot {slot}) failed FEMB checkout "
+                                             "again. Recorded as FAIL; moving on."))
+    femb_checkout.record_measurements(session, wib, attempts=attempts)
+    return passed, reason
+
+
+def run_batch(session, ser, batch, femb_sets, placed):
     """
     Runs the passthrough testing on the selected batch of WIBs, including the FEMB Checkout
-    Prompts the user to properly set up the hardware for next WIB slot
+    placed: the operator already confirmed on a slide that the WIBs and FEMB cables are in
+    place; if not, the terminal prompt holds the test until they are
     """
-
-    config_data = session.json_data
-    popup = getattr(session, "popup", None)     # None in a standalone run: terminal prompts only
 
     #Separates if only one WIB tested for grammar reasons in prompting the user
     if len(batch) == 1:
@@ -197,31 +292,22 @@ def run_batch(session, ser, batch, femb_sets):
         session.log(f"Preparing test for WIBs {batch}")
         instruction = f"Move WIBs to slots {batch}, then press Enter."
 
-    # One slide per slot; its Confirm button stands in for "press Enter". If any slide could
-    # not be shown, the terminal prompt still has to hold the test until the WIB is in place.
-    shown = all([WIEC_utils.show_slides(popup, config_data, "wib_slot", f"Put the WIB in slot {slot}",
-                                        index=slot)
-                 for slot in batch])
-    if shown:
+    if placed:
         session.log(f"Operator confirmed the WIB placement for slot(s) {batch} on the pop-up.")
     else:
         WIEC_utils.ask(instruction)
 
 
-    power_map = {slot: "on" for slot in batch}
     batch_results = []
 
-    try: 
-        WIEC_SERIAL.power_wib(ser, power_map)
-        WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
-        WIEC_utils.countdown_sleep(session, "Waiting before WIB sensor readout", config_data.get("wib_sensor_read_wait_seconds"))
-        sensor_outputs = WIEC_SERIAL.sensors_addr(ser, power_map)
+    try:
+        sensor_outputs = power_on_slots(session, ser, batch)
 
 
         for wib in batch:
 
-            #WIB checkout: I2C address and ping
-            passed, reason = wib_setup.check_slot(session, wib, sensor_outputs)
+            #WIB checkout: I2C address and ping, retried once after the WIB error slide
+            passed, reason = check_wib(session, ser, wib, sensor_outputs)
             if not passed:
                 batch_results.append([wib, passed, reason])
                 continue
@@ -235,27 +321,10 @@ def run_batch(session, ser, batch, femb_sets):
                       f"to WIB slot {wib}, then press Enter.")
             session.log(f"WIB {wib}: using FEMB set {set_number} with FEMB IDs {femb_ids} for checkout.")
 
-            attempt = 0
-            choice = None
-            while True:
-                attempt += 1
-                # wib_startup.py may only run once per WIB power-up: its I2C phase adjustment adds up
-                passed, reason = femb_checkout.run(session, wib, femb_ids, start_wib=(attempt == 1))
-                femb_checkout.print_femb_results(session, wib)
-                if passed:
-                    break
-                choice = prompt_after_failure(session, wib, reason)
-                session.log(WIEC_utils.fail_text(f"WIB {wib} FEMB checkout failed ({reason}); operator chose {choice}."))
-                if choice != "retry":
-                    break
-
-            # Only the final attempt goes into the measurements CSV
-            femb_checkout.record_measurements(session, wib, attempts=attempt)
-
+            # FEMB checkout, retried once after the FEMB error slide; only the last attempt is recorded
+            passed, reason = check_fembs(session, wib, femb_ids)
             if not passed:
                 batch_results.append([wib, False, reason])
-                if choice == "abort":
-                    raise OperatorAbort(batch_results)
                 continue
 
             session.log(WIEC_utils.pass_text(f"WIB {wib} passed."))
@@ -268,8 +337,6 @@ def run_batch(session, ser, batch, femb_sets):
     return batch_results
 
 
-
-#Loops through WIB testing loop for each WIB specified by user
 def run(session):
     json_data = session.json_data
     prompt_wiec_test_info(session)
@@ -279,33 +346,44 @@ def run(session):
     femb_sets = femb_checkout.get_femb_sets(session)
     femb_checkout.get_femb_tests(session)
 
-    # Check the FEMBs and their plugs, then connect the PTC, while nothing is powered yet
-    popup = getattr(session, "popup", None)
-    WIEC_utils.show_slides(popup, json_data, "femb_check", "Check the FEMBs")
-    WIEC_utils.show_slides(popup, json_data, "ptc_connect", "Connect the PTC")
+    # Install the PTC, the first WIB and its FEMB cables while nothing is powered yet
+    popup = getattr(session, "popup", None)     # None in a standalone run: terminal prompts only
+    intro_shown = WIEC_utils.show_slides(popup, json_data, "wib_intro", "WIB/FEMB test set-up")
 
-    if not ptc_power.power_up(session):
-        return False
+    passed = test_batches(session, batches, femb_sets, intro_shown)
+
+    # test_batches powered the WIBs and the PTC down, so the FEMB cables, the WIB and the PTC
+    # can come out. Ctrl-C or an error never gets here, so the operator can retry first.
+    WIEC_utils.show_slides(popup, json_data, "wib_teardown", "Take out the WIB/FEMB test parts")
+    return passed
+
+
+def test_batches(session, batches, femb_sets, intro_shown):
+    """
+    Powers the PTC, then tests the batches one after another. intro_shown: the intro slides
+    (which end with the first WIB and its FEMB cables in place) were shown. Before every later
+    batch the move slides ask for the WIB and FEMB cables to go to the next slot.
+    """
+    json_data = session.json_data
+    popup = getattr(session, "popup", None)
+
+    WIEC_utils.print_prompt_section("PTC Startup")
 
     WIB_results = []
     ser = None
     try:
-        ser = wib_setup.login_zynq(session)
-
-
+        # PTC power and Zynq login, retried once after the PTC error slide
+        ser = start_ptc(session)
         if ser is None:
             return False
-        for b in batches:
-            WIB_results.extend(run_batch(session, ser, b, femb_sets))
-            # run_batch powered this batch's WIBs off, so they can come out: one slide per slot.
-            # Only a picture: the next batch's slot prompt is what holds the test.
-            for slot in b:
-                WIEC_utils.show_slides(popup, json_data, "wib_remove",
-                                       f"Take the WIB out of slot {slot}", index=slot)
-    except OperatorAbort as abort:
-        WIB_results.extend(abort.results)
-        session.log("Test aborted by the operator. Remaining WIBs will not be tested.")
-        return False
+        for number, b in enumerate(batches):
+            if number == 0:
+                placed = intro_shown
+            else:
+                # No slot number in the title: the slides count slots from 1, the code from 0
+                placed = WIEC_utils.show_slides(popup, json_data, "wib_move",
+                                                "Move the WIB and FEMB cables to the next slot")
+            WIB_results.extend(run_batch(session, ser, b, femb_sets, placed))
     finally:
         if ser is not None:
             WIEC_SERIAL.close_serial(ser)
@@ -315,8 +393,6 @@ def run(session):
     return bool(WIB_results) and all(passed for _, passed, _ in WIB_results)
 
     
-
-
 if __name__ == "__main__":
     sys.exit(cli.run_single_item(sys.modules[__name__]))
 

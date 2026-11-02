@@ -18,20 +18,23 @@ working directory.
 
 /home/dune-daq/Desktop/wiec-test.desktop   runs this from a shell on the desktop.
 
-Hardware instruction slides (WIEC_utils.show_slides) appear at start-up (overview, finding the
-serial, setting up the stand) and after a normal finish (taking the stand down, the QC pass or
-fail slide, cleaning up). The items show their own: hv_test the HV warning, wiec_wib_qc the FEMB
-check, PTC connection and WIB slot slides.
+Hardware instruction slides (WIEC_utils.show_slides, from WIEC_Component/WIEC_Popups.pdf) appear
+at start-up (overview, serial, the visual inspection steps, setting up the stand, the SHV check and
+the HV warning) and after a normal finish (taking the stand down, the QC pass or fail slide).
+wiec_wib_qc shows its own: putting in the PTC/WIB/FEMB cables, moving them, taking them out.
 
 -------------------------------------------------------------------------------------------------------
 config.json keys used here (the item modules list their own):
 
 "wiec_popups_enabled"                           Show the hardware instruction slides as pop-ups
 "wiec_popup_dir"                                Folder of the exported slides (GUI/export_wiec_slides.sh)
-"wiec_popup_pages"                              Step name -> slide number(s): overview, serial, visual_inspection,
-                                                setup, teardown, qc_pass, qc_fail, cleanup
-"vi_pass_phrase"                                What the operator types when the visual inspection passed
-"vi_fail_phrase"                                What the operator types when it failed (no tests run, QC fails)
+"wiec_popup_pages"                              Step name -> slide number(s): overview, serial, visual_inspection (one
+                                                per step), setup, shv_check, hv_warning, teardown, qc_pass, qc_fail
+"vi_steps"                                      Name of each visual inspection step, one per visual_inspection slide
+"vi_pass_phrase"                                Pass button / what the operator types when a step passed
+"vi_fail_phrase"                                Fail button / what they type when it failed (no tests run, QC fails)
+"shv_check_phrase"                              What the operator types after checking the SHV cable mapping
+"hv_warning_phrase"                             What the operator types to acknowledge the HV warning (see hv_test)
 -------------------------------------------------------------------------------------------------------
 
 """
@@ -105,6 +108,114 @@ def run_item(session, item):
 
 
 
+def ask_serial(popup, config_data):
+    """
+    Asks for the WIEC serial twice on the serial slide; in the terminal if the slide has no window.
+    """
+    message = ""
+    while True:
+        answer = WIEC_utils.ask_on_slide(popup, config_data, "serial", "Find the WIEC serial",
+                                         "Enter the WIEC serial, then enter it again to confirm.",
+                                         fields=("WIEC serial", "Re-enter WIEC serial"),
+                                         message=message)
+        if answer is None:
+            return WIEC_utils.confirm_input_ask("Enter WIEC serial:", "Reenter WIEC serial to confirm:")
+        first, second = answer["fields"]
+        if not first:
+            message = "You must enter a serial."
+        elif first != second:
+            message = "The two serials do not match. Please try again."
+        else:
+            return first
+
+
+def ask_visual_inspection(popup, config_data):
+    """
+    Goes through the visual inspection steps (config "vi_steps", one slide each), each with a
+    pass and a fail button. Stops at the first failed step: no tests run after a failed
+    inspection. Returns [(step, result, reason), ...] for the steps checked, the result "PASS"
+    or "FAIL" and the reason "" on a pass.
+    """
+    results = []
+    steps = config_data["vi_steps"]
+    for index, step in enumerate(steps):
+        title = f"Visual inspection {index + 1}/{len(steps)}: {step}"
+        result, reason = ask_vi_step(popup, config_data, index, title)
+        results.append((step, result, reason))
+        if result == "FAIL":
+            break
+    return results
+
+
+def ask_vi_step(popup, config_data, index, title):
+    """
+    Asks whether one visual inspection step passed, on its slide (pass / fail buttons). A fail
+    opens the slide again to confirm it, with a box for the reason and a way back in case fail
+    was a mis-click. In the terminal if the slide has no window. Returns (result, reason).
+    """
+    pass_phrase = config_data["vi_pass_phrase"]
+    fail_phrase = config_data["vi_fail_phrase"]
+
+    while True:
+        answer = WIEC_utils.ask_on_slide(popup, config_data, "visual_inspection", title,
+                                         "Did this check pass?",
+                                         buttons=(pass_phrase, fail_phrase), index=index)
+        if answer is None:
+            break       # no window: the terminal questions below
+        if answer["button"] == pass_phrase:
+            return "PASS", ""
+
+        # Failed: confirm, since a fail ends the whole test. "Back" returns to pass / fail
+        message = ""
+        while True:
+            answer = WIEC_utils.ask_on_slide(popup, config_data, "visual_inspection", title,
+                                             "A failed visual inspection ends the test. No tests will be run if confirmed.\n"
+                                             "Describe why it failed, then confirm.",
+                                             fields=("Reason",), buttons=("Confirm fail", "Back"),
+                                             message=message, index=index)
+            if answer is None or answer["button"] == "Back":
+                break
+            if answer["fields"][0]:
+                return "FAIL", answer["fields"][0]
+            message = "A reason is needed for a failed visual inspection."
+        if answer is None:
+            # Reason window closed: the fail was chosen, so confirm it and ask the reason in the terminal
+            if confirm_vi_fail(fail_phrase):
+                return "FAIL", ask_vi_reason()
+
+    print(WIEC_utils.color(title, WIEC_utils.HEADER))
+    while True:
+        VI_input = WIEC_utils.ask(f"If this check passed, type '{pass_phrase}'. If it failed, type '{fail_phrase}':")
+        if WIEC_utils.same_phrase(VI_input, pass_phrase):
+            return "PASS", ""
+        if WIEC_utils.same_phrase(VI_input, fail_phrase):
+            if confirm_vi_fail(fail_phrase):
+                return "FAIL", ask_vi_reason()
+            continue
+        print(WIEC_utils.color(f"Please type '{pass_phrase}' or '{fail_phrase}' exactly.", WIEC_utils.FAIL_COLOR))
+
+
+def confirm_vi_fail(fail_phrase):
+    """
+    Asks in the terminal to confirm a failed visual inspection step, since it ends the test.
+    True if confirmed; anything else goes back to the pass / fail question.
+    """
+    answer = WIEC_utils.ask(f"A failed visual inspection ends the test: no tests will be run. "
+                            f"Type '{fail_phrase}' again to confirm, or press Enter to go back:")
+    return WIEC_utils.same_phrase(answer, fail_phrase)
+
+
+def ask_vi_reason():
+    """
+    Asks in the terminal why the visual inspection failed, until a reason is given.
+    """
+    reason = WIEC_utils.ask("Describe why the visual inspection failed:")
+    while not reason:
+        print(WIEC_utils.color("A reason is needed for a failed visual inspection.", WIEC_utils.FAIL_COLOR))
+        reason = WIEC_utils.ask("Describe why the visual inspection failed:")
+    return reason
+
+
 def build_session(args, state):
     """Creates the session on first use, so --list and friends stay cheap."""
     if state.get("session") is None:
@@ -118,8 +229,7 @@ def build_session(args, state):
         if args.wiec_serial:
             WIEC_serial = args.wiec_serial
         else:
-            WIEC_utils.show_slides(popup, config_data, "serial", "Find the WIEC serial")
-            WIEC_serial = WIEC_utils.confirm_input_ask("Enter WIEC serial:", "Reenter WIEC serial to confirm:")
+            WIEC_serial = ask_serial(popup, config_data)
         WIEC_serial_safe = record_results.file_name_safe(WIEC_serial)
 
         session = TestSession(args.config, WIEC_serial_safe)
@@ -138,35 +248,31 @@ def build_session(args, state):
         session.datastore["username"] = username
         session.username = username
 
-        WIEC_utils.show_slides(popup, config_data, "visual_inspection", "Visual inspection of WIEC")
-        pass_phrase = config_data["vi_pass_phrase"]
-        fail_phrase = config_data["vi_fail_phrase"]
-        while True:
-            VI_input = WIEC_utils.ask(f"If the visual inspection passed, type '{pass_phrase}'. If it failed, type '{fail_phrase}':").lower()
-            if VI_input == pass_phrase.lower():
-                VI_result = "PASS"
-                WIEC_utils.show_slides(popup, config_data, "setup", "Set up the test stand")
-                break
-            elif VI_input == fail_phrase.lower():
-                VI_result = "FAIL"
-                break
-            print(WIEC_utils.color(f"Please type '{pass_phrase}' or '{fail_phrase}' exactly.", WIEC_utils.FAIL_COLOR))
+        VI_steps = ask_visual_inspection(popup, config_data)
+        VI_result = "FAIL" if VI_steps[-1][1] == "FAIL" else "PASS"
         session.datastore["VI_result"] = VI_result
         session.log(f"Visual inspection: {VI_result}")
 
         # A failed inspection needs the reason: it goes in the CSV note, the QC sheet's Why and the summary
-        VI_reason = ""
         if VI_result == "FAIL":
-            VI_reason = WIEC_utils.ask("Describe why the visual inspection failed:")
-            while not VI_reason:
-                print(WIEC_utils.color("A reason is needed for a failed visual inspection.", WIEC_utils.FAIL_COLOR))
-                VI_reason = WIEC_utils.ask("Describe why the visual inspection failed:")
-            session.datastore["VI_reason"] = VI_reason
-            session.log(f"Visual inspection failure reason: {VI_reason}")
+            step, _, reason = VI_steps[-1]
+            session.datastore["VI_reason"] = f"{step}: {reason}"
+            session.log(f"Visual inspection failed at {step}: {reason}")
 
-        # No value: PASS/FAIL is the result itself, so a value column would only repeat it
-        record_results.measure(session, "visual_inspection", "Visual Inspection", None,
-                               passed=(VI_result == "PASS"), note=VI_reason)
+        # One row per step checked. No value: PASS/FAIL is the result itself
+        for step, result, reason in VI_steps:
+            record_results.measure(session, "visual_inspection", step, None,
+                                   passed=(result == "PASS"), note=reason)
+
+        # Set up the stand, check the SHV cable mapping and acknowledge the HV warning, all
+        # before any test runs. Not after a failed inspection: nothing gets plugged in then.
+        if VI_result == "PASS":
+            WIEC_utils.show_slides(popup, config_data, "setup", "Set up the test stand", button="Continue")
+            WIEC_utils.ask_phrase_on_slide(popup, config_data, "shv_check", "Check the SHV cables",
+                                           "Check every SHV cable is on its labelled connector.",
+                                           config_data["shv_check_phrase"], "Continue")
+            session.log("Operator checked the SHV cable mapping.")
+            hv_test.acknowledge_hv_warning(session)
 
 
     return state["session"]
@@ -235,9 +341,9 @@ def finish(session, beep=True):
         # A failed visual inspection ran no tests and plugged nothing in: no teardown, just the fail slide
         if session.datastore.get("VI_result") == "FAIL":
             WIEC_utils.show_slides(popup, config_data, "qc_fail", "WIEC QC failed")
-            WIEC_utils.show_slides(popup, config_data, "cleanup", "Clean up and reset")
             return passed
 
+        # The WIB, FEMB cables and PTC came out at the end of wiec_wib_qc; this is the rest
         WIEC_utils.show_slides(popup, config_data, "teardown", "Take down the test stand")
 
         # The pass slide needs every crate item run and passed; one failed item gives the fail
@@ -248,8 +354,6 @@ def finish(session, beep=True):
             WIEC_utils.show_slides(popup, config_data, "qc_pass", "WIEC QC passed")
         elif False in crate_results:
             WIEC_utils.show_slides(popup, config_data, "qc_fail", "WIEC QC failed")
-
-        WIEC_utils.show_slides(popup, config_data, "cleanup", "Clean up and reset")
 
     return passed
 

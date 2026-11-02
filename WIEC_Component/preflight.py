@@ -196,11 +196,6 @@ def print_suggestions(config_file, items, json_data=None):
     while WIEC_utils.ask("Type: \"Ctrl-C aborts\" to continue").lower() != "ctrl-c aborts":
         print("Retype exact phrase.")
 
-    print("The settings for the test are contained within config.json, which should not\n"
-          "be altered unless confirmed by the technical coordinator.\n")
-    
-    while WIEC_utils.ask("Type: \"I will not alone alter config.json\" to continue").lower() != "i will not alone alter config.json":
-        print("Retype exact phrase")
 
     print("If you have any further issues throughout the WIEC QC test,\n"
           "please contact the technical coordinator.\n")

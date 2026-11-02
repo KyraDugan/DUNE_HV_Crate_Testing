@@ -175,29 +175,40 @@ def validate_wib_i2c_outputs(session, wib_number, sensor_outputs):
 
 def check_slot(session, wib_number, sensor_outputs):
         """
-        Checks to make sure each slot with an expected WIB has one, and that its i2c and ip are as expected.   
-        Returns [boolean, string].   
-        boolean: Pass/Fail.   
-        string: reason for failure.   
+        Checks to make sure each slot with an expected WIB has one, and that its i2c and ip are as expected.
+        Records nothing, so a check that is retried is recorded only once (record_slot_checks).
+        Returns (passed, reason, checks).
+        passed: Pass/Fail.
+        reason: reason for failure.
+        checks: (measurement, value, passed, note) for each check made, for record_slot_checks.
         """
 
         i2c_ok = validate_wib_i2c_outputs(session, wib_number, sensor_outputs)
-        record_results.measure(session, "wib_checkout", "I2C address",
-                               "found" if i2c_ok else "missing", passed=i2c_ok, wib_slot=wib_number,
-                               note=f"expected 0x{expected_wib_i2c_address(session, wib_number)}")
+        checks = [("I2C address", "found" if i2c_ok else "missing", i2c_ok,
+                   f"expected 0x{expected_wib_i2c_address(session, wib_number)}")]
         if not i2c_ok:
             session.log(WIEC_utils.fail_text(f"WIB {wib_number} I2C address validation failed"))
-            return (False, "I2C address validation failed")
+            return (False, "I2C address validation failed", checks)
 
         ip_ok = validate_wib_ip(session, wib_number)
-        record_results.measure(session, "wib_checkout", "ping",
-                               "reply" if ip_ok else "no reply", passed=ip_ok, wib_slot=wib_number,
-                               note=expected_wib_ip(session, wib_number))
+        checks.append(("ping", "reply" if ip_ok else "no reply", ip_ok, expected_wib_ip(session, wib_number)))
         if not ip_ok:
             session.log(WIEC_utils.fail_text(f"WIB {wib_number} IP ping validation failed"))
-            return (False, "IP ping validation failed")
+            return (False, "IP ping validation failed", checks)
 
-        return(True, "Passed I2C and ping checks")
+        return (True, "Passed I2C and ping checks", checks)
+
+
+def record_slot_checks(session, wib_number, checks, attempts=1):
+    """
+    Copies the checks from the last check_slot of the WIB in wib_number into the measurements CSV.
+    Call it once per WIB after any retry, so a retried check is not recorded twice.
+    """
+    for measurement, value, passed, note in checks:
+        if attempts > 1:
+            note = f"{note}; attempt {attempts}"
+        record_results.measure(session, "wib_checkout", measurement, value, passed=passed,
+                               wib_slot=wib_number, note=note)
 
 
 def power_single_wib(session, wib_number):

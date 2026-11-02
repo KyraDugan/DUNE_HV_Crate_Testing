@@ -18,6 +18,7 @@
         "wiec_summary_browser": "google-chrome",
         "wiec_summary_browser_profile": "~/.config/wiec-summary-chrome",
         "wiec_summary_monitor": [1920, 0, 1920, 1080],
+        "wiec_summary_close_with_terminal": true,
         "rounding_factor": 5,
 
 
@@ -25,24 +26,30 @@
     "OPERATOR POP-UPS": "These keys are for the pop-ups the operator is given.",
 
         "wiec_popups_enabled": true,
+        "wiec_popup_source": "WIEC_Component/WIEC_Popups.pdf",
         "wiec_popup_dir": "GUI/wiec_pngs",
         "wiec_popup_pages": {
             "overview": 1,
             "serial": 2,
-            "visual_inspection": 3,
-            "setup": [4, 5, 6],
-            "hv_warning": 7,
-            "femb_check": 9,
-            "ptc_connect": 8,
-            "wib_slot": [10, 12, 14, 16, 18, 20],
-            "wib_remove": [11, 13, 15, 17, 19, 21],
-            "teardown": [22, 23, 24],
+            "visual_inspection": [3, 4, 5, 6],
+            "setup": [7, 8, 9],
+            "shv_check": 10,
+            "hv_warning": 11,
+            "wib_intro": [12, 13, 14, 15, 16, 17, 18],
+            "wib_move": [19, 20],
+            "wib_teardown": [21, 22, 23],
+            "teardown": 24,
             "qc_pass": 25,
             "qc_fail": 26,
-            "cleanup": 27},
-        "hv_warning_phrase": "HV Warned",
+            "ptc_error": 27,
+            "wib_error": 28,
+            "femb_error": 29},
+        "vi_steps": ["SHV connectors", "Fan and heater connectors", "Flange board", "Air filter"],
         "vi_pass_phrase": "VI Passed",
         "vi_fail_phrase": "VI Failed",
+        "shv_check_phrase": "SHV cables correct",
+        "hv_warning_phrase": "Confirm HV Warning",
+        "retry_check_phrase": "Hardware checked",
 
 
 
@@ -142,10 +149,10 @@
         "femb_qc_data_root_folder": "/home/dune/Documents/data",
         "femb_checkout_default_site": "BNL",
         "wiec_femb_sets": [
-        ["FEMB_0", 
-            "FEMB_1", 
+        ["FEMB_1", 
             "FEMB_2", 
-            "FEMB_3"]
+            "FEMB_3", 
+            "FEMB_4"]
                         ],
         "wiec_femb_tests": {
             "power": true, "registers": true, "noise": false, "noise_peaking_times": false,
@@ -155,6 +162,7 @@
         "wiec_femb_dc2dc_V": {"LArASIC": 3.0, "ColdDATA": 3.0, "ColdADC": 3.5},
         "wiec_femb_safety_A": {"presence_min_A": 0.05, "BIAS_abs_max": 0.15, "LArASIC_min": 0.3, "ColdDATA_max": 0.3},
         "wiec_femb_i2c_tries": 100,
+        "wiec_femb_cable_mapping_check": true,
         "wiec_femb_monitor_samples": 10,
         "wiec_femb_monitor_lsb_mV": 0.152587890625,
         "wiec_femb_data_samples": 5,

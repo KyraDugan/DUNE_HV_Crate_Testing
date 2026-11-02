@@ -4,11 +4,12 @@ from PIL import Image, ImageTk
 
 def show_image_popup(
     title="Image Viewer",
-    image_path=None
+    image_path=None,
+    button_text="Confirm"
 ):
     """
     Display a fullscreen popup showing an image.
-    Press ESC to exit fullscreen or click 'Close' to quit.
+    Press ESC to exit fullscreen or click the button (button_text) to close it.
     """
 
     def exit_fullscreen(event=None):
@@ -59,7 +60,7 @@ def show_image_popup(
     # === Bottom Close Button ===
     ttk.Button(
         main_frame,
-        text="Confirm",
+        text=button_text,
         command=close_window
     ).pack(padx=40,pady=40)
 
@@ -176,3 +177,115 @@ def show_checkbox_popup(
 
     root.mainloop()
     return selected_options
+
+def show_input_popup(
+    title="Input",
+    image_path=None,
+    prompt="",
+    fields=(),
+    buttons=("Submit",),
+    message="",
+    heading=""
+):
+    """
+    Fullscreen slide with text boxes and answer buttons under it.
+
+    fields   labels of the text boxes, one box per label (may be empty)
+    buttons  labels of the answer buttons; clicking one closes the window
+    message  red line above the boxes, e.g. why the last answer was not accepted
+    heading  bold line between the slide and the prompt, e.g. the WIB slot an error is about
+
+    Returns {"button": label clicked, "fields": [text of each box]}, or None if the
+    window was closed without an answer.
+    """
+    result = None
+
+    def choose(label):
+        nonlocal result
+        result = {"button": label, "fields": [var.get().strip() for var in field_vars]}
+        root.destroy()
+
+    def exit_fullscreen(event=None):
+        root.attributes('-fullscreen', False)
+
+    # === Initialize window ===
+    root = tk.Tk()
+    root.title(title)
+    root.attributes('-fullscreen', True)
+    root.bind("<Escape>", exit_fullscreen)
+
+    font_style = ("Arial", 24)
+
+    # === Screen size ===
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+
+    # === Main frame ===
+    main_frame = ttk.Frame(root, padding=20)
+    main_frame.pack(fill="both", expand=True)
+
+    # === Image display ===
+    # Same fit-to-screen as show_image_popup, but leaves room under it for the prompt,
+    # the message, one row per text box and the buttons
+    reserved = 250 + 70 * len(fields) + (60 if heading else 0)
+    if image_path:
+        try:
+            img = Image.open(image_path)
+
+            img_ratio = img.height / img.width
+            target_width = screen_width - 100
+            target_height = int(target_width * img_ratio)
+
+            if target_height > screen_height - reserved:
+                target_height = screen_height - reserved
+                target_width = int(target_height / img_ratio)
+
+            img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+
+            image_label = ttk.Label(main_frame, image=photo)
+            image_label.image = photo
+            image_label.pack(expand=True)
+        except Exception as e:
+            print(f"Error loading image: {e}")
+            ttk.Label(main_frame, text="Error loading image.", font=font_style).pack(expand=True)
+
+    # === Heading, prompt and message ===
+    if heading:
+        tk.Label(main_frame, text=heading, font=font_style + ("bold",)).pack(pady=(10, 0))
+    if prompt:
+        tk.Label(main_frame, text=prompt, font=font_style).pack(pady=(10, 0))
+    if message:
+        tk.Label(main_frame, text=message, font=font_style, fg="red").pack()
+
+    # === Text boxes: label on the left, box on the right ===
+    field_vars = []
+    entries = []
+    for label in fields:
+        row = ttk.Frame(main_frame)
+        row.pack(pady=5)
+        tk.Label(row, text=label, font=font_style, width=28, anchor="e").pack(side="left", padx=10)
+        var = tk.StringVar()
+        entry = tk.Entry(row, textvariable=var, font=font_style, width=30)
+        entry.pack(side="left")
+        field_vars.append(var)
+        entries.append(entry)
+
+    # === Answer buttons, side by side ===
+    button_row = ttk.Frame(main_frame)
+    button_row.pack(pady=20)
+    for label in buttons:
+        # label=label: each button keeps its own label (a plain lambda would see the last one)
+        tk.Button(button_row, text=label, font=font_style,
+                  command=lambda label=label: choose(label)).pack(side="left", padx=30)
+
+    # Enter only answers when there is a single button; with PASS/FAIL it must be a click
+    if len(buttons) == 1:
+        root.bind("<Return>", lambda event: choose(buttons[0]))
+
+    # A fullscreen window does not always get the keyboard, so put the cursor in the first box
+    if entries:
+        root.after(200, entries[0].focus_force)
+
+    root.mainloop()
+    return result

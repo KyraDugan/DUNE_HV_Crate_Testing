@@ -17,7 +17,7 @@ import re
 import sys
 import os
 
-from typing import TextIO
+from datetime import datetime
 
 COLOUR_CODE = re.compile(r"\x1b\[[0-9;]*m")   # terminal colour codes, e.g. \x1b[38;2;34;73;201m
 
@@ -33,6 +33,11 @@ def _strip_colour(text):
     Improves readability significantly for log.
     """
     return COLOUR_CODE.sub("", text).replace("\r\n", "\n")
+
+def _stamp(line):
+    """line with the time in front, or a blank line left as it is."""
+    return datetime.now().strftime("%H:%M:%S   ") + line if line else line
+
 
 
 
@@ -55,7 +60,7 @@ class Tee:
             if character == "\r":            # a progress bar redrawing: forget the old frame
                 self._line = ""
             elif character == "\n":          # line finished: now it goes in the file
-                self.log_file.write(self._line + "\n")
+                self.log_file.write(_stamp(self._line) + "\n")
                 self._line = ""
             else:
                 self._line += character
@@ -74,7 +79,7 @@ class Tee:
         Writes out a last line that never got its newline (e.g. the run stopped mid-bar).
         """
         if self._line:
-            self.log_file.write(self._line + "\n")
+            self.log_file.write(_stamp(self._line) + "\n")
             self._line = ""
 
     def add_answer(self, answer):
@@ -82,7 +87,7 @@ class Tee:
         Finishes the current line (the "> " prompt) with what the operator typed, which
         input() reads from the keyboard without passing it through here.
         """
-        self.log_file.write(self._line + _strip_colour(answer) + "\n")
+        self.log_file.write(_stamp(self._line + _strip_colour(answer)) + "\n")
         self._line = ""
         self.log_file.flush()
 
@@ -99,6 +104,8 @@ def start(session):
 
     log_path = os.path.join(session.wiec_run_dir, session.json_data["wiec_session_log_name"])
     _log_file = open(log_path, "w", encoding="utf-8")
+    # The lines below only carry the time of day, so the date is written once at the top
+    _log_file.write(f"Session log started {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 
     _original_stdout = sys.stdout
     _original_stderr = sys.stderr
@@ -143,22 +150,8 @@ def log(message=""):
     if _log_file is None:
         return
     for line in _strip_colour(str(message)).split("\n"):
-        _log_file.write(line.split("\r")[-1] + "\n")
+        _log_file.write(_stamp(line.split("\r")[-1]) + "\n")
     _log_file.flush()
-
-
-class LogOnly:
-    def __init__(self, log_stream: TextIO):
-        self.log_stream = log_stream
-
-    def write(self, data: str) -> int:
-        self.log_stream.write(data)
-        self.log_stream.flush()
-        return len(data)
-
-    def flush(self) -> None:
-        self.log_stream.flush()
-        
 
 
 def record_answer(answer):
@@ -171,9 +164,18 @@ def record_answer(answer):
 
 @contextlib.contextmanager
 def terminal_suppressed():
+    """
+    Inside the with block, printed text goes to the log file only, not the terminal. It goes
+    through a Tee whose terminal is os.devnull, so its lines get times the same way.
+    """
     if _log_file is None:
         yield
         return
 
-    with contextlib.redirect_stdout(LogOnly(_log_file)):
-        yield
+    with open(os.devnull, "w") as nowhere:
+        hidden = Tee(nowhere, _log_file)
+        try:
+            with contextlib.redirect_stdout(hidden):
+                yield
+        finally:
+            hidden.finish()     # a last line without a newline still reaches the file
