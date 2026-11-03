@@ -215,40 +215,32 @@ REQUIRED_LIMITS = {"power": ["power_V", "power_A"], "se_power": ["power_V", "pow
 CABLE_MAPPING_CHECK = "cable mapping (power -> data)"     # grade's check name; cable_mapping_problems finds it
 
 
-def connector_number(position):
-    """
-    The flange connector number (P1-P4 / D1-D4, as on the FEMB cable labels) for a FEMB
-    position or data link as the WIB counts them (0-3). Remove once the code counts FEMBs 1-4.
-    """
-    return position + 1
-
-
 def describe_cable_mapping(position, mapping):
     """
     One FEMB's cable mapping result as readable text. mapping is the whole checkout's
     {power position: [data links that answered]}, so a swap can be recognised from both sides.
+    Positions and links are 0-3 everywhere (BNL, the code and the P0-P3 / D0-D3 cable labels).
     Returns (text, correct):
         cables right                  "correct", True
-        two FEMBs' cables swapped     "P1 and P2 swapped", False   (the same text for both FEMBs)
-        answers on another D only     "P1 answers on D3", False
-        no data cable answers         "no data cable answers for P1", False
+        two FEMBs' cables swapped     "P0 and P1 swapped", False   (the same text for both FEMBs)
+        answers on another D only     "P0 answers on D2", False
+        no data cable answers         "no data cable answers for P0", False
     """
     links = mapping[position]
     if links == [position]:
         return "correct", True
     if not links:
-        return f"no data cable answers for P{connector_number(position)}", False
+        return f"no data cable answers for P{position}", False
     if len(links) == 1 and mapping.get(links[0]) == [position]:
         first, second = sorted((position, links[0]))
-        return f"P{connector_number(first)} and P{connector_number(second)} swapped", False
-    return f"P{connector_number(position)} answers on " + ", ".join(
-        f"D{connector_number(link)}" for link in links), False
+        return f"P{first} and P{second} swapped", False
+    return f"P{position} answers on " + ", ".join(f"D{link}" for link in links), False
 
 
 def cable_mapping_problems(record):
     """
     The failed cable mapping checks of one FEMB checkout, as readable text for the FEMB error
-    slide, e.g. ["P1 and P2 swapped"]. A swap is reported by both FEMBs, so each text is listed
+    slide, e.g. ["P0 and P1 swapped"]. A swap is reported by both FEMBs, so each text is listed
     once. Empty if the mapping was right or not checked.
     """
     problems = []

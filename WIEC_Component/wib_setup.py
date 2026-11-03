@@ -3,11 +3,16 @@
 Helper script for the wiec_wib_qc.
 This validates one WIB at a time.
 
+WIB numbering: the code counts WIBs 1-6, as on the flange slot labels. The PTC counts its
+slots 0-5 (power_on_wib.py N, I2C address 0x7N, IP last octet base + N), so a WIB number is
+converted with ptc_slot only where it goes to the PTC: expected_wib_ip, expected_wib_i2c_address,
+power_wibs and read_wib_sensors. Call those two instead of wiec_serial.power_wib / sensors_addr.
+
 -------------------------------------------------------------------------------------------------------
 config.json keys used:
 
 "wib_ip_prefix"                                 Expected prefix for the WIB IP addresses
-"wib_ip_last_octet_base"                        Expected base for WIB IP last octet
+"wib_ip_last_octet_base"                        Last IP octet of the WIB in PTC slot 0 (= WIB 1)
 "wib_ping_timeout_seconds"                      Seconds to wait for ping before timeout
 "wib_ping_count"                                Ping number
 "wib_ping_expected_s"                           Expected seconds for the ping (progress bar)
@@ -36,6 +41,32 @@ from . import record_results
 VALID_POWER_STATES = {"on", "off"}
 
 
+def ptc_slot(wib_number):
+    """
+    The PTC's slot number (0-5) for a WIB number (1-6, as on the flange). Only for what goes to the PTC.
+    """
+    return int(wib_number) - 1
+
+
+def power_wibs(ser, power_map):
+    """
+    wiec_serial.power_wib for {WIB number (1-6): "on"/"off"}. wiec_serial counts PTC slots 0-5
+    (it is shared with the legacy wiec_* scripts, so it stays that way); this converts both ways.
+    Returns the power outputs keyed by WIB number.
+    """
+    outputs = WIEC_SERIAL.power_wib(ser, {ptc_slot(wib): state for wib, state in power_map.items()})
+    return {slot + 1: output for slot, output in outputs.items()}
+
+
+def read_wib_sensors(ser, power_map):
+    """
+    wiec_serial.sensors_addr for {WIB number (1-6): state}; converts to PTC slots and back like
+    power_wibs. Returns {WIB number: {"i2cset": ..., "i2cdetect": ...}}, which check_slot reads.
+    """
+    outputs = WIEC_SERIAL.sensors_addr(ser, {ptc_slot(wib): state for wib, state in power_map.items()})
+    return {slot + 1: output for slot, output in outputs.items()}
+
+
 def expected_wib_ip(session, wib_number):
     """
     Expected ip address for the selected WIB
@@ -43,7 +74,7 @@ def expected_wib_ip(session, wib_number):
     config_data = session.json_data
     prefix = config_data.get("wib_ip_prefix")
     base = int(config_data.get("wib_ip_last_octet_base"))
-    return f"{prefix}.{base + int(wib_number)}"
+    return f"{prefix}.{base + ptc_slot(wib_number)}"
 
 
 def get_wib_ip_map(session, wib_number):
@@ -59,7 +90,7 @@ def expected_wib_i2c_address(session, wib_number):
     """
     config_data = session.json_data
     i2c_prefix = config_data.get("wib_expected_i2c_prefix")
-    return f"{int(i2c_prefix)}{int(wib_number):x}"
+    return f"{int(i2c_prefix)}{ptc_slot(wib_number):x}"
 
 
 def i2cdetect_addresses(session, output):
@@ -229,7 +260,7 @@ def power_single_wib(session, wib_number):
     
     try:
         power_map = {wib_number: "on"}
-        power_outputs = WIEC_SERIAL.power_wib(ser, power_map)
+        power_outputs = power_wibs(ser, power_map)
         print(f"Power output for WIB {wib_number}: {power_outputs}")
 
         WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
@@ -237,7 +268,7 @@ def power_single_wib(session, wib_number):
                         "Waiting before WIB sensor readout", 
                         config_data.get("wib_sensor_read_wait_seconds"))
 
-        sensor_outputs = WIEC_SERIAL.sensors_addr(ser, power_map)
+        sensor_outputs = read_wib_sensors(ser, power_map)
         print(f"Sensor outputs for WIB {wib_number}: {sensor_outputs}")
 
 

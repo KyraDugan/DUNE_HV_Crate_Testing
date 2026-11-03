@@ -14,7 +14,8 @@ helper scripts:
 -------------------------------------------------------------------------------------------------------
 config.json keys used:
 
-"wib_test_slots"                                Possible WIB test slots to be used in the setup
+"wib_test_slots"                                Possible WIB test slots to be used in the setup (1-6, as on the
+                                                flange; wib_setup converts to the PTC's 0-5)
 "wib_boards_available"                          WIB boards that will be available to use for testing
 "wiec_popup_pages"                              Slides for "wib_intro" (PTC, first WIB and FEMB cables in), "wib_move"
                                                 (before every later batch) and "wib_teardown" (FEMB cables, WIB and
@@ -102,13 +103,13 @@ def prompt_wiec_test_info(session):
                     planned = [int(x) for x in raw.split()]
                 except ValueError:
                     print("Invalid input. Please use space-separated integers.")
-                    print('Example: "0 2 3"  (not "0,2,3")\n')
+                    print('Example: "1 3 4"  (not "1,3,4")\n')
                     continue
 
                 valid = set(possible_slots)
                 if not set(planned).issubset(valid):
                     print(f"\nSelection invalid. Valid WIBs are {min(possible_slots)} through {max(possible_slots)}.")
-                    print('Example: "0 2 3"  (not "0,2,3")')
+                    print('Example: "1 3 4"  (not "1,3,4")')
                     continue
 
                 planned = sorted(set(planned))
@@ -122,7 +123,7 @@ def prompt_wiec_test_info(session):
                         if retry.strip().lower() == "b":
                             break
                         print("Invalid input. Please re-enter the exact WIB list as space-separated integers.")
-                        print('Example: "0 2 3"  (not "0,2,3")\n')
+                        print('Example: "1 3 4"  (not "1,3,4")\n')
                         continue
 
                     if retry.strip().lower() == "b":
@@ -162,14 +163,6 @@ def make_batches(session):
     return [slots[start:start + boards] for start in range(0, len(slots), boards)]
 
 
-def flange_slot(wib):
-    """
-    The WIB slot number printed on the flange (1-6) for the code's slot number (0-5).
-    Only for what the operator reads on the error slides; remove once the code counts slots 1-6.
-    """
-    return wib + 1
-
-
 def start_ptc(session):
     """
     Fans, PTC power and Zynq login. If the PTC draws no current or the Zynq login fails, the PTC
@@ -206,11 +199,11 @@ def power_on_slots(session, ser, slots):
     Returns the sensor outputs ({slot: ...}) that wib_setup.check_slot reads.
     """
     power_map = {slot: "on" for slot in slots}
-    WIEC_SERIAL.power_wib(ser, power_map)
+    wib_setup.power_wibs(ser, power_map)
     WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
     WIEC_utils.countdown_sleep(session, "Waiting before WIB sensor readout",
                                session.json_data.get("wib_sensor_read_wait_seconds"))
-    return WIEC_SERIAL.sensors_addr(ser, power_map)
+    return wib_setup.read_wib_sensors(ser, power_map)
 
 
 def check_wib(session, ser, wib, sensor_outputs):
@@ -222,18 +215,17 @@ def check_wib(session, ser, wib, sensor_outputs):
     passed, reason, checks = wib_setup.check_slot(session, wib, sensor_outputs)
     attempts = 1
     if not passed:
-        slot = flange_slot(wib)
-        session.log(WIEC_utils.fail_text(f"WIB {wib} (flange WIB slot {slot}) checkout failed: {reason}. "
+        session.log(WIEC_utils.fail_text(f"WIB {wib} checkout failed: {reason}. "
                                          "Powering the WIB off so it can be checked."))
-        WIEC_SERIAL.power_wib(ser, {wib: "off"})
+        wib_setup.power_wibs(ser, {wib: "off"})
         WIEC_utils.ask_to_fix_on_slide(getattr(session, "popup", None), session.json_data, "wib_error",
-                                       f"WIB checkout failed: WIB slot {slot}",
-                                       [], heading=f"WIB slot {slot}")
+                                       f"WIB checkout failed: WIB slot {wib}",
+                                       [], heading=f"WIB slot {wib}")
         sensor_outputs.update(power_on_slots(session, ser, [wib]))
         passed, reason, checks = wib_setup.check_slot(session, wib, sensor_outputs)
         attempts = 2
         if not passed:
-            session.log(WIEC_utils.fail_text(f"WIB {wib} (flange WIB slot {slot}) failed the WIB checkout "
+            session.log(WIEC_utils.fail_text(f"WIB {wib} failed the WIB checkout "
                                              "again. Recorded as FAIL; moving on."))
     wib_setup.record_slot_checks(session, wib, checks, attempts)
     return passed, reason
@@ -250,8 +242,7 @@ def check_fembs(session, wib, femb_ids):
     femb_checkout.print_femb_results(session, wib)
     attempts = 1
     if not passed:
-        slot = flange_slot(wib)
-        session.log(WIEC_utils.fail_text(f"WIB {wib} (flange WIB slot {slot}) failed FEMB checkout: {reason}"))
+        session.log(WIEC_utils.fail_text(f"WIB {wib} failed FEMB checkout: {reason}"))
         session.log("The FEMBs are switched off, the WIB is still powered.")
         lines = []
         # A swapped or missing data cable is the likely cause of the other failures, so say so
@@ -259,8 +250,8 @@ def check_fembs(session, wib, femb_ids):
         if mapping:
             lines.append(f"Cable mapping wrong: {', '.join(mapping)}.")
         WIEC_utils.ask_to_fix_on_slide(getattr(session, "popup", None), session.json_data, "femb_error",
-                                       f"FEMB checkout failed: WIB slot {slot}", lines,
-                                       heading=f"WIB slot {slot}")
+                                       f"FEMB checkout failed: WIB slot {wib}", lines,
+                                       heading=f"WIB slot {wib}")
         # The retry replaces this record, so keep what the summary needs to say about attempt 1
         first_attempt = femb_checkout.first_attempt_summary(session, wib, session.datastore["femb_checkout"][wib])
         # wib_startup.py only runs again if it did not succeed the first time
@@ -269,7 +260,7 @@ def check_fembs(session, wib, femb_ids):
         femb_checkout.print_femb_results(session, wib)
         attempts = 2
         if not passed:
-            session.log(WIEC_utils.fail_text(f"WIB {wib} (flange WIB slot {slot}) failed FEMB checkout "
+            session.log(WIEC_utils.fail_text(f"WIB {wib} failed FEMB checkout "
                                              "again. Recorded as FAIL; moving on."))
     femb_checkout.record_measurements(session, wib, attempts=attempts)
     return passed, reason
@@ -332,7 +323,7 @@ def run_batch(session, ser, batch, femb_sets, placed):
 
 
     finally:
-        WIEC_SERIAL.power_wib(ser, {slot: "off" for slot in batch})
+        wib_setup.power_wibs(ser, {slot: "off" for slot in batch})
 
     return batch_results
 
@@ -380,7 +371,6 @@ def test_batches(session, batches, femb_sets, intro_shown):
             if number == 0:
                 placed = intro_shown
             else:
-                # No slot number in the title: the slides count slots from 1, the code from 0
                 placed = WIEC_utils.show_slides(popup, json_data, "wib_move",
                                                 "Move the WIB and FEMB cables to the next slot")
             WIB_results.extend(run_batch(session, ser, b, femb_sets, placed))

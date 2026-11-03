@@ -32,3 +32,4 @@ WIEC_Component/__pycache__/
 FEMB_chk/FEMB_QC/
 
 __pycache__/
+.wiec_component_state.json

@@ -26,7 +26,7 @@
     "OPERATOR POP-UPS": "These keys are for the pop-ups the operator is given.",
 
         "wiec_popups_enabled": true,
-        "wiec_popup_source": "WIEC_Component/WIEC_Popups.pdf",
+        "wiec_popup_source": "WIEC_Component/WIEC_Popups_v2.pdf",
         "wiec_popup_dir": "GUI/wiec_pngs",
         "wiec_popup_pages": {
             "overview": 1,
@@ -125,7 +125,7 @@
 
     "WIB TEST": "These keys control the WIB test.",
 
-        "wib_test_slots": [0, 1, 2, 3, 4, 5],
+        "wib_test_slots": [1, 2, 3, 4, 5, 6],
         "wib_boards_available": 1,
         "wib_ip_prefix": "10.73.137",
         "wib_ip_last_octet_base": 71,
@@ -149,10 +149,10 @@
         "femb_qc_data_root_folder": "/home/dune/Documents/data",
         "femb_checkout_default_site": "BNL",
         "wiec_femb_sets": [
-        ["FEMB_1", 
-            "FEMB_2", 
-            "FEMB_3", 
-            "FEMB_4"]
+            ["BNL-FEMB-IO-1865-1J-00010", 
+            "BNL-FEMB-IO-1865-1D-00052", 
+            "BNL-FEMB-IO-1865-1J-00047", 
+            "BNL-FEMB-IO-1865-1J-00003"]
                         ],
         "wiec_femb_tests": {
             "power": true, "registers": true, "noise": false, "noise_peaking_times": false,
