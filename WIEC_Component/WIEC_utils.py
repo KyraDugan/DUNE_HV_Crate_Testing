@@ -1,6 +1,17 @@
-"""
+""" WIEC_utils.py
+
 Utilities for WIEC Component testing
 Most of these utilities are for the terminal GUI
+
+-------------------------------------------------------------------------------------------------------
+config.json keys used:
+
+"wiec_popups_enabled"                           Show the slides at all (false = terminal prompts only)
+"wiec_popup_source"                             The slideshow the slides are exported from (read by GUI/export_wiec_slides.sh)
+"wiec_popup_dir"                                Folder of the exported slides, relative to the repository root
+"wiec_popup_pages"                              Step name -> slide number, or a list of slide numbers shown in order
+"retry_check_phrase"                            What the operator types on an error slide before a failed check is retried
+-------------------------------------------------------------------------------------------------------
 """
 
 import os
@@ -11,6 +22,7 @@ import random
 import threading
 from colorama import Style
 from . import output_log
+from . import popups
 
 
 #--------------RGB COLORS FOR TERMINAL GUI----------------------------------------------------------------------
@@ -93,9 +105,7 @@ def color(text, code):
 
 def print_banner(title, kind=None):
     """
-    A big moment (program title, menu, an item starting): the title centred in bold white
-    on a full-width navy bar, with a blank line above and below.
-    `kind` is no longer used; it is kept so the existing calls still work.
+    Banner across the terminal window.
     """
     empty_bar = terminal_width() * " "
     bar = title.center(terminal_width())
@@ -108,7 +118,7 @@ def print_banner(title, kind=None):
 
 def print_prompt_section(title):
     """
-    A section inside an item:  ── Title ──────────  (bold blue title, line to the window's edge).
+    A section inside an item:  ── Title ──────────
     """
     head = f"{LIGHT_RULE * 2} {title} "
     tail = LIGHT_RULE * max(0, terminal_width() - len(head))
@@ -158,16 +168,6 @@ def confirm_input_ask(text, reenter_text = "", retry_text = "", no_input_text = 
         
 
 #--------------HARDWARE INSTRUCTION POP-UPS----------------------------------------------
-#
-# Slides from <wiec_popup_source> (WIEC_Component/WIEC_Popups.pdf), exported to
-# <wiec_popup_dir>/<slide>.png by GUI/export_wiec_slides.sh, shown full screen with a button under them.
-#
-# config.json keys used:
-# "wiec_popups_enabled"     Show the slides at all (false = terminal prompts only)
-# "wiec_popup_source"       The slideshow the slides are exported from (read by GUI/export_wiec_slides.sh)
-# "wiec_popup_dir"          Folder of the exported slides, relative to the repository root
-# "wiec_popup_pages"        Step name -> slide number, or a list of slide numbers shown in order
-# "retry_check_phrase"      What the operator types on an error slide before a failed check is retried
 
 def make_instruction_popup(config_data, log=print):
     """
@@ -179,7 +179,6 @@ def make_instruction_popup(config_data, log=print):
     also uses, unchanged. popups.make_popup is not used because its popup does not say whether
     the slide appeared, and a slide that replaces a "press Enter" must not be assumed shown.
     """
-    from . import popups
 
     if not config_data.get("wiec_popups_enabled", False):
         log("Hardware pop-ups are off (wiec_popups_enabled) -- instructions stay in the terminal.")
@@ -214,6 +213,7 @@ def show_slides(popup, config_data, name, title, index=None, button="Confirm"):
     the button labelled button; index picks one entry from a list. Returns True only if every
     slide was shown, so the caller can fall back to a terminal prompt otherwise.
     """
+
     if popup is None:
         return False
     slides = config_data.get("wiec_popup_pages", {}).get(name)
@@ -242,7 +242,6 @@ def ask_on_slide(popup, config_data, name, title, prompt, fields=(), buttons=("S
     window to answer in: pop-ups off, slide missing, an error, or the window closed. On None the
     caller asks in the terminal instead.
     """
-    from . import popups
 
     if popup is None:
         return None
@@ -320,6 +319,7 @@ def ask_to_fix_on_slide(popup, config_data, name, title, lines, heading=""):
                         heading=heading)
 
 
+
 #--------------PASS/FAIL COLOR TEXT FORMATTING--------------------------------------------
 
 
@@ -327,6 +327,7 @@ def verdict(passed):
     """
     "PASS" in green or "FAIL" in red, for result lines.
     """
+
     return color("PASS", PASS_COLOR) if passed else color("FAIL", FAIL_COLOR)
 
 
@@ -334,6 +335,7 @@ def fail_text(text):
     """
     A failure message in the FAIL color
     """
+
     return color(text, FAIL_COLOR)
 
 
@@ -341,6 +343,7 @@ def pass_text(text):
     """
     A success message in the PASS color
     """
+
     return color(text, PASS_COLOR)
 
 
@@ -350,6 +353,7 @@ def cell_rgb(hex_color, opacity):
     opacity 1 is the full colour, 0 is white. Spreadsheets ignore the alpha byte,
     so the fading is done here by mixing the colour with white.
     """
+
     hex_color = hex_color.lstrip("#")
     channels = [int(hex_color[i:i + 2], 16) for i in (0, 2, 4)]
     mixed = [round(c * opacity + 255 * (1 - opacity)) for c in channels]
@@ -366,12 +370,11 @@ INTERRUPTED_CELL = cell_rgb(IN_PALETTE, CELL_OPACITY)    # an item stopped partw
 
 BAR_MIN_WIDTH = 10     # a progress bar never gets narrower than this, even in a small window
 
-# Random progress-bar gradients made from the palette above. Each bar picks two different colours
+# Random progress-bar gradients made from the palette. Each bar picks two different colours
 # from BAR_COLORS and blends from the first to the second, so every bar matches the scheme.
 # FAIL_HEX is left out on purpose: a rust bar would look like a failure.
 
 BAR_COLORS = [IN_PALETTE, BANNER_BACKGROUND_HEX, HEADER_HEX, PASS_HEX, ACTION_HEX]
-
 
 def blend_hex(start_hex, end_hex, fraction):
     """
@@ -510,5 +513,3 @@ def countdown_sleep(session, message, wait_time):
     session.log(f"{message}: waiting {int(wait_time)} seconds\n")
     countdown(message, wait_time)
     session.log(f"{message}: wait complete")
-
-

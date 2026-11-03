@@ -1,4 +1,6 @@
-"""WIEC_Component -- the DUNE HV crate production test, split into items.
+"""__init__.py
+
+WIEC_Component -- the DUNE HV crate production test, split into items.
 
 Each test phase that used to live inside LDOmeasure in dune_hv_crate_test.py
 is now its own module with a run(session) function:

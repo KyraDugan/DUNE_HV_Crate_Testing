@@ -1,4 +1,6 @@
-"""Standalone entry point shared by the individual item modules.
+"""cli.py
+
+Standalone entry point shared by the individual item modules.
 
 Lets any item run on its own, e.g.
 

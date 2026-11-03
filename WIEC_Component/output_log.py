@@ -1,4 +1,5 @@
-"""
+""" output_log.py
+
 Session log for the WIEC component test.
 
 Copies everything printed during a run into a text file in the run's results folder.
@@ -7,7 +8,7 @@ Importantly, the file is plain text.
 -------------------------------------------------------------------------------------------------------
 config.json keys used:
 
-"WIEC_results_folder"                                Folder for the new style of WIEC results
+"wiec_session_log_name"                         Name of the session log written into each run folder
 
 -------------------------------------------------------------------------------------------------------
 """

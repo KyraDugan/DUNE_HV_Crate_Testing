@@ -1,4 +1,6 @@
-"""Excel output for the WIEC_Component test items.
+"""spreadsheet.py
+
+Excel output for the WIEC_Component test items.
 
 The column layout is deliberately identical to the one dune_hv_crate_test.py
 produces, so both scripts keep appending to the same workbook:

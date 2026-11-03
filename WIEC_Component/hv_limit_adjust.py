@@ -1,4 +1,6 @@
-"""Guided adjustment of the iseg module's Vmax and Imax limit potentiometers.
+"""hv_limit_adjust.py
+
+Guided adjustment of the iseg module's Vmax and Imax limit potentiometers.
 
 The tester turns a potentiometer with a screwdriver while the 34970A watches
 the control voltage it produces.  This module does the watching: it reads the

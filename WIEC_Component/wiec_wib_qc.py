@@ -1,4 +1,6 @@
-""" WIEC WIB QC Test Script
+""" wiec_wib_qc.py
+
+WIEC WIB QC Test Script
 
 This is the top-level script for the wiec wib test.
 This will work sequentially through the desired WIBs being tested.
@@ -22,6 +24,7 @@ config.json keys used:
                                                 PTC out at the end); see WIEC_utils.show_slides. Error slides
                                                 "ptc_error", "wib_error" and "femb_error", shown when that check fails
 "retry_check_phrase"                            Typed on an error slide; the failed check then runs once more
+"wib_sensor_read_wait_seconds"                  Wait after the I2C scan before reading the WIB sensors
 
 -------------------------------------------------------------------------------------------------------
 
@@ -46,7 +49,7 @@ from . import record_results
 NAME = "WIB/FEMB"
 KEY = "wiec_wib_qc"
 DESCRIPTION = "Sequential WIB powering and FEMB checkout to test Flange Board"
-EST_MINUTES = 70
+EST_MINUTES = 75
 
 
 

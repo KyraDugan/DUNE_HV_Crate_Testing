@@ -1,4 +1,4 @@
-"""Fan PWM sweep.
+""" fan_pwm_sweep.py
 
 Steps the fan supply from rigol832a_fan_voltage_min to _max and records the
 PWM oscillation frequency of every fan at each point, then writes the whole
@@ -62,13 +62,12 @@ def _fan_plot_title(fan):
 
 
 def evaluate_fan_pwm_profiles(fan_signals, min_correlation = 0.90, max_rmse = 0.15):
-
     """
     Compares fan PWM-frequency curves against each other by creating a group profile.
 
     Absolute fan speed is removed by min-mix normalization. Each fan is compared with the median normalized curve.
-
     """
+    
     fan_numbers = sorted(fan_signals)
     details = {}
     curves = {}

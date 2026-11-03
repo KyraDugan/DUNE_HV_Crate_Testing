@@ -1,4 +1,6 @@
-"""Turns a finished WIEC component run folder into one HTML summary.
+"""wiec_report.py
+
+Turns a finished WIEC component run folder into one HTML summary.
 
     python3 -m WIEC_Component.wiec_report                    newest run
     python3 -m WIEC_Component.wiec_report <run folder> ...
@@ -27,20 +29,21 @@ pulse plot (wib<slot>/FEMB<serial>_.../*.png).
 -------------------------------------------------------------------------------------------------------
 config.json keys used:
 
-"WIEC_results_folder"                                Folder holding runs/<run id>/ (for --all / newest)
-"wiec_run_json_name"                                 Name of the run JSON in each run folder
-"wiec_plots_folder"                                  Name of the plots folder in each run folder
-"wiec_results_csv_name"                              Name of the measurements CSV (linked in the footer)
-"wiec_session_log_name"                              Name of the session log (linked in the footer)
-"wiec_report_name"                                   Name of the HTML summary written into each run folder
-"wiec_report_plot_columns"                           Plot boxes across the page, per test (plots folder
-                                                     name, e.g. "fan_pwm_sweep"); "default" for the rest
-"rounding_factor"                                    Decimal places shown for measured values
-"wiec_summary_browser"                               Chrome command that open_summary shows the summary with
-"wiec_summary_browser_profile"                       Chrome profile folder used only for the summary window
-"wiec_summary_monitor"                               [x, y, width, height] of the monitor for the summary
-                                                     (xrandr --listmonitors); [1920, 0, ...] = the right one
-"wiec_summary_close_with_terminal"                   Close the summary window when the test's terminal closes
+"WIEC_results_folder"                           Folder holding runs/<run id>/ (for --all / newest)
+"wiec_run_json_name"                            Name of the run JSON in each run folder
+"wiec_plots_folder"                             Name of the plots folder in each run folder
+"wiec_raw_folder"                               Name of the raw data folder in each run folder (named in retry notes)
+"wiec_results_csv_name"                         Name of the measurements CSV (linked in the footer)
+"wiec_session_log_name"                         Name of the session log (linked in the footer)
+"wiec_report_name"                              Name of the HTML summary written into each run folder
+"wiec_report_plot_columns"                      Plot boxes across the page, per test (plots folder
+                                                name, e.g. "fan_pwm_sweep"); "default" for the rest
+"rounding_factor"                               Decimal places shown for measured values
+"wiec_summary_browser"                          Chrome command that open_summary shows the summary with
+"wiec_summary_browser_profile"                  Chrome profile folder used only for the summary window
+"wiec_summary_monitor"                          [x, y, width, height] of the monitor for the summary
+                                                (xrandr --listmonitors); [1920, 0, ...] = the right one
+"wiec_summary_close_with_terminal"              Close the summary window when the test's terminal closes
 -------------------------------------------------------------------------------------------------------
 """
 

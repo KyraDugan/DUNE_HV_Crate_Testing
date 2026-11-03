@@ -5,12 +5,12 @@ Manages the results folder and the results files.
 -------------------------------------------------------------------------------------------------------
 config.json keys used:
 
-"WIEC_results_folder"                               Folder for the WIEC results
-"wiec_results_csv_name"                             Name of measurement .csv
-"wiec_qc_sheet_name"                                Name of the wiec qc spreadsheet output
-"wiec_report_name"                                  File name for the .html report
-"wiec_plots_folder"                                 Folder name for the created plots
-"wiec_raw_folder"                                   Folder name for the raw recorded data
+"WIEC_results_folder"                           Folder for the WIEC results
+"wiec_results_csv_name"                         Name of measurement .csv
+"wiec_qc_sheet_name"                            Name of the wiec qc spreadsheet output
+"wiec_report_name"                              File name for the .html report
+"wiec_plots_folder"                             Folder name for the created plots
+"wiec_raw_folder"                               Folder name for the raw recorded data
 -------------------------------------------------------------------------------------------------------
 
 

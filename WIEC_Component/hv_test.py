@@ -41,6 +41,8 @@ config.json keys used:
 "hv_tau_max"                                    Maximum acceptable decay rate b (1/s) of the open-phase exp fit; tau = 1/b
 "simultaneous_test"                             Whether to test all channels at once or one at a time
 "channels_to_test"                              List of PCB channels to test
+"caenR8033DM_ramp_up"                           CAEN ramp-up rate (V/s); also sets the ramp progress bar's length
+"caenR8033DM_ramp_down"                         CAEN ramp-down rate (V/s); also sets the ramp progress bar's length
 "wiec_popup_pages"                              Slide for "hv_warning"; see WIEC_utils.ask_phrase_on_slide
 "hv_warning_phrase"                             What the operator must type to acknowledge it (case and extra spaces ignored)
 -------------------------------------------------------------------------------------------------------

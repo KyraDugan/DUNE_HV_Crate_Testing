@@ -1,4 +1,6 @@
-"""Operator-guided step flow: the three step kinds, and the engine that runs them.
+""" operator.py
+
+Operator-guided step flow: the three step kinds, and the engine that runs them.
 
 Every step in an operator-guided test is one of three kinds:
 

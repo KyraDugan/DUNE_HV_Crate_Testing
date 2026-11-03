@@ -1,4 +1,6 @@
-"""Operator pop-up windows, showing the pages of the qualification protocol.
+""" popups.py
+
+Operator pop-up windows, showing the pages of the qualification protocol.
 
 The protocol deck lives at GUI/ISEG_Qualification_Protocol.pdf.  Its pages are
 exported once to GUI/protocol_pngs/<page>.png

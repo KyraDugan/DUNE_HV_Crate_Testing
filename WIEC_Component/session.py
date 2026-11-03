@@ -1,4 +1,6 @@
-"""Shared state for the WIEC_Component test items.
+"""session.py
+
+Shared state for the WIEC_Component test items.
 
 A TestSession owns the parsed config, the instrument handles, the results
 directory, the datastore that becomes the output JSON, and the spreadsheet row

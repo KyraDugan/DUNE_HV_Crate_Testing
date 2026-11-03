@@ -35,6 +35,8 @@ config.json keys used here (the item modules list their own):
 "vi_fail_phrase"                                Fail button / what they type when it failed (no tests run, QC fails)
 "shv_check_phrase"                              What the operator types after checking the SHV cable mapping
 "hv_warning_phrase"                             What the operator types to acknowledge the HV warning (see hv_test)
+"wiec_run_json_name"                            Name of the run JSON written into each run folder
+"wiec_open_summary"                             Open the HTML summary in a browser window when the run ends
 -------------------------------------------------------------------------------------------------------
 
 """
@@ -44,6 +46,7 @@ import json
 import os
 import sys
 import traceback
+import time
 
 from WIEC_Component import preflight, WIEC_utils, record_results, output_log, wiec_report
 from WIEC_Component import fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_wib_qc
@@ -53,8 +56,7 @@ from WIEC_Component.session import TestSession, shutdown_only
 
 # The crate test items, in the order they should normally run
 CRATE_ITEMS = [fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_wib_qc]
-#EXTRA_ITEMS = [wiec_qc]
-ALL_ITEMS = CRATE_ITEMS #+ EXTRA_ITEMS
+ALL_ITEMS = CRATE_ITEMS
 
 BANNER = "=" * 70
 
@@ -80,7 +82,13 @@ def print_items(results=None):
 
 
 def run_item(session, item):
+    """
+    Runs one item, recording the result in the session.
+    Returns True if it passed, False if it failed or raised an exception.
+    """
+
     WIEC_utils.print_banner(f"Running {item.NAME}", "item")
+
     # A new attempt replaces an earlier one that was stopped partway
     interrupted = session.datastore.setdefault("interrupted_items", [])
     if item.KEY in interrupted:
@@ -90,6 +98,7 @@ def run_item(session, item):
         passed = bool(item.run(session))
     except KeyboardInterrupt:
         print(f"\n{item.NAME} interrupted by the user")
+
         # Interrupted partway: shown as INTERRUPTED in the QC sheet (record_results.qc_sheet_row)
         session.datastore.setdefault("interrupted_items", []).append(item.KEY)
         session.emergency_shutoff()
@@ -104,8 +113,6 @@ def run_item(session, item):
     session.record(item.KEY, passed)
     print(f"\n{item.NAME}: {WIEC_utils.verdict(passed)}")
     return passed
-
-
 
 
 def ask_serial(popup, config_data):

@@ -1,4 +1,8 @@
-#!/usr/bin/env python3
+""" wiec_serial.py
+
+Script for handling serial communication with the WIEC component.
+
+"""
 
 import sys
 import time
@@ -157,42 +161,55 @@ def check_host_serial_device(timeout=100, poll_interval=1):
     #print(f"Found Zynq serial device: {DEVICE}")
 
 
-def read_until_any(ser, keywords, timeout=40):
+def read_until_any(ser, keywords, timeout=40, message=None, expected_s=None):
     """
     Reads serial output until one of the keywords appears.
     Garbage bytes are ignored safely.
+    message, expected_s: draw a progress bar with this message, filling over expected_s seconds,
+    while waiting (only when both are given; every other call draws nothing). The bar is drawn
+    full when a keyword is found, and left partial on a timeout or Ctrl-C so it doesn't look done.
+    Returns (everything read, the keyword found), or (everything read, None) after timeout seconds.
     """
     # FIX: Removed ser.reset_input_buffer() from here to prevent erasing valid text.
 
-    serial_log("Waiting for PetaLinux login prompt...")
-
+    show_bar = bool(message) and expected_s is not None
     start_time = time.time()
     buffer = ""
     next_wake = start_time + 5
+    found = False
 
-    while time.time() - start_time < timeout:
-        waiting = ser.in_waiting
+    try:
+        while time.time() - start_time < timeout:
+            if show_bar:
+                WIEC_utils.draw_bar(message, time.time() - start_time, expected_s)
+            waiting = ser.in_waiting
 
-        if waiting:
-            raw = ser.read(waiting)
-            text = raw.decode(errors="ignore")
-            text = sanitize_terminal_text(text)
-            buffer += text
+            if waiting:
+                raw = ser.read(waiting)
+                text = raw.decode(errors="ignore")
+                text = sanitize_terminal_text(text)
+                buffer += text
 
-            lower_buffer = buffer.lower()
-            for keyword in keywords:
-                if keyword.lower() in lower_buffer:
-                    return buffer, keyword
+                lower_buffer = buffer.lower()
+                for keyword in keywords:
+                    if keyword.lower() in lower_buffer:
+                        found = True
+                        return buffer, keyword
 
-        if time.time() >= next_wake:
-            # FIX: Send raw \r\n instead of relying on default print formatting
-            ser.write(b"\r\n")
-            ser.flush()
-            next_wake += 5
+            if time.time() >= next_wake:
+                # FIX: Send raw \r\n instead of relying on default print formatting
+                ser.write(b"\r\n")
+                ser.flush()
+                next_wake += 5
 
-        time.sleep(0.1)
+            time.sleep(0.1)
 
-    return buffer, None
+        return buffer, None
+    finally:
+        if show_bar and found:
+            WIEC_utils.finish_bar(message)
+        elif show_bar:
+            print("\n\n")   # timed out or Ctrl-C: leave the bar where it stopped
 
 def send_line(ser, line):
     # FIX: Force \r\n explicitly to break past stuck terminal states
@@ -202,7 +219,12 @@ def send_line(ser, line):
 
 
 
-def login_petalinux():
+def login_petalinux(expected_s=None):
+    """
+    Opens the Zynq serial console and logs in to PetaLinux. Returns the serial connection.
+    expected_s: if given, a progress bar fills over this many seconds while waiting for the
+    login prompt (wib_setup passes config "wib_petalinux_login_expected_s"; legacy callers pass nothing).
+    """
     serial_log(f"Opening serial console: {DEVICE} @ {BAUDRATE}")
 
     try:
@@ -226,10 +248,13 @@ def login_petalinux():
     time.sleep(0.5)
 
     # FIX 2: Add "ZynqMP>" to your allowed initial keywords
+    serial_log("Waiting for PetaLinux login prompt...")
     output, matched = read_until_any(
         ser,
         keywords=["login:", "password:", "#", "$", "ZynqMP>"],
-        timeout=300
+        timeout=300,
+        message="Waiting for PetaLinux login prompt",
+        expected_s=expected_s
     )
 
     if matched is None:
@@ -348,9 +373,9 @@ def run_ecat_soft_timeout_then_i2cdetect(
 
 
 # function to collect output resposnse 
-def login(): # func to just login
+def login(expected_s=None): # func to just login; expected_s: login prompt progress bar (see login_petalinux)
     check_host_serial_device()
-    ser = login_petalinux()
+    ser = login_petalinux(expected_s)
     set_date(ser)
     return ser
 

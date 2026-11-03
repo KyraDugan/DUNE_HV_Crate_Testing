@@ -33,3 +33,5 @@ FEMB_chk/FEMB_QC/
 
 __pycache__/
 .wiec_component_state.json
+__pycache__/run_wiec_component.cpython-310.pyc
+__pycache__/wiec_serial.cpython-310.pyc

@@ -1,4 +1,6 @@
-"""Turns a finished hv_module_test results directory into one HTML report.
+"""hv_module_report.py
+
+Turns a finished hv_module_test results directory into one HTML report.
 
     python3 -m WIEC_Component.hv_module_report                    newest run
     python3 -m WIEC_Component.hv_module_report <results dir>

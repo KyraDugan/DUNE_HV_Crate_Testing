@@ -1,4 +1,5 @@
-"""
+""" wiec_femb_chk.py
+
 WIEC FEMB pass-through checkout (WIB side)
 
 Version of femb_assembly_chk.py for the WIEC crate test. Every warm

@@ -1,4 +1,6 @@
-""" WIEC WIB Setup
+""" wib_setup.py
+
+WIEC WIB Setup
 
 Helper script for the wiec_wib_qc.
 This validates one WIB at a time.
@@ -19,6 +21,7 @@ config.json keys used:
 "wib_expected_i2c_prefix"                       Expected prefix for i2c                    
 "wib_sensor_read_wait_seconds"                  Time to wait for wib sensor readout
 "wib_zynq_settle_time"                          Time to wait for zynq connection to settle
+"wib_petalinux_login_expected_s"                Expected seconds until the PetaLinux login prompt (progress bar)
 
 -------------------------------------------------------------------------------------------------------
 """
@@ -173,7 +176,7 @@ def login_zynq(session):
                     "Waiting for Zynq boot before serial login",
                     config_data.get("wib_zynq_settle_time"))
     try:
-        ser = WIEC_SERIAL.login()
+        ser = WIEC_SERIAL.login(config_data["wib_petalinux_login_expected_s"])
     except (Exception, SystemExit) as exc:
         session.log(f"Zynq serial login failed ({exc!r}): Check the USB cable and PTC power.")
         return None

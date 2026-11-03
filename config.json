@@ -99,6 +99,7 @@
         "hv_minutes_duration_long": 5,
         "hv_minutes_duration_short": 1,
         "hv_seconds_interval": 0.5,
+        "hv_max_connection_retries": 5,
         "hv_resistance_open_max": 150000.0,
         "hv_resistance_open_min": 5000.0,
         "hv_resistance_term_max": 0.120,
@@ -131,14 +132,15 @@
         "wib_ip_last_octet_base": 71,
         "wib_ping_timeout_seconds": 10,
         "wib_ping_count": 4,
-        "wib_ping_expected_s": 4,
+        "wib_ping_expected_s": 3,
         "wib_expected_i2c_prefix": "7",
         "wib_zynq_settle_time": 100,
+        "wib_petalinux_login_expected_s": 12,
         "wib_sensor_read_wait_seconds": 45,
         "wib_checkout_wait_seconds": 30,
         "wib_command_timeout_s": 30,
         "wib_startup_timeout_s": 40,
-        "wib_startup_expected_s": 20,
+        "wib_startup_expected_s": 15,
         "wib_software_dir": "BNL_CE_WIB_SW_QC",
         "wib_ssh_connect_timeout_s": 10,
 
@@ -171,7 +173,7 @@
         "wiec_femb_script": "wiec_femb_chk.py",
         "wib_femb_positions": 4,
         "wiec_femb_checkout_timeout_s": 300,
-        "wiec_femb_checkout_expected_s": 180,
+        "wiec_femb_checkout_expected_s": 200,
         "wiec_femb_limits": {
             "power_V": {"BIAS": [4.5, 5.5], 
                         "LArASIC": [2.8, 3.2], 
@@ -205,6 +207,7 @@
                                 }
         },
         "wiec_femb_summary_max_failures": 10,
+        "fembs_expected_off_s": 21,
 
 
 
@@ -264,7 +267,7 @@
         "keysight970a_heater_ocomp": "OFF",
         "keysight970a_heater_LowPower": "OFF",
         "keysight970a_heater_delay": 5.0,
-        "keysight970a_heater_expected_s": 8,
+        "keysight970a_heater_expected_s": 7,
         "keysight970a_fan_num": 6,
         "keysight970a_fan_ch1": 19,
         "keysight970a_fan_ch2": 20,

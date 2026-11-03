@@ -1,4 +1,6 @@
-"""WIEC PTC power.
+""" ptc_power.py
+
+WIEC PTC power.
 
 Brings the PL506 48 V up only after every fan is confirmed to be spinning at
 the expected frequency, and takes it back down before the fans on the way out.

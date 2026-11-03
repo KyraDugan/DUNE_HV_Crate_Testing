@@ -1,4 +1,5 @@
-"""
+""" femb_checkout.py
+
 WIEC FEMB checkout
 
 Performs quick checkout test for FEMB boards in 4 slots.
@@ -7,9 +8,6 @@ Called by WIEC WIB QC script after WIB is validated and powered.
 -------------------------------------------------------------------------------------------------------
 config.json keys used:
 
-"wib_checkout_wait_seconds"                     Wait time for WIB checkout in seconds
-"femb_qc_data_root_folder"                      
-"femb_checkout_default_site"                    
 "wib_software_dir"                              Directory for FEMB checkout software
 "wiec_femb_sets"                                Sets of FEMBs used for testing. Add more if more are available.
 "wiec_femb_checkout_timeout_s"                  Time to wait for femb checkout before timeout 
@@ -21,12 +19,25 @@ config.json keys used:
                                                         monitor_path_mV
 "wib_ssh_connect_timeout_s"                     Time to wait for ssh connection before timeout
 "wib_startup_expected_s"                        Expected seconds for wib_startup.py (progress bar)
+"fembs_expected_off_s"                          Expected seconds for FEMB powering off (progress bar)
 "wiec_femb_safety_A"                            presence_min_A: below this DC-DC current a FEMB counts as not
                                                 connected; BIAS/LArASIC/ColdDATA: BNL's safety current cut
 "wiec_femb_i2c_tries"                           I2C configuration retries before a FEMB is dropped
 "wiec_femb_cable_mapping_check"                 true: check each FEMB's data cable is on the same position as
                                                 its power cable (catches swapped data cables)
 "wiec_femb_summary_max_failures"                Maximum number of failed checks to show in the summary
+"wiec_femb_checkout_expected_s"                 Expected seconds for the FEMB checkout on one WIB (progress bar)
+"wiec_femb_script"                              The WIB-side checkout script, copied to the WIB before each run
+"wiec_femb_tests"                               Which of BNL's warm tests the WIB-side script runs (true = run)
+"wiec_femb_dc2dc_V"                             DC-DC output voltages for LArASIC, ColdDATA and ColdADC (V)
+"wiec_femb_monitor_samples"                     Monitor ADC readings averaged per value
+"wiec_femb_monitor_lsb_mV"                      mV per monitor ADC count
+"wiec_femb_data_samples"                        Spy buffer captures per ADC data test
+"wiec_femb_settle_s"                            Wait after configuring the FEMBs, before capturing data
+"wiec_femb_toy_tpc"                             Label used in BNL's report folder names
+"wib_femb_positions"                            FEMB connectors on a WIB (4); each FEMB set lists this many serials
+"wib_startup_timeout_s"                         Seconds before wib_startup.py on the WIB times out
+"wib_command_timeout_s"                         Seconds before a short WIB command (ssh, scp) times out
 -------------------------------------------------------------------------------------------------------
 """
 
@@ -147,10 +158,18 @@ def fembs_off(session, wib_number):
     Turns off power to all 4 FEMBs on the WIB in the specified slot.  
     Returns True only if the WIB script confirms it finished successfully.
     """
+
+    config_data = session.json_data
+
     wib_ip = wib_setup.expected_wib_ip(session, wib_number)
     off = " ".join(["off"] * session.json_data["wib_femb_positions"])
-    wib_ok, wib_output = wib_ssh(session, wib_ip, f"python3 top_femb_powering.py {off}",
-                                 session.json_data["wib_command_timeout_s"])
+    wib_ok, wib_output = WIEC_utils.run_with_bar(f"WIB {wib_number} FEMBs powering off", 
+                            config_data["fembs_expected_off_s"], 
+                            wib_ssh, 
+                            session, 
+                            wib_ip, 
+                            f"python3 top_femb_powering.py {off}", 
+                            config_data["wib_command_timeout_s"])
 
     if wib_ok and "Done" in wib_output:
         session.log(f"WIB {wib_number} FEMBs powered off successfully.")

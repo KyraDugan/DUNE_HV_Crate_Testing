@@ -1,4 +1,4 @@
-"""preflight.py
+""" preflight.py
 
 Environment checks and first-run guidance for the WIEC_Component top script.
 

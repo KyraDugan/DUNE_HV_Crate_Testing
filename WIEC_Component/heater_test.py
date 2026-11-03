@@ -1,4 +1,6 @@
-"""Heater test.
+"""heater_test.py
+
+Heater test.
 
 Measures the resistance of the four heating elements with no power applied,
 then powers them and records the RTD temperature rise.
