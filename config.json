@@ -79,6 +79,7 @@
         "fan_osc_freq": 200,
         "fan_pwm_min_correlation": 0.90,
         "fan_pwm_max_rmse": 0.15,
+        "fan_pwm_max_deviation_percent": 10,
 
 
 
@@ -152,8 +153,8 @@
         "femb_checkout_default_site": "BNL",
         "wiec_femb_sets": [
             ["BNL-FEMB-IO-1865-1J-00010", 
-            "BNL-FEMB-IO-1865-1D-00052", 
-            "BNL-FEMB-IO-1865-1J-00047", 
+            "00025-BNL-FEMB-IO-1865-1J", 
+            "00047-BNL-FEMB-IO-1865-1J", 
             "BNL-FEMB-IO-1865-1J-00003"]
                         ],
         "wiec_femb_tests": {

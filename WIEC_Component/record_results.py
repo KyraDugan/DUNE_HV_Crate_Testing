@@ -74,7 +74,7 @@ def run_path(session):
     session.datastore["session_stamp"] = readable_stamp
 
     folder_path = get_results_folder(session)
-    run_file_name = file_name_safe(readable_stamp + "_" + session.wiec_serial)
+    run_file_name = file_name_safe(readable_stamp + "__" + session.wiec_serial)
 
     session.datastore["run_id"] = run_file_name
 
