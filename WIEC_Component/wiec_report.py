@@ -146,9 +146,14 @@ a.to-top:hover { background: var(--header); }
 .fact .v { font-size: 1.05rem; font-weight: 600; margin-top: .15rem;
            word-break: break-word; }
 .scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+/* Tables are as wide as their contents, not the page: stretched to full width, short columns
+   were spread far apart and a row was hard to follow across. A long table still wraps or scrolls.
+   Left-aligned, with a line between columns. The Items table is the exception: full width */
+table { border-collapse: collapse; width: auto; font-size: .9rem; }
+.items table { width: 100%; }
 th, td { text-align: left; padding: .42rem .6rem; border-bottom: 1px solid var(--line);
          vertical-align: top; }
+th + th, td + td { border-left: 1px solid var(--line); }
 th { background: var(--head); font-weight: 600; position: sticky; top: 0; }
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .PASS { color: var(--pass); background: var(--pass-fill); font-weight: 700; }
@@ -430,6 +435,26 @@ def _visual_inspection_section(rows):
     return _table(["Measurement", "Result", "Why it failed"], table_rows)
 
 
+def _fan_deviation_table(rows, places):
+    """fan_pwm_sweep: every fan's worst deviation from the group median (the level check in
+    fan_pwm_sweep.evaluate_fan_pwm_deviation) in one table, so a fan out of line with the others
+    stands out without opening each plot's box. Empty for a run recorded before the level check."""
+    level_rows = [row for row in rows
+                  if row.get("measurement") in ("level deviation from group", "level check")]
+    if not level_rows:
+        return ""
+    table_rows = []
+    for row in sorted(level_rows, key=lambda row: row.get("channel") or 0):
+        # "level check" rows are the not-evaluated case: the value is text and the note says why
+        value = _number(row.get("value"), places)
+        if row.get("note"):
+            value = f"{value} ({row['note']})"
+        table_rows.append([f"Fan {row.get('channel')}", value, row.get("max"), row.get("result", "")])
+    return ("<h3>Worst deviation from group median</h3>"
+            + _table(["Fan", "Worst deviation [%]", "Limit [%]", "Result"], table_rows,
+                     numeric=(1, 2)))
+
+
 def _test_section(directory, config, test, rows, places, params=None):
     """A test's rows and plots. Plots go in the plot grid, each boxed with the graded rows
     (PASS/FAIL) that name it (their "plot" field) in a table above it, in the order the rows were
@@ -644,8 +669,11 @@ def build_html(directory, config, item_names=None):
         name = _Html(f'<a class="jump" href="#{_e(anchor)}">{_e(title(item))} ↓</a>')
         item_rows.append([name, verdict, len(item_graded), len(item_failed)])
         item_anchors.append(anchor)
-    parts.append(_table(["Item", "Result", "Checks", "Failed"], item_rows, numeric=(2, 3),
-                        row_anchors=item_anchors))
+    # In a div.items so this one table keeps the full page width (see .items table in CSS)
+    parts.append('<div class="items">'
+                 + _table(["Item", "Result", "Checks", "Failed"], item_rows, numeric=(2, 3),
+                          row_anchors=item_anchors)
+                 + "</div>")
 
     # -- detail for every item, with the tests recorded inside it
     shown = []
@@ -669,6 +697,8 @@ def build_html(directory, config, item_names=None):
             elif test == "visual_inspection":
                 parts.append(_visual_inspection_section(rows))
             else:
+                if test == "fan_pwm_sweep":
+                    parts.append(_fan_deviation_table(rows, places))
                 parts.append(_test_section(directory, config, test, rows, places, params))
         if not has_content:
             parts.append('<div class="note">No measurements recorded.</div>')

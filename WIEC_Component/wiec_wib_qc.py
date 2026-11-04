@@ -238,7 +238,7 @@ def check_fembs(session, wib, femb_ids):
     """
     FEMB checkout through the WIB in slot wib. On a failure (the FEMBs are off, the WIB stays
     powered) the operator gets the FEMB error slide; once they confirm, it runs once more.
-    Only the last attempt is recorded. Returns (passed, reason).
+    Returns (passed, reason).
     """
     passed, reason = femb_checkout.run(session, wib, femb_ids, start_wib=True)
     wib_started = session.datastore["femb_checkout"][wib].get("wib_started")
@@ -248,10 +248,20 @@ def check_fembs(session, wib, femb_ids):
         session.log(WIEC_utils.fail_text(f"WIB {wib} failed FEMB checkout: {reason}"))
         session.log("The FEMBs are switched off, the WIB is still powered.")
         lines = []
-        # A swapped or missing data cable is the likely cause of the other failures, so say so
-        mapping = femb_checkout.cable_mapping_problems(session.datastore["femb_checkout"][wib])
+
+        # A swapped cable is likely a cause, this checks to see if it is and then reports which cables.
+        fembs_failed = session.datastore["femb_checkout"][wib]
+        mapping = femb_checkout.cable_mapping_problems(fembs_failed)
         if mapping:
             lines.append(f"Cable mapping wrong: {', '.join(mapping)}.")
+        failed_positions = sorted({check["position"] for check in fembs_failed["checks"] if not check["passed"]})
+        positions_text = ", ".join(str(position) for position in failed_positions)
+        if len(failed_positions) > 1:
+            lines.append(f"FEMBs {positions_text} failed checkout.")
+        elif len(failed_positions) == 1:
+            lines.append(f"FEMB {positions_text} failed checkout.")
+        else:
+            lines.append("The checkout did not complete, so no FEMB was measured.")
         WIEC_utils.ask_to_fix_on_slide(getattr(session, "popup", None), session.json_data, "femb_error",
                                        f"FEMB checkout failed: WIB slot {wib}", lines,
                                        heading=f"WIB slot {wib}")

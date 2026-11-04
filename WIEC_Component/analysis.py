@@ -1,7 +1,6 @@
 """ analysis.py
 
 Curve fitting and plotting shared by the HV items.
-
 """
 
 
@@ -9,7 +8,7 @@ import csv
 import os
 from datetime import datetime
 from pathlib import Path
-
+import pandas as pd
 import matplotlib
 
 # These items only ever write PNGs, and they routinely run over ssh, so keep
@@ -23,6 +22,7 @@ from scipy.optimize import curve_fit
 from . import WIEC_utils
 
 # Plot colours, all from the WIEC_utils palette
+
 CURRENT_HEX = WIEC_utils.ACTION_HEX            # every current trace, in every panel (teal)
 VOLTAGE_HEX = WIEC_utils.BANNER_BACKGROUND_HEX # every voltage trace, in every panel (dark blue)
 DATA_HEX = WIEC_utils.HEADER_HEX               # the resistance trace on the 20 V plots (purple)
@@ -38,8 +38,8 @@ def exp_fit(x, a, b, c):
 
 
 def get_ch_data(data_file, ch):
-    """Reads one CAEN channel from a recorded HV CSV.
-
+    """
+    Reads one CAEN channel from a recorded HV CSV.
     Returns (seconds since the first sample as a numpy array, voltages, currents).
     """
     stamps = []
@@ -64,9 +64,6 @@ def hv_curve_fit(results_path, name, ch, on=True, initial_b=0.02):
     Returns the raw scipy result (popt, pcov); fit[0][1] is b, the decay rate in 1/s, and the
     time constant is tau = 1/b.  A fit that does not converge comes back as [[0, 0]], which
     fails the threshold check rather than crashing the run.
-
-    Added initial parameters to allow for better convergence.
-    initial_b is included in config.json for adjustment while calling the function.
     """
     time_seconds, ch_voltage, ch_current = get_ch_data(
         os.path.join(results_path, name), ch

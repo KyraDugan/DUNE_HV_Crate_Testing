@@ -21,7 +21,7 @@ Colors should be used to convey a meaning. There is a color scheme that has been
 
 The user should never be looking at the terminal without anything being conveyed to them. There should be a clear need for an input if there is one required (signified by color and >). A popup is often better for an input than in the terminal, as it allows the user to have a slide of instructions as well as the required input with that slide. If waiting for the program to do something, or for the harware measurement to be completed, there should be a progress bar. This removes any question on if the program has crashed or not.
 
-Error handling testing has been performed to catch the likely errors that will occur when moving cables so often. There are popups that will allow for retries when there is a failed test, with suggestions on hardware checks to make. This will allow for the test to not need to be completely rerun if there is a hardware issue.
+Error handling testing has been performed to catch the likely errors that will occur when moving cables so often. There are popups that will allow for retries when there is a failed test, with suggestions on hardware checks to make. This will allow for the test to not need to be completely rerun if there is a hardware issue. It is incredibly likely there will be operator errors, especially during the FEMB/WIB testing part of the process.
 
 
 ## Structure
@@ -54,11 +54,29 @@ Within **/home/dune-daq/DUNE-HV-Crate-Testing/WIEC_Component**, there are many d
 The test scripts are the tests that are actually performed on the WIEC during the QC. The test helpers are there as helpers for the test scripts themselves. The general helpers are used throughout the WIEC QC process. The unused files are there for the HV test implementation and are not used in this setup.
 
 
-## FEMB and WIB Numbering
+## FEMB and WIB Notes
+
+#### FEMB and WIB Numbering
 
 The FEMB numbering physically and within the code is 0-3.
 
 The WIB numbering is different on the flange board and within the code used by the PTC to control the WIBs. For ease of the operator, the WIB slot number matches the WIB numbers printed on the flange board, which is numbered 1-6. The PTC's code numbers these 0-5 instead of 1-6, so the code reported to the PTC will reflect this numbering scheme. The results of the test and any instructions for the operator will use the 1-6 scheme physically printed on the flange board. 
+
+#### Adding more WIBs or FEMBs
+
+One of the best improvements for this test setup would be to add more WIBs or FEMBs. This would allow for less required movement of cables and unique tests on the WIB/FEMB portion of the QC procedure. This would reduce the time taken for this portion of the test and would allow for less potential operator error in handling the test.
+
+To add more WIBs or FEMBs, update the following keys in config.json:
+
+- "wib_boards_available"
+    - update to the number of WIBs available for testing.
+- "wiec_femb_sets"
+    - Add another list of four serials for the FEMB serials being tested. 
+    - This key should be a list of lists, one nested list of length four for each FEMB set used for testing.
+
+The QC procedure should update automatically and give instructions for testing with more WIBs or FEMB sets.
+
+
 
 ## Results
 

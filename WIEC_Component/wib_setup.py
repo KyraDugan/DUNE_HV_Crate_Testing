@@ -22,10 +22,8 @@ config.json keys used:
 "wib_sensor_read_wait_seconds"                  Time to wait for wib sensor readout
 "wib_zynq_settle_time"                          Time to wait for zynq connection to settle
 "wib_petalinux_login_expected_s"                Expected seconds until the PetaLinux login prompt (progress bar)
-
 -------------------------------------------------------------------------------------------------------
 """
-
 
 import json
 import traceback
@@ -34,9 +32,7 @@ import os
 import sys
 import re
 import time 
-
 import wiec_serial as WIEC_SERIAL
-
 from . import WIEC_utils
 from . import record_results
 
