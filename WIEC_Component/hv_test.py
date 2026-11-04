@@ -39,6 +39,7 @@ config.json keys used:
 "hv_resistance_term_max"                        Maximum acceptable 10 kOhm termination resistance
 "hv_tau_min"                                    Minimum acceptable decay rate b (1/s) of the open-phase exp fit; tau = 1/b
 "hv_tau_max"                                    Maximum acceptable decay rate b (1/s) of the open-phase exp fit; tau = 1/b
+"hv_fit_max_residual_percent"                   Max allowed residual percentage from the exponential fit
 "simultaneous_test"                             Whether to test all channels at once or one at a time
 "channels_to_test"                              List of PCB channels to test
 "caenR8033DM_ramp_up"                           CAEN ramp-up rate (V/s); also sets the ramp progress bar's length
@@ -224,11 +225,18 @@ def _phase(session, hv_results, chs_to_test, chs_string, spec):
         # resistor through V/I, and there is no time constant to measure in them
         fit = None
         if spec["termination"] == "open":
-            fit = analysis.hv_curve_fit(
+            fit, residuals, time_seconds = analysis.hv_curve_fit(
                 raw_dir, csv_name, ch,
                 on=spec["on"],
                 initial_b=float(json_data["hv_fit_initial_b"])
             )
+
+            residual_fails = []
+            if residuals is not None:
+                for pt in range(len(residuals)):
+                    if 100*abs(residuals[pt])/abs(fit[0][0]) > json_data["hv_fit_max_residual_percent"]:
+                        residual_fails.append(residuals[pt])
+            hv_results[i][f"{key}_{suffix}_failed_residuals"] = residual_fails
             hv_results[i][f"{key}_{suffix}_fit"] = fit
 
         if spec["on"]:
@@ -403,6 +411,18 @@ def _evaluate(session, chs_to_test, hv_results):
                 fit_key = f"{j}_{suffix}_fit"
                 b = float(hv_results[i][fit_key][0][1])
                 tau = 1.0 / b if b != 0.0 else 0.0
+
+                res_failed = hv_results[i].get(f"{j}_{suffix}_failed_residuals", [])
+                res_passed = len(res_failed) ==0
+                res_unit=f"residuals over {json_data['hv_fit_max_residual_percent']}% from fit"
+                record_results.measure(session, KEY, f"{j} {suffix} fit residual", len(res_failed), passed=res_passed,
+                                       unit=res_unit, channel = i, high = 0,
+                                       plot=hv_results[i].get(f"{j}_{suffix}_plot"),
+                                       plot_title=hv_results[i].get(f"{j}_{suffix}_plot_title"))
+
+                result = result and res_passed
+
+
                 passed = json_data["hv_tau_min"] < b < json_data["hv_tau_max"]
                 sheet.write(
                     sheet.hv_res_first_col + offset + (i * sheet.hv_cols) + (num * 3),

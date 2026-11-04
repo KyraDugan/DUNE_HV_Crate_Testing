@@ -58,7 +58,8 @@ def get_ch_data(data_file, ch):
 
 
 def hv_curve_fit(results_path, name, ch, on=True, initial_b=0.02):
-    """Fits a*exp(-b*t)+c to the ramp: the current after a ramp up (on), the voltage after a
+    """
+    Fits a*exp(-b*t)+c to the ramp: the current after a ramp up (on), the voltage after a
     ramp down (off).
 
     Returns the raw scipy result (popt, pcov); fit[0][1] is b, the decay rate in 1/s, and the
@@ -75,9 +76,11 @@ def hv_curve_fit(results_path, name, ch, on=True, initial_b=0.02):
         p0=[data[0] - data[1],
             initial_b,
             data[-1]]
-        return curve_fit(exp_fit, time_seconds, data, p0=p0)
+        popt, pcov, infodict, mesg, ier = curve_fit(exp_fit, time_seconds, data, p0=p0, full_output=True)
+        residuals = infodict["fvec"]
+        return(popt, pcov), residuals, time_seconds
     except RuntimeError:
-        return [[0, 0]]
+        return [[0, 0]], None, None
 
 
 def _style(ax):
