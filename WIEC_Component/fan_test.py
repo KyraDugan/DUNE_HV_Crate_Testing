@@ -22,9 +22,7 @@ config.json keys used:
 -------------------------------------------------------------------------------------------------------
 """
 
-import sys
-import time
-
+import sys, time
 from . import cli, WIEC_utils, record_results
 
 NAME = "Fan Test"
@@ -47,8 +45,7 @@ def measure(session):
 
     session.log(
         f"Fans tested at the nominal voltage specified ..... "
-        f"{json_data['rigol832a_fan_voltage']}"
-    )
+        f"{json_data['rigol832a_fan_voltage']}")
     
     WIEC_utils.countdown_sleep(session, "Fans on, waiting for steady state", json_data['fan_wait'])
 
@@ -83,7 +80,7 @@ def measure(session):
         f"and {readings['fanread_current']}A"
     )
 
-    session.datastore.update(readings)
+
     return readings
 
 
@@ -91,29 +88,25 @@ def run(session):
     json_data = session.json_data
     sheet = session.sheet
     readings = measure(session)
+    session.datastore.update(readings)
 
     result = True
-
-    passed = (
-        json_data["fan_voltage_min"] < readings["fan_voltage"] < json_data["fan_voltage_max"]
-    )
+    passed = (json_data["fan_voltage_min"] < readings["fan_voltage"] < json_data["fan_voltage_max"])
     sheet.write(4, readings["fan_voltage"], passed)
     session.datastore["Tests"]["fan_voltage_test"] = "Pass" if passed else "Fail"
+
     record_results.measure(session, KEY, "fan supply voltage", readings["fan_voltage"],
                            passed=passed, unit="V",
                            low=json_data["fan_voltage_min"], high=json_data["fan_voltage_max"])
     
     result = result and passed
-
-    passed = (
-        json_data["fan_current_min"] < readings["fan_current"] < json_data["fan_current_max"]
-    )
+    passed = (json_data["fan_current_min"] < readings["fan_current"] < json_data["fan_current_max"])
     sheet.write(5, readings["fan_current"], passed)
     session.datastore["Tests"]["fan_current_test"] = "Pass" if passed else "Fail"
+
     record_results.measure(session, KEY, "fan supply current", readings["fan_current"],
                            passed=passed, unit="A",
                            low=json_data["fan_current_min"], high=json_data["fan_current_max"])
-    
     
     result = result and passed
 
@@ -122,8 +115,6 @@ def run(session):
         signal = readings["fan_read_signal"][i]
         passed = json_data["fan_read_min"] < signal < json_data["fan_read_max"]
         sheet.write(sheet.fan_rd_first_col - 1 + i, signal, passed, rounded=True)
-        # Recorded on both branches -- a missing key used to be the only sign
-        # of a failed fan in the JSON.
         session.datastore["Tests"][f"fan_signal_test_{i}"] = "Pass" if passed else "Fail"
 
         record_results.measure(session, KEY, f"fan RD signal", signal,
@@ -134,7 +125,6 @@ def run(session):
 
     sheet.save()
     return result
-
 
 if __name__ == "__main__":
     sys.exit(cli.run_single_item(sys.modules[__name__]))

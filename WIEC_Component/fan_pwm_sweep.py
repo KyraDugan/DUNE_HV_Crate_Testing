@@ -24,16 +24,10 @@ config.json keys used:
 -------------------------------------------------------------------------------------------------------
 """
 
-import csv
-import os
-import sys
-import numpy as np
-
-import matplotlib
-
+import csv, os, sys, matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
+import numpy as np
 from . import cli, fan_test, WIEC_utils, record_results
 
 NAME = "Fan PWM Sweep"
@@ -43,8 +37,10 @@ EST_MINUTES = 3
 
 
 def _save_plot(folder, filename, x, y, title, xlabel, ylabel):
+    """
+    Plots data, saves it.
+    """
     plt.figure()
-    # Measured points only: no line joining them (only a fit is drawn as a line)
     plt.plot(x, y, linestyle="none", marker="o")
     plt.title(title, fontsize=14)
     plt.xlabel(xlabel, fontsize=12)
@@ -55,19 +51,15 @@ def _save_plot(folder, filename, x, y, title, xlabel, ylabel):
 
 
 def _fan_plot_name(fan):
-    """One fan's frequency plot; its profile rows point at it so the summary can show it on a fail."""
-    return f"fan_{fan}_voltage_vs_frequency.png"
-
-
-def _fan_plot_title(fan):
-    """The title on that plot, also its heading in the summary."""
-    return f"Programmed Input Voltage vs. Fan #{fan} PWM Frequency"
+    """
+    Returns file name and title name for specific fan.
+    """
+    return (f"fan_{fan}_voltage_vs_frequency.png", f"Programmed Input Voltage vs. Fan #{fan} PWM Frequency")
 
 
 def evaluate_fan_pwm_profiles(fan_signals, min_correlation = 0.90, max_rmse = 0.15):
     """
     Compares fan PWM-frequency curves against each other by creating a group profile.
-    Absolute fan speed is removed by min-mix normalization. Each fan is compared with the median normalized curve.
     """
     
     fan_numbers = sorted(fan_signals)
@@ -90,7 +82,7 @@ def evaluate_fan_pwm_profiles(fan_signals, min_correlation = 0.90, max_rmse = 0.
     for fan in fan_numbers:
         curve = np.array(fan_signals[fan], dtype=float)
 
-        #Checks for sufficient data points
+        #Checks for sufficient data points, needs at least 2 but should be 6.
         if curve.size < 2:
             details[fan] = {
                 "pass": False,
@@ -106,8 +98,7 @@ def evaluate_fan_pwm_profiles(fan_signals, min_correlation = 0.90, max_rmse = 0.
             }
             continue
 
-        # Checks that each curve has the same number of points
-        # Potential problem is if the first curve has the off number of points, the rest will be compared there.
+        # Checks that each curve has the same number of points, should never be different.
         if expected_length is None:
             expected_length = curve.size
         elif curve.size != expected_length:
@@ -116,7 +107,6 @@ def evaluate_fan_pwm_profiles(fan_signals, min_correlation = 0.90, max_rmse = 0.
                 "reason": f"Curve has different number of points ({curve.size}) than expected ({expected_length})"
             }
             continue
-
 
         curve_min = np.min(curve)
         curve_max = np.max(curve)
@@ -148,7 +138,6 @@ def evaluate_fan_pwm_profiles(fan_signals, min_correlation = 0.90, max_rmse = 0.
     # Create median profile to check
     profile_array = np.vstack(list(curves.values()))
     reference_profile = np.median(profile_array, axis=0)
-
     overall_pass = True
 
     #Catches if fan not in curves if not caught above
@@ -158,23 +147,17 @@ def evaluate_fan_pwm_profiles(fan_signals, min_correlation = 0.90, max_rmse = 0.
             continue
 
         curve = curves[fan]
-        rmse = float(
-            np.sqrt(np.mean((curve - reference_profile) ** 2))
-        )
-
+        rmse = float(np.sqrt(np.mean((curve - reference_profile) ** 2)))
         if (np.std(curve) == 0) or np.std(reference_profile) == 0:
             correlation = 0.0
         else:
-            correlation = float(
-                np.corrcoef(curve, reference_profile)[0, 1]
-            )
+            correlation = float(np.corrcoef(curve, reference_profile)[0, 1])
 
         passed = (correlation >= min_correlation and rmse <= max_rmse)
         details[fan] = {
             "pass": passed,
             "correlation": correlation,
-            "rmse": rmse,
-        }
+            "rmse": rmse,}
 
         if not passed:
             overall_pass = False
@@ -185,7 +168,6 @@ def evaluate_fan_pwm_profiles(fan_signals, min_correlation = 0.90, max_rmse = 0.
 def evaluate_fan_pwm_deviation(fan_signals, max_deviation_percent):
     """
     Compares the fan's raw frequency with the median of the frequencies for the other fans in the test.
-
     This catches a fan with the right shape but the wrong speed.
     """
     fan_numbers = sorted(fan_signals)
@@ -194,7 +176,6 @@ def evaluate_fan_pwm_deviation(fan_signals, max_deviation_percent):
     group_median = np.median(signal_array, axis=0)
     if np.any(group_median <= 0):
         return False, {fan: {"pass": False, "reason": "Group median frequency is zero or negative at at least one sweep point"} for fan in fan_numbers}
-
 
     overall_pass = True
     details = {}
@@ -206,51 +187,44 @@ def evaluate_fan_pwm_deviation(fan_signals, max_deviation_percent):
         details[fan] = {"pass": passed, "worst_deviation_percent": worst}
         if not passed:
             overall_pass = False
+
     return overall_pass, details
 
 
-
-def run(session):
-    json_data = session.json_data
-    sheet = session.sheet
-    num_fans = int(json_data["keysight970a_fan_num"])
-
-    steps = int(json_data["rigol832a_fan_voltage_number_of_data_samples"])
-    fan_voltage_max = json_data["rigol832a_fan_voltage_max"]
-    fan_voltage_min = json_data["rigol832a_fan_voltage_min"]
+def _sweep(session, num_fans, prog_voltage):
+    """
+    Runs the voltage sweep on the fans
+    """
+    config_data = session.json_data
+    steps = int(config_data["rigol832a_fan_voltage_number_of_data_samples"])
+    fan_voltage_max = config_data["rigol832a_fan_voltage_max"]
+    fan_voltage_min = config_data["rigol832a_fan_voltage_min"]
 
     if steps < 2:
         session.log("CONFIG ERROR! Invalid Number of Data Samples:")
         session.log("Fan Sweep Test's number of data samples must be at least 2")
         session.log("Fix rigol832a_fan_voltage_number_of_data_samples in config.json")
-        return False
+        return False, None
 
     if fan_voltage_max <= fan_voltage_min:
         session.log("CONFIG ERROR! Invalid Fan Voltage Range:")
         session.log("Fan Sweep Test's MAXIMUM voltage is <= the MINIMUM voltage")
         session.log("Fix rigol832a_fan_voltage_max / _min in config.json")
-        return False
+        return False, None
+    
 
-    # Plots and the one-row CSV go into this run's folder: plots/fan_pwm_sweep/ and raw/fan_pwm_sweep/
-    fan_plots_folder = record_results.test_folder(session, "plots", KEY)
-    fan_raw_folder = record_results.test_folder(session, "raw", KEY)
-
-    # The same points the spreadsheet headers were built from
-    prog_voltage = sheet.get_fan_pwm_sweep_points()
     session.log(f"Fan Voltage Sweep Points in Volts : {prog_voltage}")
-
+    nominal_fan_voltage = config_data["rigol832a_fan_voltage"]
     fan_signals = {i: [] for i in range(1, num_fans + 1)}
     read_voltage = []
     read_current = []
 
-    nominal_fan_voltage = json_data["rigol832a_fan_voltage"]
     try:
         for sweep_voltage in prog_voltage:
-            json_data["rigol832a_fan_voltage"] = sweep_voltage
+            config_data["rigol832a_fan_voltage"] = sweep_voltage
             session.rigol0.setup_fan()
 
             readings = fan_test.measure(session)
-
             read_voltage.append(readings["fan_voltage"])
             read_current.append(readings["fan_current"])
 
@@ -259,18 +233,78 @@ def run(session):
 
     finally:
         # Put the supply back where the rest of the run expects it
-        json_data["rigol832a_fan_voltage"] = nominal_fan_voltage
+        config_data["rigol832a_fan_voltage"] = nominal_fan_voltage
         try:
             session.rigol0.setup_fan()
         except Exception:
             pass
 
-    #Before storing data, it will check the fan PWM profiles for correlation and RMSE against each other.
-    profile_pass, profile_details = evaluate_fan_pwm_profiles(
-        fan_signals, 
-        min_correlation=float(json_data["fan_pwm_min_correlation"]),
-        max_rmse=float(json_data["fan_pwm_max_rmse"]))
+    #Stores the sweep data in the session
+    session.datastore["fan_pwm_programmed_voltage"] = prog_voltage
+    session.datastore["fan_pwm_read_voltage"] = read_voltage
+    session.datastore["fan_pwm_read_current"] = read_current
+    session.datastore["fan_pwm_signals"] = fan_signals
 
+    return True, (fan_signals, read_voltage, read_current)
+
+
+def _grade(session, profile_details, level_details):
+    """
+    Grades the results from the PWM profile and speed deviation checks, recording the results in the session.
+    """
+    config_data = session.json_data
+    min_correlation = float(config_data["fan_pwm_min_correlation"])
+    max_rmse = float(config_data["fan_pwm_max_rmse"])
+    max_deviation_percent = float(config_data["fan_pwm_max_deviation_percent"])
+
+    # Grading profile correlation
+    for fan, details in profile_details.items():
+            file_name, plot_title = _fan_plot_name(fan)
+            if "reason" in details:
+                record_results.measure(session, KEY, "profile check", "not evaluated", passed=False,
+                                       channel=fan, note=details["reason"],
+                                       plot=file_name, plot_title=plot_title)
+                continue
+            record_results.measure(session, KEY, "profile correlation", details["correlation"],
+                                   passed=details["correlation"] >= min_correlation,
+                                   channel=fan, low=min_correlation,
+                                   plot=file_name, plot_title=plot_title)
+            record_results.measure(session, KEY, "profile RMSE", details["rmse"],
+                                   passed=details["rmse"] <= max_rmse,
+                                   channel=fan, high=max_rmse,
+                                   plot=file_name, plot_title=plot_title)
+            
+    # Grading speed correlations
+    for fan, details in level_details.items():
+        file_name, plot_title = _fan_plot_name(fan)
+        if "reason" in details:
+            record_results.measure(session, KEY, "level check", "not evaluated", passed=False,
+                                   channel=fan, note=details["reason"],
+                                   plot=file_name, plot_title=plot_title)
+            continue
+        record_results.measure(session, KEY, "level deviation from group",
+                               details["worst_deviation_percent"], passed=details["pass"],
+                               unit="%", channel=fan, high=max_deviation_percent,
+                               plot=file_name, plot_title=plot_title)
+        
+
+def run(session):
+    json_data = session.json_data
+    sheet = session.sheet
+    num_fans = int(json_data["keysight970a_fan_num"])
+    prog_voltage = sheet.get_fan_pwm_sweep_points()
+    fan_plots_folder = record_results.test_folder(session, "plots", KEY)
+    fan_raw_folder = record_results.test_folder(session, "raw", KEY)
+
+    good_sweep, sweep_data = _sweep(session, num_fans, prog_voltage)
+    if not good_sweep:
+        return False
+    fan_signals, read_voltage, read_current = sweep_data
+
+
+    # Profile check
+    profile_pass, profile_details = evaluate_fan_pwm_profiles(fan_signals, 
+        min_correlation=float(json_data["fan_pwm_min_correlation"]), max_rmse=float(json_data["fan_pwm_max_rmse"]))
     session.datastore["fan_pwm_profile_pass"] = profile_pass
     session.datastore["fan_pwm_profile_details"] = profile_details
 
@@ -281,24 +315,21 @@ def run(session):
                     f"correlation={details.get('correlation', 'n/a')} "
                     f"RMSE={details.get('rmse', 'n/a')}")
 
-    #Checks to make sure there isn't a fan that is too far from the median frequency of the other fans.
+
+    # Speed check
     max_deviation_percent = float(json_data["fan_pwm_max_deviation_percent"])
     level_pass, level_details = evaluate_fan_pwm_deviation(fan_signals, max_deviation_percent)
     session.datastore["fan_pwm_level_pass"] = level_pass
     session.datastore["fan_pwm_level_details"] = level_details
+
     for fan_number, details in level_details.items():
         session.log(f"Fan {fan_number} level check:"
                     f"{WIEC_utils.verdict(details['pass'])} "
                     f"{details.get('reason', '')} "
                     f"worst deviation={details.get('worst_deviation_percent', 'n/a')}%")
 
-    session.datastore["fan_pwm_programmed_voltage"] = prog_voltage
-    session.datastore["fan_pwm_read_voltage"] = read_voltage
-    session.datastore["fan_pwm_read_current"] = read_current
-    session.datastore["fan_pwm_signals"] = fan_signals
 
-    # The sweep points: recorded, not graded. setpoint only where it has the value's units
-    # (the read-back voltage); the other rows name the programmed voltage in the note.
+
     for step, programmed in enumerate(prog_voltage):
         note = f"at {programmed} V programmed"
         record_results.measure(session, KEY, "fan supply voltage", read_voltage[step],
@@ -309,56 +340,21 @@ def run(session):
             record_results.measure(session, KEY, "fan RD signal", fan_signals[fan][step],
                                    unit="Hz", channel=fan, note=note)
 
-    # The graded part: each fan's curve against the group profile
-    min_correlation = float(json_data["fan_pwm_min_correlation"])
-    max_rmse = float(json_data["fan_pwm_max_rmse"])
-    for fan, details in profile_details.items():
-        if "reason" in details:
-            record_results.measure(session, KEY, "profile check", "not evaluated", passed=False,
-                                   channel=fan, note=details["reason"],
-                                   plot=_fan_plot_name(fan), plot_title=_fan_plot_title(fan))
-            continue
-        record_results.measure(session, KEY, "profile correlation", details["correlation"],
-                               passed=details["correlation"] >= min_correlation,
-                               channel=fan, low=min_correlation,
-                               plot=_fan_plot_name(fan), plot_title=_fan_plot_title(fan))
-        record_results.measure(session, KEY, "profile RMSE", details["rmse"],
-                               passed=details["rmse"] <= max_rmse,
-                               channel=fan, high=max_rmse,
-                               plot=_fan_plot_name(fan), plot_title=_fan_plot_title(fan))
+    #Grades the results and records them in the session
+    _grade(session, profile_details, level_details)
 
-    # The graded part, continued: each fan's raw frequency against the group median
-    for fan, details in level_details.items():
-        if "reason" in details:
-            record_results.measure(session, KEY, "level check", "not evaluated", passed=False,
-                                   channel=fan, note=details["reason"],
-                                   plot=_fan_plot_name(fan), plot_title=_fan_plot_title(fan))
-            continue
-        record_results.measure(session, KEY, "level deviation from group",
-                               details["worst_deviation_percent"], passed=details["pass"],
-                               unit="%", channel=fan, high=max_deviation_percent,
-                               plot=_fan_plot_name(fan), plot_title=_fan_plot_title(fan))
-
+    # Save plots and CSV data
     for fan in range(1, num_fans + 1):
-        _save_plot(
-            fan_plots_folder,
-            _fan_plot_name(fan),
-            prog_voltage, fan_signals[fan],
-            _fan_plot_title(fan),
-            "Programmed Fan Voltage [V]", "Oscillation Frequency [Hz]",
-        )
+        file_name, plot_title = _fan_plot_name(fan)
+        _save_plot(fan_plots_folder, file_name, prog_voltage, fan_signals[fan], plot_title,
+            "Programmed Fan Voltage [V]", "Oscillation Frequency [Hz]")
+
     _save_plot(
-        fan_plots_folder, "programmed_voltage_vs_read_voltage.png",
-        prog_voltage, read_voltage,
-        "Programmed Fan Voltage vs. Read Fan Voltage",
-        "Programmed Fan Voltage [V]", "Read Fan Voltage [V]",
-    )
-    _save_plot(
-        fan_plots_folder, "programmed_voltage_vs_read_current.png",
-        prog_voltage, read_current,
-        "Programmed Fan Voltage vs. Read Fan Current",
-        "Programmed Fan Voltage [V]", "Read Fan Current [A]",
-    )
+        fan_plots_folder, "programmed_voltage_vs_read_voltage.png", prog_voltage, read_voltage,
+        "Programmed Fan Voltage vs. Read Fan Voltage", "Programmed Fan Voltage [V]", "Read Fan Voltage [V]")
+    _save_plot( fan_plots_folder, "programmed_voltage_vs_read_current.png", prog_voltage, read_current,
+        "Programmed Fan Voltage vs. Read Fan Current", "Programmed Fan Voltage [V]", "Read Fan Current [A]")
+
 
     # One wide row: fan #1 across all sweep points, then fan #2, ...
     csv_headers = sheet.get_fan_pwm_headers(prog_voltage)
@@ -389,7 +385,6 @@ def run(session):
     session.log("Fan PWM plots, one-row CSV data, and spreadsheet data saved")
     session.log(f"Fan PWM plots: {fan_plots_folder}")
     session.log(f"Fan PWM one-row CSV: {csv_save_path}")
-
 
     return profile_pass and level_pass
 
