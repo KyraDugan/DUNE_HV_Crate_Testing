@@ -35,6 +35,10 @@ config.json keys used here (the item modules list their own):
 "vi_fail_phrase"                                Fail button / what they type when it failed (no tests run, QC fails)
 "shv_check_phrase"                              What the operator types after checking the SHV cable mapping
 "hv_warning_phrase"                             What the operator types to acknowledge the HV warning (see hv_test)
+"retest_ok_button"                              Button / what the operator types to retest a serial already in the QC sheet
+"wiec_serial_format"                            How the serial is built from its boxes ({part}, {rev}, {number}), as engraved on the WIEC
+"wiec_serial_number_digits"                     The SN box is padded with zeros to this many digits (4 -> 004)
+"wiec_retest_dates_per_line"                    How many earlier start times go on each line of the retest question
 "wiec_run_json_name"                            Name of the run JSON written into each run folder
 "wiec_open_summary"                             Open the HTML summary in a browser window when the run ends
 -------------------------------------------------------------------------------------------------------
@@ -47,6 +51,8 @@ import os
 import sys
 import traceback
 import time
+import pandas as pd
+from datetime import datetime
 
 from WIEC_Component import preflight, WIEC_utils, record_results, output_log, wiec_report
 from WIEC_Component import fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_wib_qc
@@ -59,6 +65,10 @@ CRATE_ITEMS = [fan_test, fan_pwm_sweep, heater_test, hv_test, wiec_wib_qc]
 ALL_ITEMS = CRATE_ITEMS
 
 BANNER = "=" * 70
+
+# Box labels on the serial slide, in the order the parts appear in the serial engraved on the WIEC
+SERIAL_BOXES = ("DUNE-", "REV", "SN")
+OTHER_FORMAT_BUTTON = "Different format"
 
 
 def item_by_key(key):
@@ -117,16 +127,76 @@ def run_item(session, item):
 
 def ask_serial(popup, config_data):
     """
-    Asks for the WIEC serial twice on the serial slide; in the terminal if the slide has no window.
+    Asks for the WIEC serial (ask_serial_boxes). If the QC sheet already has a run of it,
+    the operator confirms this is a retest or goes back to enter a different serial.
+    """
+    message = ""
+    while True:
+        serial = ask_serial_boxes(popup, config_data, message)
+
+        previous_runs = []
+        path = os.path.join(config_data["WIEC_results_folder"], config_data["wiec_qc_sheet_name"])
+        if os.path.isfile(path):
+            sheet = pd.read_excel(path)
+            same_serial = sheet["WIEC Serial"].astype(str).str.lower() == record_results.file_name_safe(serial).lower()
+            previous_runs = sheet.loc[same_serial, "Start Time"].tolist()
+
+        if not previous_runs or confirm_retest(popup, config_data, previous_runs):
+            return serial
+        message = "Enter the correct serial."
+
+
+def ask_serial_boxes(popup, config_data, message=""):
+    """
+    Asks for the serial in three boxes, one per part of the serial engraved on the WIEC.
+    Allows for a serial in a different format (ask_serial_other_format) if needed.
+    """
+    while True:
+        answer = WIEC_utils.ask_on_slide(popup, config_data, "serial", "Find the WIEC serial",
+                                         "Enter each part of the WIEC serial.\n"
+                                         f"If it is not in this format, click '{OTHER_FORMAT_BUTTON}'.",
+                                         fields=SERIAL_BOXES, buttons=("Submit", OTHER_FORMAT_BUTTON),
+                                         message=message, one_line=True)
+        if answer is None:
+            return ask_serial_in_terminal(config_data)
+
+        if answer["button"] == OTHER_FORMAT_BUTTON:
+            serial = ask_serial_other_format(popup, config_data)
+            if serial:
+                return serial
+            message = ""        # Back: to the boxes again
+            continue
+
+        serial, message = build_serial(config_data, *answer["fields"])
+        if serial is None:
+            continue
+
+        answer = WIEC_utils.ask_on_slide(popup, config_data, "serial", "Check the WIEC serial",
+                                         f"The serial is:  {serial}\nDoes this match the WIEC serial?",
+                                         buttons=("Correct", "Back"))
+        if answer is None:
+            return ask_serial_in_terminal(config_data)
+        if answer["button"] == "Correct":
+            return serial
+        message = ""
+
+
+def ask_serial_other_format(popup, config_data):
+    """
+    Asks for a serial that does not fit the boxes, typed in full twice. Returns it, or None if
+    the operator clicks Back.
     """
     message = ""
     while True:
         answer = WIEC_utils.ask_on_slide(popup, config_data, "serial", "Find the WIEC serial",
-                                         "Enter the WIEC serial, then enter it again to confirm.",
+                                         "Enter the WIEC serial exactly as it is engraved, then enter it again to confirm.",
                                          fields=("WIEC serial", "Re-enter WIEC serial"),
-                                         message=message)
+                                         buttons=("Submit", "Back"), message=message)
         if answer is None:
             return WIEC_utils.confirm_input_ask("Enter WIEC serial:", "Reenter WIEC serial to confirm:")
+        if answer["button"] == "Back":
+            return None
+
         first, second = answer["fields"]
         if not first:
             message = "You must enter a serial."
@@ -134,6 +204,78 @@ def ask_serial(popup, config_data):
             message = "The two serials do not match. Please try again."
         else:
             return first
+
+
+def ask_serial_in_terminal(config_data):
+    """
+    The serial questions of ask_serial_boxes, in the terminal: each part in turn, or 'other' for
+    a serial in a different format.
+    """
+    while True:
+        part = WIEC_utils.ask("Enter the number after DUNE- in the WIEC serial (e.g. 201), "
+                              "or type 'other' if the serial is in a different format:")
+        if WIEC_utils.same_phrase(part, "other"):
+            return WIEC_utils.confirm_input_ask("Enter WIEC serial:", "Reenter WIEC serial to confirm:")
+        rev = WIEC_utils.ask("Enter the letter(s) after REV (e.g. A):")
+        number = WIEC_utils.ask("Enter the number after SN (e.g. 004):")
+
+        serial, problem = build_serial(config_data, part, rev, number)
+        if serial is None:
+            print(WIEC_utils.fail_text(problem))
+            continue
+        reply = WIEC_utils.ask(f"The serial is {serial}. Type 'yes' if this matches the WIEC serial, "
+                               f"or press Enter to enter it again:")
+        if WIEC_utils.same_phrase(reply, "yes"):
+            return serial
+
+
+def build_serial(config_data, part, rev, number):
+    """
+    Builds the serial from the three boxes with config "wiec_serial_format", the SN padded with
+    zeros to "wiec_serial_number_digits" and REV in capitals. Returns (serial, "") or, if a box is
+    wrong, (None, what is wrong) for the operator.
+    """
+    problems = []
+    if not part.isdigit():
+        problems.append("The DUNE- box must be a number, e.g. 201.")
+    if not rev.isalpha():
+        problems.append("The REV box must be letters, e.g. A.")
+    if not number.isdigit():
+        problems.append("The SN box must be a number, e.g. 004.")
+    if problems:
+        return None, "\n".join(problems)
+
+    number = number.zfill(config_data["wiec_serial_number_digits"])
+    return config_data["wiec_serial_format"].format(part=part, rev=rev.upper(), number=number), ""
+
+
+def confirm_retest(popup, config_data, previous_runs):
+    """
+    Tells the operator this serial was tested before (start time of each earlier run) and asks
+    whether this is a retest. True for a retest, False to go back and enter the serial again.
+    """
+    retest_button = config_data["retest_ok_button"]
+
+    # Start times as 2026-11-03 14:06, a few to a line so a long list stays on the screen
+    times = []
+    for stamp in previous_runs:
+        try:
+            times.append(datetime.strptime(str(stamp), "%Y-%m-%d_%H-%M-%S").strftime("%Y-%m-%d %H:%M"))
+        except ValueError:
+            times.append(str(stamp))       # typed into the sheet by hand: shown as it is
+    per_line = config_data["wiec_retest_dates_per_line"]
+    lines = [",   ".join(times[i:i + per_line]) for i in range(0, len(times), per_line)]
+
+    question = (f"This serial has already been tested ({len(times)} run{'s' if len(times) > 1 else ''}):\n"
+                + "\n".join(lines) + "\n"
+                "Would you like to retest this serial? (It will not overwrite the previous results)")
+
+    answer = WIEC_utils.ask_on_slide(popup, config_data, "serial", "Serial already tested",
+                                     question, buttons=(retest_button, "Back"))
+    if answer is None:
+        reply = WIEC_utils.ask(f"{question}\nType '{retest_button}' to retest, or press Enter to go back:")
+        return WIEC_utils.same_phrase(reply, retest_button)
+    return answer["button"] == retest_button
 
 
 def ask_visual_inspection(popup, config_data):

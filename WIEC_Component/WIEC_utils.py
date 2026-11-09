@@ -234,11 +234,12 @@ def show_slides(popup, config_data, name, title, index=None, button="Confirm"):
 
 
 def ask_on_slide(popup, config_data, name, title, prompt, fields=(), buttons=("Submit",), message="",
-                 index=None, heading=""):
+                 index=None, heading="", one_line=False):
     """
     Shows the slide config_data["wiec_popup_pages"][name] with text boxes and answer buttons
     under it (GUI.pop_window.show_input_popup); index picks one slide from a list (e.g. one
-    visual inspection step); heading is a bold line above the prompt. Returns {"button": ..., "fields": [...]}, or None when there is no
+    visual inspection step); heading is a bold line above the prompt; one_line puts the boxes side by
+    side (e.g. the serial parts). Returns {"button": ..., "fields": [...]}, or None when there is no
     window to answer in: pop-ups off, slide missing, an error, or the window closed. On None the
     caller asks in the terminal instead.
     """
@@ -260,7 +261,7 @@ def ask_on_slide(popup, config_data, name, title, prompt, fields=(), buttons=("S
         from GUI import pop_window
         answer = pop_window.show_input_popup(title=title, image_path=path, prompt=prompt,
                                              fields=fields, buttons=buttons, message=message,
-                                             heading=heading)
+                                             heading=heading, one_line=one_line)
     except Exception as exc:
         # KeyboardInterrupt is not caught: Ctrl-C on a slide still aborts and powers down
         print(color(f"(pop-up failed: {type(exc).__name__}: {exc})", FAIL_COLOR))

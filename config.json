@@ -50,6 +50,10 @@
         "shv_check_phrase": "SHV cables correct",
         "hv_warning_phrase": "Confirm HV Warning",
         "retry_check_phrase": "Hardware checked",
+        "retest_ok_button": "Retest",
+        "wiec_serial_format": "DUNE-{part} REV {rev} SN {number}",
+        "wiec_serial_number_digits": 3,
+        "wiec_retest_dates_per_line": 4,
 
 
 

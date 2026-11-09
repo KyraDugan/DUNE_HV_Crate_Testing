@@ -185,7 +185,8 @@ def show_input_popup(
     fields=(),
     buttons=("Submit",),
     message="",
-    heading=""
+    heading="",
+    one_line=False
 ):
     """
     Fullscreen slide with text boxes and answer buttons under it.
@@ -194,6 +195,7 @@ def show_input_popup(
     buttons  labels of the answer buttons; clicking one closes the window
     message  red line above the boxes, e.g. why the last answer was not accepted
     heading  bold line between the slide and the prompt, e.g. the WIB slot an error is about
+    one_line all the boxes on one line, each short box after its label (e.g. DUNE- [ ] REV [ ] SN [ ])
 
     Returns {"button": label clicked, "fields": [text of each box]}, or None if the
     window was closed without an answer.
@@ -216,18 +218,35 @@ def show_input_popup(
 
     font_style = ("Arial", 24)
 
-    # === Screen size ===
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
+    # === Window size ===
+    # The fullscreen window covers one monitor. winfo_screenwidth() would give both monitors
+    # together, so read the window itself once it is open
+    root.update()
+    screen_width = root.winfo_width() if root.winfo_width() > 1 else root.winfo_screenwidth()
+    screen_height = root.winfo_height() if root.winfo_height() > 1 else root.winfo_screenheight()
+    wrap_width = screen_width - 200     # longer lines wrap before the edge of the screen
 
     # === Main frame ===
     main_frame = ttk.Frame(root, padding=20)
     main_frame.pack(fill="both", expand=True)
 
+    # === Heading, prompt and message ===
+    # Made before the image but packed after it, so the image can leave room for every line they wrap onto
+    texts = []
+    if heading:
+        texts.append((tk.Label(main_frame, text=heading, font=font_style + ("bold",), wraplength=wrap_width), (10, 0)))
+    if prompt:
+        texts.append((tk.Label(main_frame, text=prompt, font=font_style, wraplength=wrap_width), (10, 0)))
+    if message:
+        texts.append((tk.Label(main_frame, text=message, font=font_style, fg="red", wraplength=wrap_width), 0))
+    root.update_idletasks()
+    text_height = sum(label.winfo_reqheight() + 10 for label, _ in texts)
+
     # === Image display ===
-    # Same fit-to-screen as show_image_popup, but leaves room under it for the prompt,
-    # the message, one row per text box and the buttons
-    reserved = 250 + 70 * len(fields) + (60 if heading else 0)
+    # Same fit-to-screen as show_image_popup, but leaves room under it for the text above,
+    # one row per text box (one in all for one_line) and the buttons
+    box_rows = min(len(fields), 1) if one_line else len(fields)
+    reserved = 200 + 70 * box_rows + text_height
     if image_path:
         try:
             img = Image.open(image_path)
@@ -250,23 +269,24 @@ def show_input_popup(
             print(f"Error loading image: {e}")
             ttk.Label(main_frame, text="Error loading image.", font=font_style).pack(expand=True)
 
-    # === Heading, prompt and message ===
-    if heading:
-        tk.Label(main_frame, text=heading, font=font_style + ("bold",)).pack(pady=(10, 0))
-    if prompt:
-        tk.Label(main_frame, text=prompt, font=font_style).pack(pady=(10, 0))
-    if message:
-        tk.Label(main_frame, text=message, font=font_style, fg="red").pack()
+    for label, pady in texts:
+        label.pack(pady=pady)
 
-    # === Text boxes: label on the left, box on the right ===
+    # === Text boxes: label on the left, box on the right; one row each, or all in one row ===
     field_vars = []
     entries = []
-    for label in fields:
+    if one_line:
         row = ttk.Frame(main_frame)
         row.pack(pady=5)
-        tk.Label(row, text=label, font=font_style, width=28, anchor="e").pack(side="left", padx=10)
+    for label in fields:
+        if not one_line:
+            row = ttk.Frame(main_frame)
+            row.pack(pady=5)
+            tk.Label(row, text=label, font=font_style, width=28, anchor="e").pack(side="left", padx=10)
+        else:
+            tk.Label(row, text=label, font=font_style).pack(side="left", padx=(20, 5))
         var = tk.StringVar()
-        entry = tk.Entry(row, textvariable=var, font=font_style, width=30)
+        entry = tk.Entry(row, textvariable=var, font=font_style, width=8 if one_line else 30)
         entry.pack(side="left")
         field_vars.append(var)
         entries.append(entry)
