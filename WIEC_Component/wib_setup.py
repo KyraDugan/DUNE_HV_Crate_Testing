@@ -39,23 +39,27 @@ def ptc_slot(wib_number):
     return int(wib_number) - 1
 
 
-def power_wibs(ser, power_map):
+def power_wibs(session, ser, power_map):
     """
-    wiec_serial.power_wib for {WIB number (1-6): "on"/"off"}. wiec_serial counts PTC slots 0-5
-    (it is shared with the legacy wiec_* scripts, so it stays that way); this converts both ways.
-    Returns the power outputs keyed by WIB number.
+    Switches WIBs {WIB number (1-6): "on"/"off"} with power_on_wib.py on the PTC (which counts
+    slots 0-5). After "off", waits until the WIB stops answering ping. Returns the command
+    outputs keyed by WIB number.
     """
-    outputs = WIEC_SERIAL.power_wib(ser, {ptc_slot(wib): state for wib, state in power_map.items()})
-    return {slot + 1: output for slot, output in outputs.items()}
+    outputs = {}
+    for wib, state in power_map.items():
+        outputs[wib] = WIEC_SERIAL.run_petalinux_command(ser, f"python3 power_on_wib.py {ptc_slot(wib)} {state}")
+        print(f"WIB {wib} {state}: {outputs[wib].strip()}")
 
-
-def read_wib_sensors(ser, power_map):
-    """
-    wiec_serial.sensors_addr for {WIB number (1-6): state}; converts to PTC slots and back like
-    power_wibs. Returns {WIB number: {"i2cset": ..., "i2cdetect": ...}}, which check_slot reads.
-    """
-    outputs = WIEC_SERIAL.sensors_addr(ser, {ptc_slot(wib): state for wib, state in power_map.items()})
-    return {slot + 1: output for slot, output in outputs.items()}
+    limit = session.json_data["wib_power_off_limit_s"]
+    for wib, state in power_map.items():
+        if state != "off":
+            continue
+        ip = expected_wib_ip(session, wib)
+        gone, _ = WIEC_utils.wait_until(f"WIB {wib}: waiting for power-off", lambda: not ping_once(ip), limit)
+        if not gone:
+            session.log(WIEC_utils.fail_text(f"WIB {wib} still answers ping {limit} s after power-off. "
+                                             "Check it is off before moving it."))
+    return outputs
 
 
 def expected_wib_ip(session, wib_number):
@@ -118,61 +122,103 @@ def i2cdetect_addresses(session, output):
 
 def ping_wib(session, ip_address):
     """
-    Pings the WIB, times out after time set in config.json.
+    Pings the WIB until it answers (it boots in about 30 s), up to wib_boot_limit_s.
     """
-    config_data = session.json_data
-    timeout_s = int(config_data.get("wib_ping_timeout_seconds"))
-    count = int(config_data.get("wib_ping_count"))
+    config = session.json_data
+    answered, seconds = WIEC_utils.wait_until(f"Waiting for {ip_address} to answer ping",
+                                              lambda: ping_once(ip_address),
+                                              config["wib_boot_limit_s"], 1,
+                                              expected_s=config["wib_boot_expected_s"])
+    if answered:
+        session.log(f"{ip_address} answered ping after {seconds:.0f} s")
+    return bool(answered)
 
-    command = ["ping", "-c", str(count), str(ip_address)]
 
-    try:
-        # A timeout raised inside run_with_bar comes back out here, so the except below still catches it
-        result = WIEC_utils.run_with_bar(
-            f"Pinging {ip_address}",
-            config_data["wib_ping_expected_s"],
-            subprocess.run,
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=timeout_s,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        print(f"Ping timed out after {timeout_s} seconds for: {ip_address}")
-        return False
+ECAT_COMMAND = "python3 ecat_test1b.py logfile.txt"
+ECAT_PASS_DONE = "switching back to default I2C bus"     # last line ecat prints in each pass
 
-    output = f"{result.stdout}\n{result.stderr}"
-    loss_match = re.search(r"(\d+(?:\.\d+)?)%\s*packet loss", output)
-    if not loss_match:
-        print(f"Could not parse ping packet loss for {ip_address}.")
-        if result.stderr.strip():
-            print(result.stderr.strip())
-        return False
 
-    packet_loss = float(loss_match.group(1))
-    return result.returncode == 0 and packet_loss == 0.0
+def ping_once(ip_address):
+    """True if ip_address answers one ping within 1 s."""
+    result = subprocess.run(["ping", "-c", "1", "-W", "1", str(ip_address)],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return result.returncode == 0
+
+
+def run_ecat_pass(session, ser):
+    """
+    One pass of ecat_test1b.py on the PTC. It takes the I2C switches out of reset, which the
+    WIB's I2C address needs. ecat loops forever, so it is stopped (Ctrl-Z) and killed after one pass.
+    """
+    WIEC_SERIAL.send_line(ser, ECAT_COMMAND)
+    WIEC_SERIAL.read_until_any(ser, [ECAT_PASS_DONE], timeout=session.json_data["wib_ecat_pass_limit_s"])
+    ser.write(b"\x1a")
+    ser.flush()
+    WIEC_SERIAL.run_petalinux_command(ser, "kill -9 %1")
+
+
+def i2c_ready(session, ser, wib_number):
+    """
+    A check for wait_until: one ecat pass, then an I2C scan. Returns the scan if the WIB's
+    address is in it, else None.
+    """
+    run_ecat_pass(session, ser)
+    output = WIEC_SERIAL.run_petalinux_command(ser, "i2cdetect -y -r 2", timeout=15)
+    if expected_wib_i2c_address(session, wib_number) in i2cdetect_addresses(session, output):
+        return output
+    return None
+
+
+def read_sensors_when_ready(session, ser, wib_number):
+    """
+    Waits until the WIB's I2C address shows, switches to its sensors (i2cset), then waits until
+    every sensor in wib_expected_sensor_addresses shows. Returns {"i2cset": ..., "i2cdetect": ...}
+    for check_slot. If the address never shows, the scan is empty, so check_slot fails it.
+    """
+    config = session.json_data
+    every = config["wib_poll_every_s"]
+
+    found, seconds = WIEC_utils.wait_until(f"WIB {wib_number}: waiting for its I2C address",
+                                           lambda: i2c_ready(session, ser, wib_number),
+                                           config["wib_i2c_ready_limit_s"], every)
+    if found is None:
+        session.log(WIEC_utils.fail_text(f"WIB {wib_number}: I2C address did not show within "
+                                         f"{config['wib_i2c_ready_limit_s']} s"))
+        return {"i2cset": "", "i2cdetect": ""}
+    session.log(f"WIB {wib_number}: I2C address showed after {seconds:.0f} s")
+
+    address = expected_wib_i2c_address(session, wib_number)
+    set_output = WIEC_SERIAL.run_petalinux_command(ser, f"i2cset -y 2 0x{address} 0x0002")
+    expected = set(config["wib_expected_sensor_addresses"])
+
+    def sensors_ready():
+        output = WIEC_SERIAL.run_petalinux_command(ser, "i2cdetect -y -r 2", timeout=15)
+        if expected <= i2cdetect_addresses(session, output):     # <= on sets: "all of these are in"
+            return output
+        return None
+
+    output, seconds = WIEC_utils.wait_until(f"WIB {wib_number}: waiting for its sensors",
+                                            sensors_ready, config["wib_sensor_ready_limit_s"], every)
+    if output is None:
+        output = WIEC_SERIAL.run_petalinux_command(ser, "i2cdetect -y -r 2", timeout=15)
+        missing = sorted(expected - i2cdetect_addresses(session, output))
+        session.log(WIEC_utils.fail_text(f"WIB {wib_number}: sensors missing: {missing}"))
+    else:
+        session.log(f"WIB {wib_number}: sensors ready after {seconds:.0f} s")
+    return {"i2cset": set_output, "i2cdetect": output}
+
+
 
 def login_zynq(session):
     """
     Logs into the zynq
     """
-
     config_data = session.json_data
-    WIEC_utils.countdown_sleep(session,
-                    "Waiting for Zynq boot before serial login",
-                    config_data.get("wib_zynq_settle_time"))
     try:
         ser = WIEC_SERIAL.login(config_data["wib_petalinux_login_expected_s"])
     except (Exception, SystemExit) as exc:
         session.log(f"Zynq serial login failed ({exc!r}): Check the USB cable and PTC power.")
         return None
-    
-    WIEC_utils.countdown_sleep(session, 
-                    "Waiting for Zynq to settle after serial login", 
-                    config_data.get("wib_zynq_settle_time"))
-
     return ser
     
 
@@ -231,47 +277,6 @@ def record_slot_checks(session, wib_number, checks, attempts=1):
             note = f"{note}; attempt {attempts}"
         record_results.measure(session, "wib_checkout", measurement, value, passed=passed,
                                wib_slot=wib_number, note=note)
-
-
-def power_single_wib(session, wib_number):
-    """
-    Powers single WIB, validates IP and I2C.
-    """
-
-    config_data = session.json_data
-    wib_number = int(wib_number)
-
-    WIEC_utils.print_prompt_section(f"WIB {wib_number} powering ON")
-    session.log(f"Power WIB {wib_number} ON")
-
-    ser = login_zynq(session)
-
-    if ser is None:
-        return False
-    
-    try:
-        power_map = {wib_number: "on"}
-        power_outputs = power_wibs(ser, power_map)
-        print(f"Power output for WIB {wib_number}: {power_outputs}")
-
-        WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
-        WIEC_utils.countdown_sleep(session, 
-                        "Waiting before WIB sensor readout", 
-                        config_data.get("wib_sensor_read_wait_seconds"))
-
-        sensor_outputs = read_wib_sensors(ser, power_map)
-        print(f"Sensor outputs for WIB {wib_number}: {sensor_outputs}")
-
-
-
-    finally:
-        WIEC_SERIAL.close_serial(ser)
-
-    return True
-
-
-def run(session, wib_number):
-    return power_single_wib(session, wib_number)
 
 if __name__ == "__main__":
     print("WIB_setup module is a helper and should be called by the WIEC workflow.")

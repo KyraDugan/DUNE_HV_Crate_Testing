@@ -135,21 +135,24 @@
         "wib_boards_available": 1,
         "wib_ip_prefix": "10.73.137",
         "wib_ip_last_octet_base": 71,
-        "wib_ping_timeout_seconds": 10,
-        "wib_ping_count": 4,
-        "wib_ping_expected_s": 3,
         "wib_expected_i2c_prefix": "7",
-        "wib_zynq_settle_time": 100,
-        "wib_petalinux_login_expected_s": 12,
-        "wib_sensor_read_wait_seconds": 45,
+        "wib_petalinux_login_expected_s": 30,
         "wib_checkout_wait_seconds": 30,
         "wib_command_timeout_s": 30,
         "wib_startup_timeout_s": 40,
         "wib_startup_expected_s": 15,
         "wib_software_dir": "BNL_CE_WIB_SW_QC",
         "wib_ssh_connect_timeout_s": 10,
+        "wib_poll_every_s": 2,
+        "wib_ecat_pass_limit_s": 15,
+        "wib_i2c_ready_limit_s": 120,
+        "wib_expected_sensor_addresses": ["22", "23", "48", "49", "4a", "4b", "4e"],
+        "wib_sensor_ready_limit_s": 30,
+        "wib_boot_limit_s": 120,
+        "wib_boot_expected_s": 30,
+        "wib_power_off_limit_s": 30,
 
-
+        
 
     "FEMB TEST": "These keys control the FEMB test",
 
@@ -162,9 +165,8 @@
             "BNL-FEMB-IO-1865-1J-00003"]
                         ],
         "wiec_femb_tests": {
-            "power": true, "registers": true, "noise": false, "noise_peaking_times": false,
-            "se_power": false, "se_rails": true, "se_pulse": true,
-            "diff_pulse": false, "diff_power": false, "diff_rails": false, "monitor_path": true
+            "power": true, "registers": true, "se_rails": true,
+            "monitor_path": true, "noise": false, "se_pulse": true
         },
         "wiec_femb_dc2dc_V": {"LArASIC": 3.0, "ColdDATA": 3.0, "ColdADC": 3.5},
         "wiec_femb_safety_A": {"presence_min_A": 0.05, "BIAS_abs_max": 0.15, "LArASIC_min": 0.3, "ColdDATA_max": 0.3},
@@ -176,7 +178,6 @@
         "wiec_femb_settle_s": 3.5,
         "wiec_femb_toy_tpc": "PCB_Based",
         "wiec_femb_script": "wiec_femb_chk.py",
-        "wib_femb_positions": 4,
         "wiec_femb_checkout_timeout_s": 300,
         "wiec_femb_checkout_expected_s": 200,
         "wiec_femb_limits": {

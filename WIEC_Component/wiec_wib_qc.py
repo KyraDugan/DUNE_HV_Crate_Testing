@@ -49,7 +49,7 @@ from . import record_results
 NAME = "WIB/FEMB"
 KEY = "wiec_wib_qc"
 DESCRIPTION = "Sequential WIB powering and FEMB checkout to test Flange Board"
-EST_MINUTES = 75
+EST_MINUTES = 50     # measured 2026-11-13: ~26 min machine time for 6 WIBs + ~24 min operator (slides, 5 WIB moves)
 
 
 
@@ -198,15 +198,12 @@ def start_ptc(session):
 
 def power_on_slots(session, ser, slots):
     """
-    Powers on the WIBs in slots, scans I2C and reads each WIB's sensors.
+    Powers on the WIBs in slots, then waits for each one's I2C address and sensors.
     Returns the sensor outputs ({slot: ...}) that wib_setup.check_slot reads.
     """
-    power_map = {slot: "on" for slot in slots}
-    wib_setup.power_wibs(ser, power_map)
-    WIEC_SERIAL.run_ecat_soft_timeout_then_i2cdetect(ser)
-    WIEC_utils.countdown_sleep(session, "Waiting before WIB sensor readout",
-                               session.json_data.get("wib_sensor_read_wait_seconds"))
-    return wib_setup.read_wib_sensors(ser, power_map)
+    wib_setup.power_wibs(session, ser, {slot: "on" for slot in slots})
+    return {slot: wib_setup.read_sensors_when_ready(session, ser, slot) for slot in slots}
+
 
 
 def check_wib(session, ser, wib, sensor_outputs):
@@ -220,7 +217,7 @@ def check_wib(session, ser, wib, sensor_outputs):
     if not passed:
         session.log(WIEC_utils.fail_text(f"WIB {wib} checkout failed: {reason}. "
                                          "Powering the WIB off so it can be checked."))
-        wib_setup.power_wibs(ser, {wib: "off"})
+        wib_setup.power_wibs(session, ser, {wib: "off"})
         WIEC_utils.ask_to_fix_on_slide(getattr(session, "popup", None), session.json_data, "wib_error",
                                        f"WIB checkout failed: WIB slot {wib}",
                                        [], heading=f"WIB slot {wib}")
@@ -336,7 +333,7 @@ def run_batch(session, ser, batch, femb_sets, placed):
 
 
     finally:
-        wib_setup.power_wibs(ser, {slot: "off" for slot in batch})
+        wib_setup.power_wibs(session, ser, {slot: "off" for slot in batch})
 
     return batch_results
 
