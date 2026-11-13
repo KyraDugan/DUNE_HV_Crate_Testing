@@ -36,7 +36,7 @@ Within **/home/dune-daq/DUNE-HV-Crate-Testing/WIEC_Component**, there are many d
 |  Test Scripts  |  Test Helpers  |  General Helpers  |  Unused  |
 |----------------|----------------|-------------------|----------|
 | fan_pwm_sweep.py | analysis.py | __init__.py | hv_limit_adjust.py |
-| fan_test.py |femb_checkout.py | WIEC_Popups_v2.pdf | hv_module_report.py |
+| fan_test.py |femb_checkout.py | WIEC_Popups_v3.pdf | hv_module_report.py |
 | heater_test.py | wiec_femb_chk.py | output_log.py | HV_MODULE_TEST_DEVLOG.md |
 | hv_test.py | wiec_report.py | WIEC_utils.py | hv_module_test.py |
 | wiec_wib_qc.py | wib_setup.py | preflight.py | iseg_mpod.py |

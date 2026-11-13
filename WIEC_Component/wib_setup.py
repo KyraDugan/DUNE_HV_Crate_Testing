@@ -25,17 +25,9 @@ config.json keys used:
 -------------------------------------------------------------------------------------------------------
 """
 
-import json
-import traceback
-import subprocess
-import os
-import sys
-import re
-import time 
+import subprocess, re
 import wiec_serial as WIEC_SERIAL
-from . import WIEC_utils
-from . import record_results
-
+from . import WIEC_utils, record_results
 
 VALID_POWER_STATES = {"on", "off"}
 

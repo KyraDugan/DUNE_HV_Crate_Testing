@@ -26,15 +26,9 @@ config.json keys used:
 -------------------------------------------------------------------------------------------------------
 """
 
-import sys
-import time
-import pyvisa
+import sys, time, pyvisa
 import wiec_serial as WIEC_SERIAL
-
-from . import cli
-from . import WIEC_utils
-from . import record_results
-
+from . import cli, WIEC_utils, record_results
 
 NAME = "PTC Power"
 KEY = "ptc_power"
