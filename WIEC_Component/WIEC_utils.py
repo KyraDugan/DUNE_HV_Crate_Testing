@@ -514,3 +514,27 @@ def countdown_sleep(session, message, wait_time):
     session.log(f"{message}: waiting {int(wait_time)} seconds\n")
     countdown(message, wait_time)
     session.log(f"{message}: wait complete")
+
+def wait_until(message, check, limit_s, interval=1.0, expected_s=None):
+    """
+    Calls a check every interval seconds until it returns something that isn't a progress bar.
+    Returns what the check returned and the seconds it took to be returned, or (None, seconds).
+    """
+
+    expected_s = expected_s or limit_s
+    start = time.time()
+    while True:
+        draw_bar(message, time.time() - start, expected_s)
+        result = check()
+        elapsed = time.time() - start
+        if result:
+            finish_bar(message)
+            return result, elapsed
+        if elapsed >= limit_s:
+            print()
+            _bar_colors.pop(message, None)
+            return None, elapsed
+        next_check = time.time() + interval
+        while time.time() < next_check:
+            draw_bar(message, time.time() - start, expected_s)
+            time.sleep(0.1)

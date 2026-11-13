@@ -2,21 +2,16 @@
 
 WIEC FEMB pass-through checkout (WIB side)
 
-Version of femb_assembly_chk.py for the WIEC crate test. Every warm
-test of the original can run, and each one is switched on or off in
-config.json ("wiec_femb_tests"). They run in the order originally 
+Version of femb_assembly_chk.py for the WIEC crate test. These warm
+tests of the original can run, and each one is switched on or off in
+config.json ("wiec_femb_tests"). They run in the order originally
 given in the CTS script:
 
     power                 2.1  Initial power: V, I, P of each rail
     registers             2.2  COLDATA and ColdADC default registers
     noise                 3.1  Pedestal and RMS noise, SE 200 mV, 14 mV/fC, 2 us      (ADC data)
-    noise_peaking_times   3.1  RMS at 0.5/1/2/3 us, SE 900 mV (BNL's optional "sp")  (ADC data)
-    se_power              3.2  Power in the SE configuration
     se_rails              3.3  FEMB LDO voltages, SE configuration
     se_pulse              3.4  SE pulse response, 900 mV                             (ADC data)
-    diff_pulse            4.1  DIFF pulse response, 900 mV                           (ADC data)
-    diff_power            4.2  Power in the DIFF configuration
-    diff_rails            4.3  FEMB LDO voltages, DIFF configuration
     monitor_path          5    FE temperature, bandgap, ColdADC references per ASIC
 
 
@@ -79,13 +74,22 @@ import json
 import signal
 from wib_cfgs import WIB_CFGS
 
+
+SCRIPT_START = time.time()       # when this script started, for the step times in the output
+
+
+def step(name):
+    """Prints how long the script has been running, so the saved output shows each step's time."""
+    print(f"[{time.time() - SCRIPT_START:6.1f} s] {name}", flush=True)
+
+
+
 RESULT_MARKER = "WIEC_RESULT_JSON"     # protocol with femb_checkout.py: must match RESULT_MARKER there
 FEMB_POSITIONS = 4                     # FEMB connectors on a WIB: positions are 0-3
 
-# Must match TEST_NAMES in femb_checkout.py. The order is the order they run in.
-TEST_NAMES = ["power", "registers", "noise", "noise_peaking_times", "se_power", "se_rails",
-              "se_pulse", "diff_pulse", "diff_power", "diff_rails", "monitor_path"]
-DATA_TESTS = ["noise", "noise_peaking_times", "se_pulse", "diff_pulse"]   # capture ADC data
+# Must match FEMB_TESTS in femb_checkout.py.
+TEST_NAMES = ["power", "registers", "noise", "se_rails", "se_pulse", "monitor_path"]
+DATA_TESTS = ["noise", "se_pulse"]   # capture ADC data
 SETTING_NAMES = ["tests", "femb_ids", "dc2dc_V", "safety_A", "monitor_samples", "monitor_lsb_mV",
                  "data_samples", "settle_s", "toy_tpc", "i2c_tries", "cable_mapping_check"]
 DC2DC_SENSORS = ["DC2DC0", "DC2DC1", "DC2DC2"]    # the FEMB's three DC-DC supplies (LArASIC, COLDATA, ColdADC)
@@ -102,10 +106,8 @@ MAPPING_REGISTER = {"chip_addr": 3, "reg_page": 0, "reg_addr": 0x2B}
 MAPPING_PATTERNS = (0xA5, 0x5A)
 
 # BNL front end configurations (copied from femb_assembly_chk.py). All are 14 mV/fC.
-SE_200MV = {"snc": 1, "sts": 0, "swdac": 0, "dac": 0x00, "pulse": 0}                     # 3.1, 3.2, 3.3
+SE_200MV = {"snc": 1, "sts": 0, "swdac": 0, "dac": 0x00, "pulse": 0}                     # 3.1, 3.3
 SE_900MV_PULSE = {"snc": 0, "sts": 1, "swdac": 1, "dac": 0x10, "pulse": 1}               # 3.4, 5
-DIFF_900MV_PULSE = {"snc": 0, "sts": 1, "swdac": 1, "dac": 0x10, "pulse": 1, "diff": True}  # 4.1-4.3
-PEAKING_TIMES = {"0_5us": (1, 0), "1_0us": (0, 0), "2_0us": (1, 1), "3_0us": (0, 1)}       # name: (st0, st1)
 
 
 def parse_positions(args):
@@ -329,21 +331,21 @@ def power_on(chk, positions, settings):
 
 
 
-def configure_fembs(chk, positions, i2c_tries, snc, sts, swdac, dac, pulse, st0=1, st1=1, diff=False):
+def configure_fembs(chk, positions, i2c_tries, snc, sts, swdac, dac, pulse):
     """
-    Reset and configure the FEMBs: 14 mV/fC, peaking time from st0/st1 (default 2 us),
-    single ended or differential (diff) ColdADC input. These FEMBs all configured at power
+    Reset and configure the FEMBs: 14 mV/fC, 2 us peaking time, single ended
+    ColdADC input. These FEMBs all configured at power
     on, so one that fails now is a real fault: the run stops (FEMBs are switched off by
     main's finally) and femb_checkout.py reports that the checkout did not finish. The
     measurements so far were taken with that FEMB in place, so the others are not re-powered.
     """
     chk.femb_cd_rst()
     for chip in range(8):
-        chk.adcs_paras[chip][2] = 1 if diff else 0    # ColdADC differential input
+        chk.adcs_paras[chip][2] = 0                   # ColdADC single-ended input
         chk.adcs_paras[chip][8] = 1                   # ColdADC auto calibration on
     for position in positions:
-        chk.set_fe_board(sts=sts, snc=snc, sg0=0, sg1=0, st0=st0, st1=st1,
-                         sdd=1 if diff else 0, swdac=swdac, dac=dac)
+        chk.set_fe_board(sts=sts, snc=snc, sg0=0, sg1=0, st0=1, st1=1,     # st0=1, st1=1: 2 us
+                         sdd=0, swdac=swdac, dac=dac)
         configured, reason = configure_femb(chk, position, pulse, i2c_tries)
         if reason == "all_off":
             raise RuntimeError(f"FEMB position {position} failed its LArASIC configuration during the "
@@ -461,7 +463,7 @@ def to_mv(samples, position, ground, lsb_mv):
 
 def measure_rails(chk, positions, configuration, samples, lsb_mv, i2c_tries):
     """
-    BNL 3.3 / 4.3: FEMB LDO voltages in mV under `configuration`, ground offset subtracted.
+    BNL 3.3: FEMB LDO voltages in mV under `configuration`, ground offset subtracted.
     "_HALF" rails are read through a divide by 2, so they are doubled.
     Returns {position: {rail name: mV}}
     """
@@ -527,9 +529,9 @@ def measure_monitor_path(chk, positions, ground_mv, samples, lsb_mv, i2c_tries):
 class BnlAnalysis:
     """
     Wraps BNL's analysis for the ADC data tests: creates BNL's data and report
-    folders (CHK/ and CHK/Report/), runs rms_ped_ana / se_pulse_ana /
-    DIFF_pulse_data, and reads BNL's verdict and summary numbers back out of
-    BNL's log tables. Only created when an ADC data test is switched on.
+    folders (CHK/ and CHK/Report/), runs rms_ped_ana / se_pulse_ana, and reads
+    BNL's verdict and summary numbers back out of BNL's log tables. Only created
+    when an ADC data test is switched on.
     """
 
     def __init__(self, chk, positions, settings):
@@ -573,16 +575,6 @@ class BnlAnalysis:
             }
         return results
 
-    def noise_peaking_times(self):
-        """BNL 3.1 'sp': RMS at the four peaking times, SE 900 mV. One verdict and rms_mean per peaking time."""
-        results = {position: {"bnl_pass": True, "values": {}} for position in self.positions}
-        for name, (st0, st1) in PEAKING_TIMES.items():
-            configuration = {"snc": 0, "sts": 0, "swdac": 0, "dac": 0x00, "pulse": 0, "st0": st0, "st1": st1}
-            for position, one in self.noise(configuration, f"Raw_SE_900mVBL_14_0mVfC_{name}_0x00").items():
-                results[position]["bnl_pass"] = results[position]["bnl_pass"] and one["bnl_pass"]
-                results[position]["values"][f"rms_mean_{name}"] = one["values"]["rms_mean"]
-        return results
-
     def se_pulse(self):
         """BNL 3.4: SE pulse response. BNL's verdict plus mean positive peak, negative peak, baseline."""
         self.a_func.se_pulse_ana(self.capture(SE_900MV_PULSE), self.positions, self.femb_no, self.report_dirs,
@@ -598,14 +590,6 @@ class BnlAnalysis:
             }
         return results
 
-    def diff_pulse(self):
-        """BNL 4.1: DIFF pulse response. BNL keeps no summary numbers for it, only its verdict."""
-        self.a_func.DIFF_pulse_data(self.capture(DIFF_900MV_PULSE), self.positions, self.femb_no, self.report_dirs,
-                                    "Raw_DIFF_900mVBL_14_0mVfC_2_0us_0x10")
-        return {position: {"bnl_pass": bool(self.log.report_log08[self._label(position)].get("Result", False)),
-                           "values": {}}
-                for position in self.positions}
-
 
 # ----------------------------------------------------------------------
 # Running the selection
@@ -615,39 +599,30 @@ def run_selected_tests(chk, positions, tests, settings, result):
     samples, lsb_mv, i2c_tries = settings["monitor_samples"], settings["monitor_lsb_mV"], settings["i2c_tries"]
 
     if tests["registers"]:
+        step("registers")
         result["registers"] = check_registers(chk, positions)
 
+    step("BNL analysis setup")
     bnl = BnlAnalysis(chk, positions, settings) if any(tests[name] for name in DATA_TESTS) else None
     if bnl:
         result["report_dir"] = "CHK/Report"
 
     if tests["noise"]:
         result["noise"] = bnl.noise(SE_200MV, "Raw_SE_200mVBL_14_0mVfC_2_0us_0x00")
-    if tests["noise_peaking_times"]:
-        result["noise_peaking_times"] = bnl.noise_peaking_times()
-
-    if tests["se_power"]:
-        configure_fembs(chk, positions, i2c_tries, **SE_200MV)
-        result["se_power"] = measure_power(chk, positions)
 
     se_rails = None
     if tests["se_rails"] or tests["monitor_path"]:
+        step("SE rails")
         se_rails = measure_rails(chk, positions, SE_200MV, samples, lsb_mv, i2c_tries)
         if tests["se_rails"]:
             result["se_rails"] = se_rails
 
     if tests["se_pulse"]:
+        step("SE pulse")
         result["se_pulse"] = bnl.se_pulse()
-    if tests["diff_pulse"]:
-        result["diff_pulse"] = bnl.diff_pulse()
-
-    if tests["diff_power"]:
-        configure_fembs(chk, positions, i2c_tries, **DIFF_900MV_PULSE)
-        result["diff_power"] = measure_power(chk, positions)
-    if tests["diff_rails"]:
-        result["diff_rails"] = measure_rails(chk, positions, DIFF_900MV_PULSE, samples, lsb_mv, i2c_tries)
 
     if tests["monitor_path"]:
+        step("monitor path")
         ground_mv = {position: se_rails[position]["GND"] for position in positions}
         result["monitor_path"] = measure_monitor_path(chk, positions, ground_mv, samples, lsb_mv, i2c_tries)
 
@@ -663,6 +638,7 @@ def main():
     for stop_signal in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(stop_signal, lambda number, frame: sys.exit(f"Stopped by signal {number}"))
 
+    step("connecting to the WIB") 
     chk = WIB_CFGS()
     chk.wib_fw()
 
@@ -671,12 +647,16 @@ def main():
     for name in TEST_NAMES:
         result[name] = {}
     try:
+        step("start from off")
         start_from_off(chk, settings)
         if settings["cable_mapping_check"]:
+            step("cable mapping check")
             result["cable_mapping"] = cable_mapping_check(chk, positions)   # reported, never dropped
+        step("power on")
         result["dropped_reasons"] = power_on(chk, positions, settings)      # not connected / no I2C
         connected = [position for position in positions if position not in result["dropped_reasons"]]
-        power = measure_power(chk, connected) if connected else {}
+        step("power measurement")
+        power =measure_power(chk, connected) if connected else {}
         result["dropped_reasons"].update(safety_cut(chk, power, settings["safety_A"]))   # always, for safety
         result["dropped"] = list(result["dropped_reasons"])
         if tests["power"]:
@@ -686,8 +666,10 @@ def main():
         if tested:
             run_selected_tests(chk, tested, tests, settings, result)
     finally:
+        step("power off")
         print("Turning off FEMBs")
         chk.femb_powering([])
+        step("done")
 
     print(f"Time: {round(time.time() - start, 1)} s")
     print(RESULT_MARKER + " " + json.dumps(result))

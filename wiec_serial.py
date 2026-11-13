@@ -27,6 +27,7 @@ USB_PORT_SCAN_STORED = False
 BAUDRATE = 115200
 USERNAME = "root"
 PASSWORD = "root"
+SHELL_PROMPT = "root@ptc"
 
 ANSI_ESCAPE_RE = re.compile(
     r"\x1b\[[0-?]*[ -/]*[@-~]"
@@ -251,7 +252,7 @@ def login_petalinux(expected_s=None):
     serial_log("Waiting for PetaLinux login prompt...")
     output, matched = read_until_any(
         ser,
-        keywords=["login:", "password:", "#", "$", "ZynqMP>"],
+        keywords=["login:", "password:", SHELL_PROMPT, "ZynqMP>"],
         timeout=300,
         message="Waiting for PetaLinux login prompt",
         expected_s=expected_s
@@ -273,7 +274,7 @@ def login_petalinux(expected_s=None):
         serial_log("Waiting for PetaLinux to finish booting...")
         output, matched = read_until_any(
             ser,
-            keywords=["login:", "password:", "#", "$"],
+            keywords=["login:", "password:", SHELL_PROMPT],
             timeout=60  # Increased timeout for full kernel boot
         )
         
@@ -284,21 +285,19 @@ def login_petalinux(expected_s=None):
             sys.exit(1)
 
     # Already logged in
-    if matched in ["#", "$"]:
+    if matched == SHELL_PROMPT:
         serial_log("Already at shell prompt.")
         return ser
 
-    # Username prompt
+    
     if matched.lower() == "login:":
         serial_log("Sending username...")
         send_line(ser, USERNAME)
-        #output, matched = read_until_any(ser, keywords=["password:", "#", "$"], timeout=10)
+        output, matched = read_until_any(ser, keywords=[SHELL_PROMPT, "password:"], timeout=15)
+        if matched == "password:":
+            send_line(ser, PASSWORD)
+            output, matched = read_until_any(ser, keywords=[SHELL_PROMPT, "login incorrect"], timeout=15)
 
-    # Password prompt
- #   if matched and matched.lower() == "password:":
-  #      print("Sending password...")
-   #     send_line(ser, PASSWORD)
-   #     output, matched = read_until_any(ser, keywords=["#", "$", "login incorrect"], timeout=10)
 
     if matched is None or "login incorrect" in output.lower():
         serial_error("Login failed.")
